@@ -117,6 +117,86 @@ static int run_script(const char* path, const char* name, uint32_t tail) {
     return 0;
 }
 
+// a long fake day: random sessions, idle gaps, touches. no frames, just stats
+// so we can see if it really keeps changing. ./sim soak [hours]
+static int soak(int hours) {
+    Brain brain;
+    Canvas c;
+    uint32_t rng = 99;
+    auto rnd = [&](uint32_t n) {
+        rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
+        return rng % n;
+    };
+    static int plays[256];
+    static uint32_t screen_ms[256];
+    brain.begin(0, 7);
+    char reply[64], line[64];
+    auto send = [&](const char* l, uint32_t now) {
+        snprintf(line, sizeof(line), "%s", l);
+        proto_line(brain, line, now, reply, sizeof(reply));
+    };
+    const char* tools[] = {"Bash", "Read", "Grep", "Glob", "Edit", "Write", "WebFetch", "TodoWrite", "mcp__x__y"};
+    uint32_t end = hours * 3600000u, now = 0, next_ev = 5000;
+    int state = 0, steps_left = 0;
+    const char* shown = "";
+    int changes = 0;
+    send("time 09:00", 0);
+    while (now < end) {
+        if (now >= next_ev) {
+            if (state == 0) {   // idle gap over: start a session
+                send("ev start", now);
+                state = 1;
+                steps_left = 3 + rnd(6);
+                next_ev = now + 3000 + rnd(20000);
+            } else if (state == 1) {   // a prompt
+                send("ev prompt", now);
+                state = 2;
+                steps_left = 2 + rnd(12);
+                next_ev = now + 2000 + rnd(8000);
+            } else if (state == 2) {   // tools
+                char l[64];
+                int r = rnd(100);
+                if (r < 6) send("ev perm", now);
+                else if (r < 9) { snprintf(l, sizeof(l), "ev sub %d", 1 + (int)rnd(5)); send(l, now); }
+                else if (r < 12) send("ev sub 0", now);
+                else if (r < 15) send(rnd(3) ? "ev test pass" : "ev test fail", now);
+                else if (r < 17) send("ev commit", now);
+                else if (r < 19) send("ev toolfail Bash", now);
+                else { snprintf(l, sizeof(l), "ev tool %s", tools[rnd(9)]); send(l, now); }
+                next_ev = now + 800 + rnd(9000);
+                if (--steps_left <= 0) state = 3;
+            } else if (state == 3) {   // turn done
+                send("ev done", now);
+                state = --steps_left > 0 ? 1 : 4;
+                next_ev = now + 10000 + rnd(120000);
+            } else {   // session over, long idle gap
+                send("ev end", now);
+                state = 0;
+                next_ev = now + 60000 + rnd(50 * 60000);
+            }
+        }
+        if (rnd(20000) == 0) send(rnd(4) ? "touch tap" : (rnd(2) ? "touch double" : "touch long"), now);
+        brain.render(c, now);
+        const char* cur = brain.current();
+        const Anim* a = find_anim(cur);
+        int idx = -1;
+        for (int i = 0; i < anim_count(); i++)
+            if (anim_at(i) == a) idx = i;
+        if (strcmp(cur, shown)) {
+            shown = cur;
+            changes++;
+            if (idx >= 0) plays[idx]++;
+        }
+        if (idx >= 0) screen_ms[idx] += FRAME_MS * 5;
+        now += FRAME_MS * 5;   // 10 fps is enough for stats
+    }
+    printf("%d hours, %d changes (one every %.1f s)\n", hours, changes, end / 1000.0 / changes);
+    printf("%-18s %6s %8s\n", "anim", "plays", "screen%");
+    for (int i = 0; i < anim_count(); i++)
+        printf("%-18s %6d %7.1f%%\n", anim_at(i)->name, plays[i], 100.0 * screen_ms[i] / end);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: sim list | anim <name> [ms] | all | script <file>\n");
@@ -137,6 +217,8 @@ int main(int argc, char** argv) {
         render_anim(a, argc >= 4 ? atoi(argv[3]) : a->ms);
     } else if (!strcmp(cmd, "all")) {
         for (int i = 0; i < anim_count(); i++) render_anim(anim_at(i), anim_at(i)->ms);
+    } else if (!strcmp(cmd, "soak")) {
+        return soak(argc >= 3 ? atoi(argv[2]) : 12);
     } else if (!strcmp(cmd, "script") && argc >= 3) {
         // ./sim script scripts/demo.txt [name] [tail_ms]
         const char* name = argc >= 4 ? argv[3] : "demo";
