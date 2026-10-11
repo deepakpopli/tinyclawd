@@ -182,6 +182,87 @@ static void a_var_check(Canvas& c, uint32_t t, const Ctx& x) {
     for (int i = 0; i < dots; i++) end = c.text(end, 54, ".", font_5x7);
 }
 
+// ------------------------------------------------------------ substitution
+
+static void a_substitution(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t h = hash32(x.seed + 4242);
+    bool numbers = h & 1;                   // a real LED board with shirt numbers
+    int out = 2 + (h >> 4) % 22, in = 2 + (h >> 12) % 22;
+    if (in == out) in = out % 23 + 2;
+    const uint32_t UP = 300, DOWN = 2400, END = 2700;
+
+    float y = 0;
+    if (t < UP) y = 60 * (1 - ease(seg(t, 0, UP)));
+    else if (t >= DOWN) y = 60 * ease_in(seg(t, DOWN, END));
+    int oy = iround(y);
+    if (oy < 60) {
+        c.fill_rect(24, 4 + oy, 104, 44 + oy, false);
+        c.rect(24, 4 + oy, 104, 44 + oy);
+        c.fill_rect(62, 44 + oy, 66, 52 + oy);
+        bool blink = (t / 180) % 2 == 0;
+        if (numbers) {
+            char s[4];
+            c.text(30, 10 + oy, "OUT", font_5x7);
+            c.text(30, 29 + oy, "IN", font_5x7);
+            snprintf(s, sizeof(s), "%d", out);
+            c.text_center(80, 6 + oy, s, font_bold16);
+            snprintf(s, sizeof(s), "%d", in);
+            c.text_center(80, 25 + oy, s, font_bold16);
+            if (blink) {
+                float d[] = {55, 11.f + oy, 61, 11.f + oy, 58, 15.f + oy};
+                float u[] = {55, 34.f + oy, 61, 34.f + oy, 58, 30.f + oy};
+                c.fill_poly(d, 3);
+                c.fill_poly(u, 3);
+            }
+        } else {
+            c.text(34, 10 + oy, "OUT", font_5x7);
+            c.text(58, 10 + oy, "SONNET", font_5x7);
+            c.text(34, 28 + oy, "IN", font_5x7);
+            c.text(58, 28 + oy, "OPUS", font_5x7);
+            if (blink) {
+                float d[] = {26, 11.f + oy, 32, 11.f + oy, 29, 15.f + oy};
+                float u[] = {26, 33.f + oy, 32, 33.f + oy, 29, 29.f + oy};
+                c.fill_poly(d, 3);
+                c.fill_poly(u, 3);
+            }
+        }
+    }
+    // the fourth official peeking from both sides
+    Eye e = eye(0, 0, 6, 10);
+    uint32_t b = t % 1300;
+    if (b >= 900 && b < 900 + BLINK_MS) e = blink_eye(e, (b - 900) / (float)BLINK_MS);
+    draw_eye(c, 14, 54, e);
+    e.mirror = true;
+    draw_eye(c, 114, 54, e);
+}
+
+// ----------------------------------------------------------- stoppage time
+
+static void a_stoppage_time(Canvas& c, uint32_t t, const Ctx& x) {
+    static const int ADD[] = {2, 3, 3, 4, 4, 5, 6, 7};
+    int n = ADD[hash32(x.seed + 9) % 8];
+    const uint32_t LOOK = 250, UP = 700, DOWN = 2350, GONE = 2650, BACK = 2900;
+
+    float k = t < DOWN ? ease(seg(t, 0, LOOK)) : 1 - ease(seg(t, GONE, BACK));
+    Eye e = eye(-14 * k, 4 * k);
+    e.lid = 0.2f * k;
+    face(c, e);
+
+    float by;
+    if (t < LOOK) return;
+    if (t < UP) by = 64 - 60 * ease(seg(t, LOOK, UP));
+    else if (t < DOWN) by = 4;
+    else by = 4 + 60 * ease_in(seg(t, DOWN, GONE));
+    int y = iround(by);
+    if (y > 63) return;
+    c.fill_rect(80, y, 126, y + 34, false);
+    c.rect(80, y, 126, y + 34);
+    char s[4];
+    snprintf(s, sizeof(s), "+%d", n);
+    bool on = t < UP || t >= DOWN || (t - UP) % 440 < 330;
+    if (on) c.text_center(103, y + 6, s, font_bold24);
+}
+
 // ----------------------------------------------------------------- full time
 
 static void a_full_time(Canvas& c, uint32_t t, const Ctx& x) {
@@ -224,6 +305,8 @@ static const Anim A_SCORE = {"scoreboard", a_scoreboard, 3200, SCENE};
 static const Anim A_YELLOW = {"yellow_card", a_yellow_card, 3150, CALM};
 static const Anim A_RED = {"red_card", a_red_card, 3150, CALM};
 static const Anim A_VAR = {"var_check", a_var_check, 4000, LOOP | SCENE};
+static const Anim A_SUB = {"substitution", a_substitution, 2700, SCENE};
+static const Anim A_STOPPAGE = {"stoppage_time", a_stoppage_time, 2950, CALM};
 static const Anim A_FULL = {"full_time", a_full_time, 2600, CALM};
 
-ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_FULL);
+ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_SUB, &A_STOPPAGE, &A_FULL);
