@@ -143,7 +143,7 @@ void bang(Canvas& c, int x, int y) {
 
 void zzz(Canvas& c, float t) {
     // three z's drifting up and right, small to big
-    static const int x0s[] = {98, 104, 110}, y0s[] = {34, 18, 2};
+    static const int x0s[] = {98, 104, 110}, y0s[] = {36, 22, 8};
     static const Font* fonts[] = {&font_6x10, &font_z, &font_bold16};
     for (int k = 0; k < 3; k++) {
         float p = fmodf(t + k * 0.33f, 1.0f);
