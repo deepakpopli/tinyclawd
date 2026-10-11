@@ -21,7 +21,7 @@ struct Timing {
 };
 static const Timing DAY = {3 * 60000, 12 * 60000, 18 * 60000, 3500, 9000};
 static const Timing NIGHT = {60000, 3 * 60000, 5 * 60000, 6000, 14000};
-static const Timing FAST = {20000, 45000, 60000, 2500, 5000};   // "tune fast", for testing
+static const Timing FAST = {30000, 150000, 180000, 2500, 5000};   // "tune fast", for testing
 
 static const uint32_t TOOL_MIN_MS = 2500;      // a tool animation stays at least this long
 static const uint32_t TOOL_ROTATE_MS = 12000;  // long tool runs switch variant
@@ -45,7 +45,7 @@ static const Pick AWAKE[] = {
     {"peek", 3, 50}, {"turn_around", 2, 60}, {"music", 3, 90}, {"ball_watch", 3, 90},
     {"head_juggle", 2, 90}, {"spin", 2, 60}, {"wave", 1, 120}, {"dance", 1, 120},
     {"content", 2, 90}, {"yawn", 1, 120}, {"startled", 1, 180}, {"seq:concert", 1, 300},
-    {"seq:training", 1, 300},
+    {"seq:training", 1, 300}, {"keepy_uppy", 1, 180}, {"dribble", 1, 180}, {"penalty_save", 1, 240},
 };
 static const Pick BORED[] = {
     {"bored", 6, 45}, {"yawn", 4, 60}, {"keepy_uppy", 4, 120}, {"dribble", 3, 120},
