@@ -36,6 +36,7 @@ static void render_anim(const Anim* a, uint32_t ms) {
     x.subagents = 5;
     x.pct5h = 42;
     x.pctwk = 18;
+    x.ctx = 64;
     x.reset_min = 135;
     x.done = 3;
     x.bugs = 1;
