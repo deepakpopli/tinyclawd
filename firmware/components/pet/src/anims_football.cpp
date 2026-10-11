@@ -391,11 +391,119 @@ static void a_bicycle_kick(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ------------------------------------------------------------------ dribble
+
+static void a_dribble(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 707);
+    int nc = 2 + h % 3;                          // cones
+    bool roulette = (h >> 3) % 3 == 0;           // spins past the middle one
+    const uint32_t TOTAL = 3000, SPIN = 13 * 60;
+    float cones[4];
+    for (int i = 0; i < nc; i++) cones[i] = 128.0f * (i + 1) / (nc + 1);
+
+    // where Clawd is: walks the whole time except during the spin
+    uint32_t walk = roulette ? TOTAL - SPIN : TOTAL;
+    uint32_t spin_at = walk / 2;
+    uint32_t tw = t;
+    int k = -1;
+    if (roulette && t >= spin_at) {
+        if (t < spin_at + SPIN) {
+            tw = spin_at;
+            k = (t - spin_at) / 60;
+        } else tw = t - SPIN;
+    }
+    float X = -36 + 168 * (tw / (float)walk);
+    float bx = X + 38 + 2 * sinf(tw / 50.0f);
+
+    pitch(c);
+    for (int i = 0; i < nc; i++) {
+        float cx = s.x(cones[i]);
+        float p[] = {cx - 3, 62, cx + 3, 62, cx, 54};
+        c.fill_poly(p, 3);
+    }
+    // little hop of the ball over each cone, and of Clawd too
+    float hopb = 0, hopc = 0;
+    for (int i = 0; i < nc; i++) {
+        float d = fabsf(bx - cones[i]);
+        if (d < 9) hopb = fmaxf(hopb, 8 * sinf((1 - d / 9) * (float)M_PI / 2));
+        float dc = fabsf(X + 18 - cones[i]);
+        if (dc < 12) hopc = fmaxf(hopc, 4 * (1 - dc / 12));
+    }
+    if (k >= 0) {
+        clawd_turn(c, s.sx(X), 37, s.m ? TURN_STEPS - 1 - k : k);
+        ball(c, s.x(X + 18 + 20 * cosf(k / 12.0f * 2 * (float)M_PI)), 59, 3);
+        return;
+    }
+    clawd(c, s.sx(X), iround(37 - hopc), pose(EYES_OPEN, ARMS_DOWN, (tw / 60) % 2 ? FEET_RIGHT : FEET_LEFT));
+    ball(c, s.x(bx), 59 - hopb, 3);
+}
+
+// --------------------------------------------------------------- knee slide
+
+static void a_knee_slide(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    const char* word = goal_word(x.seed);
+    const uint32_t SLIDE = 1260;
+    float u = seg(t, 0, SLIDE);
+    float X = -30 + 110 * ease_out(u);
+    pitch(c);
+    bool wink = t > SLIDE + 200 && t < SLIDE + 500;
+    clawd(c, s.sx(X), 47, pose(wink ? EYES_WINK : EYES_OPEN, ARMS_UP, FEET_NONE));
+    if (u < 0.9f) {                              // grass flying up behind
+        int i = t / 30;
+        for (int k = 0; k < 5; k++)
+            c.px(iround(s.x(X - 4 - k * 5 - (i * 3 + k * 7) % 4)), 60 - (k * 3 + i) % 6);
+    }
+    if (u > 0.6f) shout(c, word, 64, 6, t);
+}
+
+// ------------------------------------------------------------------- trophy
+
+static void trophy(Canvas& c, float x, float y) {
+    c.pieslice(x - 8, y - 6, x + 8, y + 10, 0, 180);
+    c.fill_rect(iround(x - 8), iround(y - 2), iround(x + 8), iround(y + 2));
+    c.arc(x - 13, y - 2, x - 5, y + 6, 90, 270, 2);
+    c.arc(x + 5, y - 2, x + 13, y + 6, 270, 90, 2);
+    c.fill_rect(iround(x - 1), iround(y + 10), iround(x + 1), iround(y + 14));
+    c.fill_rect(iround(x - 6), iround(y + 14), iround(x + 6), iround(y + 16));
+}
+
+static void a_trophy(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t h = hash32(x.seed + 808);
+    bool confetti = h & 1;
+    static const float L[] = {0, -2, -4, -2};
+    float lift = pickf(L, 4, t / 90.0f);
+    float sway = (h & 2) ? 2 * sinf(t / 260.0f) : 0;
+    trophy(c, 64 + sway, 6 + lift);
+    clawd(c, 46 + iround(sway * 0.5f), 38 + iround(lift / 2),
+          pose(t > 1000 && t < 1300 ? EYES_WINK : EYES_OPEN, ARMS_UP));
+    if (confetti) {
+        for (int k = 0; k < 14; k++) {
+            uint32_t r = hash32(k * 977 + x.seed);
+            float sp = 0.02f + 0.02f * hashf(r);
+            float y = fmodf((r >> 8) % 64 + t * sp, 70) - 4;
+            int px = (r >> 16) % 128 + iround(2 * sinf(t / 200.0f + k));
+            if (px > 36 && px < 92 && y > 20) continue;   // not over Clawd
+            c.px(px, iround(y));
+            c.px(px + 1, iround(y) + ((t / 100 + k) % 2));
+        }
+    } else {
+        static const int A[][2] = {{20, 10}, {108, 14}, {14, 40}, {112, 44}};
+        static const int B[][2] = {{26, 20}, {102, 8}, {20, 52}, {106, 34}};
+        const int (*p)[2] = (t / 90) % 2 ? A : B;
+        for (int k = 0; k < 4; k++) sparkle(c, p[k][0], p[k][1], 2);
+    }
+}
+
 static const Anim A_KEEPY = {"keepy_uppy", a_keepy_uppy, 5130, SCENE};
 static const Anim A_GOAL = {"goal", a_goal, 3880, SCENE};
 static const Anim A_WATCH = {"ball_watch", a_ball_watch, 4130, CALM};
 static const Anim A_PENALTY = {"penalty_save", a_penalty_save, 2200, SCENE};
 static const Anim A_HEADER = {"header", a_header, 2130, SCENE};
 static const Anim A_BICYCLE = {"bicycle_kick", a_bicycle_kick, 2150, SCENE};
+static const Anim A_DRIBBLE = {"dribble", a_dribble, 3000, SCENE};
+static const Anim A_SLIDE = {"knee_slide", a_knee_slide, 1900, SCENE};
+static const Anim A_TROPHY = {"trophy", a_trophy, 2400, SCENE};
 
-ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE);
+ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY);
