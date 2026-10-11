@@ -1,0 +1,8 @@
+# no claude at all: idle life, bored, football, falls asleep, poked awake
+0 tune fast
+0 time 14:00
+75000 touch tap
+78000 touch tap
+78600 touch tap
+84000 touch long
+110000 touch tap

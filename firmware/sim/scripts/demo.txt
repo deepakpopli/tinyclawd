@@ -1,0 +1,21 @@
+# a fake claude code session: prompt, tools, permission, tests, commit, done
+0 hello 1
+0 time 14:30
+1200 ev start
+1200 usage 5h=42 wk=18 ctx=12 reset=135
+5000 ev prompt
+8500 ev tool Read
+11000 ev tool Grep
+11600 ev tool Glob
+13500 ev tool Read
+15500 ev tool Edit
+16500 ev tool Edit
+19000 ev tool Bash
+22500 ev test pass
+24500 ev perm
+30000 ev tool Bash
+32000 ev commit
+35000 ev tool WebSearch
+39000 ev done
+43000 touch tap
+47000 touch double

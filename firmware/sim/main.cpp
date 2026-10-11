@@ -9,6 +9,8 @@
 #include <string.h>
 
 #include "anim.h"
+#include "brain.h"
+#include "proto.h"
 
 static const int FRAME_MS = 20;   // render at 50 fps, gif.py merges equal frames
 
@@ -46,6 +48,66 @@ static void render_anim(const Anim* a, uint32_t ms) {
     printf("%s %u ms\n", a->name, ms);
 }
 
+// script lines: "<ms> <protocol line>" absolute, or "+<ms> <line>" relative.
+// "# ..." comments. runs the real brain and records every frame.
+static int run_script(const char* path, const char* name, uint32_t tail) {
+    FILE* f = fopen(path, "r");
+    if (!f) {
+        perror(path);
+        return 1;
+    }
+    struct Line {
+        uint32_t t;
+        char text[128];
+    };
+    static Line lines[1024];
+    int n = 0;
+    uint32_t t = 0;
+    char buf[160];
+    while (fgets(buf, sizeof(buf), f) && n < 1024) {
+        char* s = buf;
+        while (*s == ' ') s++;
+        if (*s == '#' || *s == '\n' || !*s) continue;
+        bool rel = *s == '+';
+        if (rel) s++;
+        char* rest;
+        uint32_t v = strtoul(s, &rest, 10);
+        t = rel ? t + v : v;
+        while (*rest == ' ') rest++;
+        rest[strcspn(rest, "\r\n")] = 0;
+        lines[n].t = t;
+        snprintf(lines[n].text, sizeof(lines[n].text), "%s", rest);
+        n++;
+    }
+    fclose(f);
+
+    Writer w;
+    if (!w.open(name)) return 1;
+    Brain brain;
+    Canvas c;
+    brain.begin(0, 42);
+    uint32_t end = (n ? lines[n - 1].t : 0) + tail;
+    int next = 0;
+    const char* shown = "";
+    for (uint32_t now = 0; now < end; now += FRAME_MS) {
+        while (next < n && lines[next].t <= now) {
+            char reply[64], tmp[128];
+            snprintf(tmp, sizeof(tmp), "%s", lines[next].text);
+            proto_line(brain, tmp, now, reply, sizeof(reply));
+            printf("%7.2f  > %-28s %s\n", now / 1000.0, lines[next].text, reply);
+            next++;
+        }
+        brain.render(c, now);
+        if (strcmp(shown, brain.current())) {
+            shown = brain.current();
+            printf("%7.2f    %s\n", now / 1000.0, shown);
+        }
+        w.frame(c);
+    }
+    w.close();
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: sim list | anim <name> [ms] | all | script <file>\n");
@@ -66,6 +128,10 @@ int main(int argc, char** argv) {
         render_anim(a, argc >= 4 ? atoi(argv[3]) : a->ms);
     } else if (!strcmp(cmd, "all")) {
         for (int i = 0; i < anim_count(); i++) render_anim(anim_at(i), anim_at(i)->ms);
+    } else if (!strcmp(cmd, "script") && argc >= 3) {
+        // ./sim script scripts/demo.txt [name] [tail_ms]
+        const char* name = argc >= 4 ? argv[3] : "demo";
+        return run_script(argv[2], name, argc >= 5 ? atoi(argv[4]) : 3000);
     } else {
         fprintf(stderr, "unknown command\n");
         return 1;

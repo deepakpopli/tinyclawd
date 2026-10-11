@@ -1,0 +1,14 @@
+# subagents: a batch starts, runs, comes back
+0 ev start
+2500 ev prompt
+5000 ev tool Task
+5200 ev sub 3
+9000 ev sub 5
+16000 ev sub 2
+19000 ev sub 0
+23000 ev tool Bash
+25000 ev test fail
+27500 ev tool Edit
+30000 ev tool Bash
+32000 ev test pass
+34000 ev done
