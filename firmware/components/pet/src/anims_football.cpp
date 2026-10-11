@@ -496,6 +496,60 @@ static void a_trophy(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ---------------------------------------------------------------- free kick
+// a wall of three half size Clawds, the ball curls over them into the top corner
+
+
+static void a_free_kick(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 909);
+    bool jump = (h & 3) != 0;                    // the wall jumps (most of the time)
+    float corner = 34 + 6 * hashf(h >> 4);       // top corner height
+    const char* word = goal_word(x.seed);
+    const int Y = 38;
+    const float BX = 40, BY = 59;
+    const uint32_t RUN = 900, HIT = 1000, IN = 1800;
+
+    goal_net(c, s, t > IN && t < IN + 270 ? 2 : 0);
+    // the ball
+    float bx = BX, by = BY;
+    if (t >= HIT && t < IN) {
+        float u = (t - HIT) / (float)(IN - HIT);
+        bx = lerp(BX, 116, u);
+        // up over the wall then dipping down under the bar
+        by = lerp(BY, corner, u) - 34 * sinf(u * (float)M_PI * 0.92f);
+    }
+    // the wall
+    for (int i = 0; i < 3; i++) {
+        float wy = 50;
+        Pose p = pose(EYES_OPEN);
+        if (t < HIT) p.eyes = s.look(false);
+        else if (t < IN + 100) {
+            p.eyes = bx > 56 + i * 18 ? s.look(true) : s.look(false);
+            if (jump) {
+                float j = seg(t, HIT + 60 + i * 30, HIT + 560 + i * 30);
+                wy -= 7 * sinf(j * (float)M_PI);
+                if (j > 0 && j < 1) p.arms = ARMS_UP;
+            }
+        } else p.eyes = EYES_CLOSED;
+        // arms linked, a little shuffle while they wait
+        clawd(c, s.sx(47 + i * 18, 18), iround(wy - ((t / 300 + i) % 2 && t < RUN ? 1 : 0)), p, 0.5f);
+    }
+    // the taker
+    if (t < 400) clawd(c, s.sx(-4), Y, pose(s.look(true)));
+    else if (t < RUN) running(c, s, -4 + 6 * ease(seg(t, 400, RUN)), Y, t, s.look(true), 120);
+    else if (t < IN) {
+        bool k = t >= HIT && t < HIT + 90;
+        clawd(c, s.sx(2), Y, pose(s.look(true), ARMS_DOWN, t < HIT || k ? s.plant() : FEET_BOTH));
+        if (k) kick(c, s, 2, Y);
+    } else {
+        clawd(c, s.sx(2), Y - iround(hop(t - IN)), pose(EYES_OPEN, ARMS_UP));
+        shout(c, word, 64, 1, t - IN);
+    }
+    if (t < IN) ball(c, s.x(bx), by, 3);
+    else ball_in_net(c, s, corner, t - IN);
+}
+
 static const Anim A_KEEPY = {"keepy_uppy", a_keepy_uppy, 5130, SCENE};
 static const Anim A_GOAL = {"goal", a_goal, 3880, SCENE};
 static const Anim A_WATCH = {"ball_watch", a_ball_watch, 4130, CALM};
@@ -505,5 +559,6 @@ static const Anim A_BICYCLE = {"bicycle_kick", a_bicycle_kick, 2150, SCENE};
 static const Anim A_DRIBBLE = {"dribble", a_dribble, 3000, SCENE};
 static const Anim A_SLIDE = {"knee_slide", a_knee_slide, 1900, SCENE};
 static const Anim A_TROPHY = {"trophy", a_trophy, 2400, SCENE};
+static const Anim A_FREE_KICK = {"free_kick", a_free_kick, 3200, SCENE};
 
-ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY);
+ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY, &A_FREE_KICK);
