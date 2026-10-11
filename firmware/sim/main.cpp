@@ -83,6 +83,11 @@ static int run_script(const char* path, const char* name, uint32_t tail) {
 
     Writer w;
     if (!w.open(name)) return 1;
+    // captions for gif.py: "<frame> <e|a> <text>"
+    char cap_path[256];
+    snprintf(cap_path, sizeof(cap_path), "out/%s.captions", name);
+    FILE* cap = fopen(cap_path, "w");
+    int frame = 0;
     Brain brain;
     Canvas c;
     brain.begin(0, 42);
@@ -95,16 +100,20 @@ static int run_script(const char* path, const char* name, uint32_t tail) {
             snprintf(tmp, sizeof(tmp), "%s", lines[next].text);
             proto_line(brain, tmp, now, reply, sizeof(reply));
             printf("%7.2f  > %-28s %s\n", now / 1000.0, lines[next].text, reply);
+            if (cap) fprintf(cap, "%d e %s\n", frame, lines[next].text);
             next++;
         }
         brain.render(c, now);
         if (strcmp(shown, brain.current())) {
             shown = brain.current();
             printf("%7.2f    %s\n", now / 1000.0, shown);
+            if (cap) fprintf(cap, "%d a %s\n", frame, shown);
         }
         w.frame(c);
+        frame++;
     }
     w.close();
+    if (cap) fclose(cap);
     return 0;
 }
 

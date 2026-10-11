@@ -7,7 +7,7 @@
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 W, H, SCALE = 128, 64, 4
 FRAME_MS = 20
@@ -36,15 +36,48 @@ def to_img(buf):
     return big
 
 
+def load_captions(path):
+    """out/x.captions from `sim script`: frame index -> (event, anim) shown from then on."""
+    cap = Path(path).with_suffix(".captions")
+    if not cap.exists():
+        return None
+    marks = []
+    for line in cap.read_text().splitlines():
+        idx, kind, text = line.split(" ", 2)
+        marks.append((int(idx), kind, text))
+    return marks
+
+
+def with_caption(img, event, anim):
+    font = ImageFont.truetype("DejaVuSansMono.ttf", 15)
+    out = Image.new("RGB", (img.width, img.height + 34), (24, 26, 32))
+    out.paste(img, (0, 0))
+    d = ImageDraw.Draw(out)
+    d.text((10, img.height + 8), event, fill=(232, 160, 122), font=font)
+    d.text((img.width - 10 - d.textlength(anim, font=font), img.height + 8), anim, fill=(170, 180, 200), font=font)
+    return out
+
+
 def save_gif(path):
+    marks = load_captions(path)
+    event, anim, mi = "", "", 0
     imgs, durs, last = [], [], None
-    for buf in frames(path):
-        if buf == last:
+    for i, buf in enumerate(frames(path)):
+        while marks and mi < len(marks) and marks[mi][0] <= i:
+            _, kind, text = marks[mi]
+            if kind == "e":
+                event = "> " + text
+            else:
+                anim = text
+            mi += 1
+        key = (buf, event, anim)
+        if key == last:
             durs[-1] += FRAME_MS
             continue
-        imgs.append(to_img(buf))
+        img = to_img(buf)
+        imgs.append(with_caption(img, event, anim) if marks is not None else img)
         durs.append(FRAME_MS)
-        last = buf
+        last = key
     if not imgs:
         return
     out = Path(path).with_suffix(".gif")
