@@ -28,6 +28,7 @@ on its own.
 | `touch tap` / `touch double` / `touch long` | fake a touch (testing) |
 | `play <anim>` | play one animation now (testing) |
 | `now` | pet answers `ok <anim playing>` |
+| `tune fast` / `tune normal` | short idle timings (bored after 30 s, asleep after 3 min) for testing |
 
 unknown lines get `err unknown`, the pet keeps going.
 
