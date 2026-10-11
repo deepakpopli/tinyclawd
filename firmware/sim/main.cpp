@@ -32,8 +32,9 @@ static void render_anim(const Anim* a, uint32_t ms) {
     if (!w.open(a->name)) return;
     Canvas c;
     Ctx x;
-    x.seed = 12345;
-    x.subagents = 5;
+    // SEED=7 SUBS=3 ./sim anim goal, to check the variations
+    x.seed = getenv("SEED") ? strtoul(getenv("SEED"), nullptr, 10) : 12345;
+    x.subagents = getenv("SUBS") ? atoi(getenv("SUBS")) : 5;
     x.pct5h = 42;
     x.pctwk = 18;
     x.ctx = 64;
@@ -138,7 +139,7 @@ static int soak(int hours) {
     };
     const char* tools[] = {"Bash", "Read", "Grep", "Glob", "Edit", "Write", "WebFetch", "TodoWrite", "mcp__x__y"};
     uint32_t end = hours * 3600000u, now = 0, next_ev = 5000;
-    int state = 0, steps_left = 0;
+    int state = 0, steps_left = 0, turns_left = 0;
     const char* shown = "";
     int changes = 0;
     send("time 09:00", 0);
@@ -147,7 +148,7 @@ static int soak(int hours) {
             if (state == 0) {   // idle gap over: start a session
                 send("ev start", now);
                 state = 1;
-                steps_left = 3 + rnd(6);
+                turns_left = 3 + rnd(6);
                 next_ev = now + 3000 + rnd(20000);
             } else if (state == 1) {   // a prompt
                 send("ev prompt", now);
@@ -168,7 +169,7 @@ static int soak(int hours) {
                 if (--steps_left <= 0) state = 3;
             } else if (state == 3) {   // turn done
                 send("ev done", now);
-                state = --steps_left > 0 ? 1 : 4;
+                state = --turns_left > 0 ? 1 : 4;
                 next_ev = now + 10000 + rnd(120000);
             } else {   // session over, long idle gap
                 send("ev end", now);
@@ -176,7 +177,7 @@ static int soak(int hours) {
                 next_ev = now + 60000 + rnd(50 * 60000);
             }
         }
-        if (rnd(20000) == 0) send(rnd(4) ? "touch tap" : (rnd(2) ? "touch double" : "touch long"), now);
+        if (rnd(3000) == 0) send(rnd(4) ? "touch tap" : (rnd(2) ? "touch double" : "touch long"), now);
         brain.render(c, now);
         const char* cur = brain.current();
         const Anim* a = find_anim(cur);
