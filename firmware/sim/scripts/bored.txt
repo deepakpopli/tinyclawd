@@ -1,0 +1,4 @@
+# nobody around: gets bored, football and music, then naps
+0 tune fast
+0 time 15:00
+215000 touch tap
