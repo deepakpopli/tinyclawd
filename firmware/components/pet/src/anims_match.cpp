@@ -111,6 +111,77 @@ static void card_anim(Canvas& c, uint32_t t, const Ctx& x, bool red) {
 static void a_yellow_card(Canvas& c, uint32_t t, const Ctx& x) { card_anim(c, t, x, false); }
 static void a_red_card(Canvas& c, uint32_t t, const Ctx& x) { card_anim(c, t, x, true); }
 
+// --------------------------------------------------------------- var check
+// loops while Claude waits for you: replay on the screen, then the scan line
+
+static void var_eyes(Canvas& c, uint32_t t, uint32_t seed) {
+    uint32_t p = t / 4000, in = t % 4000;
+    uint32_t h = hash32(p * 7919 + seed);
+    float dx = 2 + 2.5f * sinf(t / 260.0f);
+    Eye e = eye(dx, 0, 8, 16);
+    uint32_t b = 500 + h % 2800;            // a blink somewhere in this loop
+    if (in >= b && in < b + BLINK_MS) e = blink_eye(e, (in - b) / (float)BLINK_MS);
+    if ((h & 0x30000) == 0) {               // sometimes a double blink
+        uint32_t b2 = b + BLINK_MS + 100;
+        if (in >= b2 && in < b2 + BLINK_MS) e = blink_eye(e, (in - b2) / (float)BLINK_MS);
+    }
+    draw_eye(c, 16, 30, e);
+    Eye r = e;
+    r.mirror = true;
+    draw_eye(c, 38, 30, r);
+}
+
+static void a_var_check(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t p = t / 4000, in = t % 4000;
+    uint32_t h = hash32(p * 104729 + x.seed);
+    bool flip = h & 1;                      // replay runs the other way
+    float stop = 0.7f + 0.25f * hashf(h >> 3);   // where the ball ends up
+
+    var_eyes(c, t, x.seed);
+
+    c.rect(62, 8, 122, 50);
+    c.text_center(92, 11, "VAR", font_bold12);
+    c.hline(64, 120, 23);
+    c.hline(65, 119, 47);                   // the pitch in the replay
+
+    // replay: plays, rewinds fast, plays again slowly and freezes
+    float k;
+    bool rew = false;
+    if (in < 1100) k = in / 1100.0f;
+    else if (in < 1400) {
+        k = 1 - (in - 1100) / 300.0f;
+        rew = true;
+    } else if (in < 2300) k = (in - 1400) / 900.0f;
+    else k = 1;
+    k *= stop;
+    float bx = flip ? 98 - 30 * k : 86 + 30 * k;
+    float px = flip ? bx + 4 : bx - 22;     // little player behind the ball
+    int step = (int)(k * 30) % 2;
+    clawd(c, iround(px), 34 - step, pose(EYES_OPEN, ARMS_DOWN, step ? FEET_LEFT : FEET_RIGHT), 0.5f);
+    ball(c, bx, 44, 2);
+    if (rew) {                              // << while rewinding
+        float a[] = {74, 28, 70, 31, 74, 34};
+        float b[] = {79, 28, 75, 31, 79, 34};
+        c.fill_poly(a, 3);
+        c.fill_poly(b, 3);
+    }
+    if (in >= 2300) {
+        // frozen: offside line at the ball, scan line going over it
+        int lx = iround(bx);
+        for (int y = 25; y < 47; y += 3) c.vline(lx, y, y + 1);
+        float s = ((in - 2300) % 850) / 850.0f;
+        int sy = iround(25 + 21 * (s < 0.5f ? s * 2 : 2 - s * 2));
+        c.hline(64, 120, sy);
+    }
+
+    // "checking" with dots that do not push the word around
+    const char* w = "checking...";
+    int x0 = 92 - c.text_width(w, font_5x7) / 2;
+    int end = c.text(x0, 54, "checking", font_5x7);
+    int dots = (t / 300) % 4;
+    for (int i = 0; i < dots; i++) end = c.text(end, 54, ".", font_5x7);
+}
+
 // ----------------------------------------------------------------- full time
 
 static void a_full_time(Canvas& c, uint32_t t, const Ctx& x) {
@@ -152,6 +223,7 @@ static void a_full_time(Canvas& c, uint32_t t, const Ctx& x) {
 static const Anim A_SCORE = {"scoreboard", a_scoreboard, 3200, SCENE};
 static const Anim A_YELLOW = {"yellow_card", a_yellow_card, 3150, CALM};
 static const Anim A_RED = {"red_card", a_red_card, 3150, CALM};
+static const Anim A_VAR = {"var_check", a_var_check, 4000, LOOP | SCENE};
 static const Anim A_FULL = {"full_time", a_full_time, 2600, CALM};
 
-ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_FULL);
+ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_FULL);
