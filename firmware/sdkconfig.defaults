@@ -1,0 +1,17 @@
+CONFIG_IDF_TARGET="esp32c3"
+
+# flash + partitions (two ota slots, ota itself comes later)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# console and data share the usb port
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# keep logs quiet so they don't mix into the data lines
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
