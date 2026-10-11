@@ -62,6 +62,8 @@ class HookMapping(unittest.TestCase):
                          ["ev test fail"])
         self.assertEqual(tc.map_hook(bash("python3 bridge/test_bridge.py", "", "OK")), ["ev test pass"])
         self.assertEqual(tc.map_hook(bash("ls -la")), [])
+        self.assertEqual(tc.map_hook(bash("pip install pytest")), [])
+        self.assertEqual(tc.map_hook(bash("npm install && npm test")), ["ev test pass"])
         self.assertEqual(tc.map_hook(bash("git commit -m 'x'", "[main 1a2b3c4] x\n 1 file changed")),
                          ["ev commit"])
         self.assertEqual(tc.map_hook(bash("git -C repo commit -m x", "[main abcdef1] x")), ["ev commit"])

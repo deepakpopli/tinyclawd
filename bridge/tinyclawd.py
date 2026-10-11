@@ -100,8 +100,12 @@ PERM_NOTES = {
 ASKING_TOOLS = {"AskUserQuestion", "ExitPlanMode"}
 
 
+INSTALL_RE = re.compile(r"\b(pip3?|uv pip|uv|apt(-get)?|brew|conda|npm|pnpm|yarn|bun) (install|add|i)\b[^;&|]*")
+
+
 def is_test(cmd):
-    return bool(TEST_RE.search(cmd or ""))
+    # "pip install pytest" is not a test run
+    return bool(TEST_RE.search(INSTALL_RE.sub("", cmd or "")))
 
 
 def map_hook(d):
