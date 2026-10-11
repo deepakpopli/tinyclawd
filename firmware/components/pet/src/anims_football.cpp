@@ -246,8 +246,156 @@ static void a_ball_watch(Canvas& c, uint32_t t, const Ctx& x) {
     face(c);
 }
 
+// -------------------------------------------------------------- penalty save
+
+static void goal_centre(Canvas& c) {
+    c.hline(30, 98, 16);
+    c.vline(30, 16, 62);
+    c.vline(98, 16, 62);
+    for (int gy = 20; gy < 62; gy += 5)
+        for (int gx = 34; gx < 96; gx += 5) c.px(gx, gy);
+    pitch(c);
+}
+
+static void a_penalty_save(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 404);
+    bool low = h & 2;           // low dive along the ground
+    bool parry = h & 4;         // pushes it away instead of holding it
+    const int KX = 46, KY = 38;
+    float tx = 38, ty = low ? 46 : 26;          // where the shot goes
+    goal_centre(c);
+    if (t < 600) {                               // ready, bouncing on its feet
+        int i = t / 120;
+        clawd(c, s.sx(KX), KY - (i % 2), pose(EYES_OPEN, ARMS_DOWN, i % 2 ? FEET_RIGHT : FEET_LEFT));
+        ball(c, 64, 58, 6);
+        return;
+    }
+    if (t < 1100) {                              // shot + dive
+        float u = (t - 600) / 500.0f;
+        float kx = KX - 22 * ease(u);
+        float cy = low ? lerp(KY + 12, 46, ease(u)) : KY + 12 - 10 * sinf(u * (float)M_PI * 0.9f);
+        float ang = (low ? 32 : 25) * ease(seg(t, 800, 966));
+        Pose p = pose(EYES_OPEN, u > 0.3f ? ARMS_UP : ARMS_DOWN);
+        if (ang > 0) clawd_rotated(c, s.x(kx + 18), cy, s.deg(ang), p);
+        else clawd(c, s.sx(kx), iround(cy - 12), p);
+        ball(c, s.x(lerp(64, tx, u)), lerp(58, ty, u), 6 - 3 * u);
+        return;
+    }
+    uint32_t u = t - 1100;
+    if (low && u < 400) {                        // down on the grass, then back up
+        float k = ease(seg(u, 200, 400));
+        clawd_rotated(c, s.x(24 + 18), lerp(46, 50, k), s.deg(32 * (1 - k)), pose(EYES_OPEN, ARMS_UP));
+        if (!parry) ball(c, s.x(lerp(30, 40, k)), lerp(46, 35, k), 3);
+    } else {
+        float y = low ? 38 : 30 + fminf(8, u / 22.5f);
+        clawd(c, s.sx(24), iround(y), pose(u > 600 ? EYES_WINK : EYES_OPEN, ARMS_UP));
+        if (!parry) ball(c, s.x(40), y - 3, 3);
+    }
+    if (parry) {                                 // ball flies off over the bar
+        float k = seg(u, 0, 500);
+        if (k < 1) ball(c, s.x(tx - 30 * k), ty - 40 * k, 3);
+    }
+    if (u % 360 < 270) c.text_center(iround(s.x(78)), 0, "SAVE!", font_bold16);
+}
+
+// -------------------------------------------------------------------- header
+
+static void a_header(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 505);
+    bool dive = h & 8;
+    const char* word = goal_word(x.seed);
+    const int X = 44;
+    if (t < 825) {                               // the cross comes in
+        float u = t / 825.0f;
+        float bx = -6 + 62 * u, by = 6 + 22 * u + 10 * sinf(u * (float)M_PI);
+        goal_net(c, s);
+        if (!dive) {
+            float jump = u > 0.5f ? 10 * sinf((u - 0.5f) * (float)M_PI) : 0;
+            clawd(c, s.sx(X), iround(38 - jump), pose(u < 0.6f ? s.look(false) : EYES_OPEN));
+        } else {
+            // launches forward head first
+            float k = ease(seg(t, 450, 825));
+            float cx = lerp(X + 18 - 14, X + 18 - 6, k), cy = lerp(50, 38, k);
+            Pose p = pose(u < 0.6f ? s.look(false) : EYES_OPEN, ARMS_DOWN, k > 0 ? FEET_NONE : FEET_BOTH);
+            if (k > 0) clawd_rotated(c, s.x(cx), cy, s.deg(-35 * k), p);
+            else clawd(c, s.sx(X - 14), 38, p);
+        }
+        ball(c, s.x(bx), by, 3);
+        return;
+    }
+    if (t < 1320) {                              // heads it into the net
+        float u = (t - 825) / 495.0f;
+        goal_net(c, s);
+        if (!dive) {
+            clawd(c, s.sx(X), iround(28 + 10 * u), pose(t < 905 ? EYES_CLOSED : EYES_OPEN));
+        } else {
+            float k = ease(u);
+            float cx = X + 18 - 6 + 6 * k, cy = lerp(38, 54, ease_in(u));
+            Pose p = pose(t < 905 ? EYES_CLOSED : EYES_OPEN, ARMS_DOWN, FEET_NONE);
+            clawd_rotated(c, s.x(cx), cy, s.deg(-35 * (1 - k)), p);
+        }
+        ball(c, s.x(58 + 62 * u), 24 + 22 * u, 3);
+        return;
+    }
+    uint32_t u = t - 1320;
+    if (!dive) {
+        celebrate(c, s, X, u, word, 46);
+        return;
+    }
+    // belly flop slide, then arms up on the grass
+    goal_net(c, s, u < 270 ? 2 : 0);
+    ball_in_net(c, s, 46, u);
+    clawd(c, s.sx(X), 47, pose(EYES_OPEN, u > 200 ? ARMS_UP : ARMS_DOWN, FEET_NONE));
+    shout(c, word, 64, 1, u);
+}
+
+// ------------------------------------------------------------- bicycle kick
+
+static void a_bicycle_kick(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 606);
+    float endy = 44 + 12 * hashf(h);
+    const char* word = goal_word(x.seed);
+    const int X = 40, Y = 38;
+    const float CX = X + 18;
+    if (t >= 1335) {
+        celebrate(c, s, X, t - 1335, word, endy);
+        return;
+    }
+    goal_net(c, s);
+    if (t < 420) {                               // ball drops from the sky
+        float u = t / 420.0f;
+        clawd(c, s.sx(X), Y, pose(EYES_OPEN));
+        ball(c, s.x(CX), -4 + 22 * u * u, 3);
+        return;
+    }
+    if (t < 840) {                               // jump and flip backwards
+        uint32_t u = t - 420;
+        const Key A[] = {{0, 0}, {240, 180}};
+        const Key L[] = {{0, 0}, {240, 20}};
+        float ang = KEYS(A, u), lift = KEYS(L, u);
+        bool up = ang > 150;
+        clawd_rotated(c, s.x(CX), Y + 12 - lift, s.deg(ang), pose(up ? EYES_CLOSED : EYES_OPEN, ARMS_DOWN, up ? FEET_LEFT : FEET_BOTH));
+        ball(c, s.x(CX), 18 + 4 * seg(u, 0, 240), 3);
+        return;
+    }
+    {                                            // ball flies in, Clawd comes back down
+        float u = (t - 840) / 495.0f;
+        float k = ease(u);
+        float ang = 180 * (1 - k);
+        if (ang < 2) clawd(c, s.sx(X), Y, pose());
+        else clawd_rotated(c, s.x(CX), Y + 12 - 20 * (1 - k), s.deg(ang), pose(EYES_OPEN, ARMS_DOWN, FEET_BOTH));
+        ball(c, s.x(CX + 62 * u), lerp(22, endy, u), 3);
+    }
+}
+
 static const Anim A_KEEPY = {"keepy_uppy", a_keepy_uppy, 5130, SCENE};
 static const Anim A_GOAL = {"goal", a_goal, 3880, SCENE};
 static const Anim A_WATCH = {"ball_watch", a_ball_watch, 4130, CALM};
+static const Anim A_PENALTY = {"penalty_save", a_penalty_save, 2200, SCENE};
+static const Anim A_HEADER = {"header", a_header, 2130, SCENE};
+static const Anim A_BICYCLE = {"bicycle_kick", a_bicycle_kick, 2150, SCENE};
 
-ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH);
+ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE);
