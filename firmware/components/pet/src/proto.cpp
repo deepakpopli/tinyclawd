@@ -93,6 +93,11 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         snprintf(reply, len, "ok");
         return true;
     }
+    if (!strcmp(line, "tune")) {
+        b.tune(!strcmp(rest, "fast"));
+        snprintf(reply, len, "ok");
+        return true;
+    }
     if (!strcmp(line, "now")) {
         snprintf(reply, len, "ok %s", b.current());
         return true;
