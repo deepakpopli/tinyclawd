@@ -104,6 +104,35 @@ static void a_subagents(Canvas& c, uint32_t t, const Ctx& x) {
     ball(c, bx, by, 2);
 }
 
-static const Anim A_SUBAGENTS = {"subagents", a_subagents, 6000, LOOP | SCENE};
+// ---------------------------------------------------------- subagents march
+// the squad walks out across the screen like a team coming out of the tunnel
 
-ANIM_LIST(anims_squad, &A_SUBAGENTS);
+static void a_subagents_march(Canvas& c, uint32_t t, const Ctx& x) {
+    int n = squad_size(x);
+    uint32_t h = hash32(x.seed + 3);
+    bool back = h & 1;                       // walks right to left
+    bool ball_ = h & 2;                      // the first one brings the ball
+    const float T = 3000;
+    float v = (150 + (n - 1) * 24) / T;
+    c.hline(0, 127, 63);
+    for (int j = 0; j < n; j++) {
+        float px = -22 - j * 24 + v * t;
+        if (px < -20 || px > 128) continue;
+        int step = (t / 120 + j) % 2;
+        int sx = back ? 128 - MINI_W - iround(px) : iround(px);
+        clawd(c, sx, 50 - step, pose(EYES_OPEN, ARMS_DOWN, step ? FEET_LEFT : FEET_RIGHT), 0.5f);
+        if (j == 0 && ball_) {
+            float bx = px + 21 + 1.5f * sinf(t / 60.0f);
+            ball(c, back ? 127 - bx : bx, 60, 2);
+        }
+    }
+    char s[16];
+    snprintf(s, sizeof(s), n == 1 ? "%d subagent" : "%d subagents", n);
+    if (back) c.text(126 - c.text_width(s, font_5x7), 2, s, font_5x7);
+    else c.text(2, 2, s, font_5x7);
+}
+
+static const Anim A_SUBAGENTS = {"subagents", a_subagents, 6000, LOOP | SCENE};
+static const Anim A_MARCH = {"subagents_march", a_subagents_march, 3000, SCENE};
+
+ANIM_LIST(anims_squad, &A_SUBAGENTS, &A_MARCH);
