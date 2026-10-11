@@ -131,7 +131,6 @@ static const Pick WAIT[] = {{"needs_you", 3, 0}, {"var_check", 2, 0}};
 static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
-static const Pick LIMIT[] = {{"limit_hit", 1, 0}};
 
 // little stories, played back to back. a|b = pick one
 static const char* const SEQS[][2] = {
@@ -159,6 +158,7 @@ struct Brain::Impl {
     uint32_t rng = 1;
     Mode mode = IDLE_M;
     Play cur, prev;
+    Play shown;                 // what was on screen at the last render
     bool oneshot = false;       // cur is a one-shot (returns to base when done)
     Trans trans = CUT;
     uint32_t trans_start = 0;
@@ -278,19 +278,22 @@ struct Brain::Impl {
         }
     }
 
-    // switch what is on screen, choosing a transition that does not jump
+    // switch what is on screen, choosing a transition that does not jump.
+    // decisions use what is really on screen, so two switches in one tick
+    // still blend from the old frame.
     void show(const Anim* an, uint32_t now, bool is_oneshot) {
         if (!an) return;
+        const Play& on = shown.a ? shown : cur;
         Trans t = LIDS;
-        bool cur_calm_end = cur.a && ((cur.a->flags & CALM_OUT) && cur_finished(now));
-        bool cur_idle = cur.a && !strcmp(cur.a->name, "idle") && idle_at_rest(now - cur.start, cur.ctx.seed);
-        bool calm_now = cur_calm_end || cur_idle || !cur.a;
-        if (calm_now && (an->flags & CALM_IN)) t = CUT;
-        else if (cur.a && sleepish(cur.a) && sleepish(an)) t = CUT;
-        else if ((cur.a && (cur.a->flags & SCENE)) || (an->flags & SCENE)) t = DISSOLVE;
-        if (!cur.a) t = CUT;
+        bool on_finished = on.a && now - on.start >= on.a->ms;
+        bool calm_end = on.a && (on.a->flags & CALM_OUT) && on_finished;
+        bool on_idle = on.a && !strcmp(on.a->name, "idle") && idle_at_rest(now - on.start, on.ctx.seed);
+        if ((calm_end || on_idle) && (an->flags & CALM_IN)) t = CUT;
+        else if (on.a && sleepish(on.a) && sleepish(an)) t = CUT;
+        else if ((on.a && (on.a->flags & SCENE)) || (an->flags & SCENE)) t = DISSOLVE;
+        if (!on.a) t = CUT;
         if (t != CUT) {
-            prev = cur;
+            prev = on;
             trans_start = now;
         }
         trans = t;
@@ -557,6 +560,11 @@ struct Brain::Impl {
         trans = CUT;
         draw_play(out, cur, now);
     }
+
+    void render_and_remember(Canvas& out, uint32_t now) {
+        render(out, now);
+        shown = cur;
+    }
 };
 
 static Brain::Impl impl;
@@ -602,7 +610,13 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         strncpy(s.tool, arg, sizeof(s.tool) - 1);
         s.tool[sizeof(s.tool) - 1] = 0;
         if (!strncmp(arg, "Edit", 4) || !strncmp(arg, "Write", 5) || !strncmp(arg, "MultiEdit", 9)) s.edits_this_turn++;
-        if (s.subagents) break;   // the squad keeps playing, their tools would flicker
+        if (s.subagents) {   // the squad keeps playing, their tools would flicker
+            if (s.mode == WAIT_M) {
+                s.mode = TOOL_M;
+                s.set_base(SUBS, 1, now, true);
+            }
+            break;
+        }
         if (!strcmp(arg, "Task") || !strcmp(arg, "Agent")) break;   // EV_SUB handles these
         int n;
         const Pick* pool = s.tool_pool(arg, n);
@@ -666,8 +680,12 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
             s.set_base(SUBS, 1, now, true);
             s.react(POOL(P_SUBAGENTS_MARCH), now);
         } else if (n == 0 && was > 0) {
-            s.base_pool = nullptr;
-            if (s.mode == TOOL_M) s.set_base(THINK, 1, now, true);
+            if (s.mode == TOOL_M || s.mode == THINK_M) {
+                s.mode = THINK_M;
+                s.set_base(THINK, 1, now, true);
+            } else if (s.mode == IDLE_M) {
+                s.set_base(IDLE, 1, now, true);
+            }
             s.react(POOL(P_SQUAD_RETURN), now);
         }
         break;
@@ -754,7 +772,7 @@ void Brain::play(const char* name, uint32_t now) {
 
 void Brain::render(Canvas& c, uint32_t now) {
     p->update(now);
-    p->render(c, now);
+    p->render_and_remember(c, now);
 }
 
 const char* Brain::current() const { return p->cur.a ? p->cur.a->name : "none"; }
