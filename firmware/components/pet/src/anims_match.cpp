@@ -347,6 +347,54 @@ static void a_kickoff(Canvas& c, uint32_t t, const Ctx& x) {
     if (bx < 140) ball(c, mx(bx), 50, 3);
 }
 
+// ---------------------------------------------------------------- half time
+// sitting by a cup of tea, HT on the board. loops
+
+static void cup(Canvas& c, int x, int y) {
+    c.fill_rect(x, y, x + 6, y + 7);
+    c.arc(x + 4, y + 1, x + 10, y + 6, 270, 90, 2);
+    c.hline(x - 1, x + 7, y - 1);
+}
+
+static void a_half_time(Canvas& c, uint32_t t, const Ctx& x) {
+    const uint32_t P = 6000;
+    uint32_t in = t % P;
+    const int X = 26, Y = 47;
+    char s[12];
+
+    // board
+    c.rect(86, 4, 124, 42);
+    c.text_center(105, 8, "HT", font_bold16);
+    int a = x.done < 0 ? 0 : (x.done > 9 ? 9 : x.done), b = x.bugs < 0 ? 0 : (x.bugs > 9 ? 9 : x.bugs);
+    snprintf(s, sizeof(s), "%d-%d", a, b);
+    c.text_center(105, 27, s, font_bold12);
+    c.hline(0, 127, 63);
+
+    // a sip every loop: lifts the cup, eyes closed, puts it back
+    float lift = ease(seg(in, 2600, 3000)) * (1 - ease(seg(in, 4200, 4600)));
+    bool sipping = in >= 2900 && in < 4300;
+    Eyes e = sipping ? EYES_CLOSED : EYES_OPEN;
+    uint32_t bl = in % 3000;
+    if (!sipping && bl >= 1500 && bl < 1650) e = EYES_CLOSED;   // blink
+    if ((hash32(t / P + x.seed) & 1) && in >= 300 && in < 1300) e = EYES_RIGHT;   // glances at the board
+    int bob = iround(breathe(in, 2000));
+    clawd(c, X, Y + bob, pose(e, lift > 0.3f ? ARMS_ONE_UP : ARMS_DOWN, FEET_NONE));
+
+    int cx = iround(lerp(66, X + 37, lift)), cy = iround(lerp(55, 40, lift));
+    cup(c, cx, cy);
+    // steam
+    for (int k = 0; k < 2; k++) {
+        float ph = fmodf(in / 1400.0f + k * 0.5f, 1.0f);
+        int sx = cx + 1 + k * 3;
+        for (int j = 0; j < 4; j++) {
+            float yy = cy - 3 - ph * 12 - j * 2;
+            float xx = sx + 1.5f * sinf(yy / 2.5f + k);
+            if (ph < 0.8f) c.px(iround(xx), iround(yy));
+        }
+    }
+    if (sipping && in > 3300 && in < 4100) c.text(X + 6, Y - 9, "ahh", font_4x6);
+}
+
 static const Anim A_SCORE = {"scoreboard", a_scoreboard, 3200, SCENE};
 static const Anim A_YELLOW = {"yellow_card", a_yellow_card, 3150, CALM};
 static const Anim A_RED = {"red_card", a_red_card, 3150, CALM};
@@ -355,5 +403,6 @@ static const Anim A_SUB = {"substitution", a_substitution, 2700, SCENE};
 static const Anim A_STOPPAGE = {"stoppage_time", a_stoppage_time, 2950, CALM};
 static const Anim A_FULL = {"full_time", a_full_time, 2600, CALM};
 static const Anim A_KICKOFF = {"kickoff", a_kickoff, 3000, SCENE};
+static const Anim A_HALF = {"half_time", a_half_time, 6000, LOOP | SCENE};
 
-ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_SUB, &A_STOPPAGE, &A_FULL, &A_KICKOFF);
+ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_SUB, &A_STOPPAGE, &A_FULL, &A_KICKOFF, &A_HALF);
