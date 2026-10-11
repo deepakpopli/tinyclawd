@@ -1,4 +1,4 @@
-# no claude at all: idle life, bored, football, falls asleep, poked awake
+# no claude at all: idle life, falls asleep, then poked and petted
 0 tune fast
 0 time 14:00
 75000 touch tap
