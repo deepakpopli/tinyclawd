@@ -637,6 +637,71 @@ static void a_head_juggle(Canvas& c, uint32_t t, const Ctx& x) {
     else face(c);
 }
 
+// ----------------------------------------------------------------- crossbar
+// shoots, DONK off the bar, hands on head, ball rolls away
+
+static void a_crossbar(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 1111);
+    bool post = (h & 3) == 0;                    // sometimes the post instead
+    const char* word = (h & 4) ? "DOINK" : "DONK";
+    const int Y = 38;
+    const float BX = 54, BY = 59;
+    const uint32_t RUN = 630, HIT = 780, BAR = 1230, END = 3600;
+    float hx = post ? 104 : 108, hy = post ? 44 : 30;   // contact point
+
+    // the goal shakes after the hit
+    float shake = 0;
+    if (t >= BAR && t < BAR + 600) shake = 2 * sinf((t - BAR) / 18.0f) * (1 - seg(t, BAR, BAR + 600));
+    if (post) goal_net(c, s, 0, iround(s.m ? -shake : shake), 0);
+    else goal_net(c, s, 0, 0, iround(shake));
+
+    // ball path
+    float bx = BX, by = BY;
+    if (t >= HIT && t < BAR) {
+        float u = (t - HIT) / (float)(BAR - HIT);
+        bx = lerp(BX, hx - 3, u);
+        by = lerp(BY, hy + (post ? 0 : 3), u) - (post ? 14 : 18) * sinf(u * (float)M_PI);
+    } else if (t >= BAR) {
+        // bounces back down and rolls past Clawd, off the screen
+        float u = (t - BAR) / 1600.0f;
+        bx = hx - 3 - 150 * u;
+        float fall = fminf(1, u * 3);
+        by = lerp(hy + 3, 59, fall * fall) - (u > 0.33f ? 8 * fabsf(sinf((u - 0.33f) * 3 * (float)M_PI)) * (1 - u) : 0);
+    }
+    if (bx > -5) ball(c, s.x(bx), by, 3);
+
+    // Clawd
+    if (t < RUN) running(c, s, 4 + 20 * (t / (float)RUN), Y, t);
+    else if (t < HIT) clawd(c, s.sx(24), Y, pose(EYES_OPEN, ARMS_DOWN, s.plant()));
+    else if (t < BAR + 80) {
+        bool k = t < HIT + 80;
+        clawd(c, s.sx(24), Y, pose(s.look(true), ARMS_DOWN, k ? s.plant() : FEET_BOTH));
+        if (k) kick(c, s, 24, Y);
+    } else if (t < BAR + 1100) {
+        // hands on head, shaking it
+        int shake_x = ((t - BAR) / 130) % 2 ? 1 : -1;
+        clawd(c, s.sx(24) + shake_x, Y + 1, pose(EYES_CLOSED, ARMS_UP));
+    } else {
+        // slumps, sweat drop slides down
+        clawd(c, s.sx(24), Y + 1, pose(EYES_CLOSED, ARMS_DOWN));
+        float k = seg(t, BAR + 1200, END - 400);
+        if (k > 0 && k < 1) sweat(c, s.x(64), 32 + 8 * k);
+    }
+    // the noise
+    if (t >= BAR && t < BAR + 900) {
+        int wx = iround(s.x(post ? 80 : 98));
+        int jitter = (t / 40) % 2;
+        c.text_center(wx, 8 + jitter, word, font_bold12);
+        // little vibration ticks around the hit point
+        if ((t / 60) % 2 == 0) {
+            float px = s.x(hx), py = hy;
+            c.line(px - 4, py - 4, px - 7, py - 7);
+            c.line(px + 4, py - 4, px + 7, py - 7);
+        }
+    }
+}
+
 static const Anim A_KEEPY = {"keepy_uppy", a_keepy_uppy, 5130, SCENE};
 static const Anim A_GOAL = {"goal", a_goal, 3880, SCENE};
 static const Anim A_WATCH = {"ball_watch", a_ball_watch, 4130, CALM};
@@ -648,5 +713,6 @@ static const Anim A_SLIDE = {"knee_slide", a_knee_slide, 1900, SCENE};
 static const Anim A_TROPHY = {"trophy", a_trophy, 2400, SCENE};
 static const Anim A_FREE_KICK = {"free_kick", a_free_kick, 3200, SCENE};
 static const Anim A_HEAD_JUGGLE = {"head_juggle", a_head_juggle, 5250, CALM};
+static const Anim A_CROSSBAR = {"crossbar", a_crossbar, 3600, SCENE};
 
-ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY, &A_FREE_KICK, &A_HEAD_JUGGLE);
+ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY, &A_FREE_KICK, &A_HEAD_JUGGLE, &A_CROSSBAR);
