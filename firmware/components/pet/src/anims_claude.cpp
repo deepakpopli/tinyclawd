@@ -11,7 +11,7 @@ static const uint32_t SLOT = 2100;
 static void gaze_at(uint32_t slot, uint32_t seed, float& dx, float& dy) {
     uint32_t h = hash32(slot * 2654435761u ^ seed);
     float r = (h & 0xff) / 255.0f;
-    if (r < 0.5f) {   // look straight most of the time
+    if (r < 0.5f || slot == 0) {   // look straight most of the time, and at the start
         dx = 0;
         dy = 0;
         return;
