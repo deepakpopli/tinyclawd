@@ -1,0 +1,15 @@
+# build output and caches
+hardware/out/
+hardware/original/
+__pycache__/
+*.pyc
+result.json
+.venv/
+
+# esp-idf
+firmware/build/
+firmware/sdkconfig.old
+firmware/managed_components/
+firmware/dependencies.lock
+.cache/
+.vscode/
