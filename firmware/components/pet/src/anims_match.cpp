@@ -301,6 +301,52 @@ static void a_full_time(Canvas& c, uint32_t t, const Ctx& x) {
     face(c);
 }
 
+// ------------------------------------------------------------------ kickoff
+// centre circle, whistle, mini Clawd taps the ball and runs after it
+
+static void a_kickoff(Canvas& c, uint32_t t, const Ctx& x) {
+    bool m = hash32(x.seed + 21) & 1;
+    auto mx = [m](float v) { return m ? 127 - v : v; };
+    const uint32_t PEEP = 300, TAP = 1200, RUN = 1400;
+    const int Y = 31;
+
+    // pitch in perspective: halfway line and a flat centre circle
+    c.ellipse(24, 40, 104, 60);
+    c.vline(64, 36, 63);
+    c.fill_circle(64, 50, 1);
+
+    if (t >= PEEP && t < TAP) {
+        uint32_t u = t - PEEP;
+        if (m) whistle(c, 97, 12, true);
+        else whistle(c, 30, 12, false);
+        if (u % 450 < 330) {
+            peep_arcs(c, m ? 101 : 26, 8, !m, u);
+            if (m) c.text(78 - c.text_width("PEEP!", font_bold12), 6, "PEEP!", font_bold12);
+            else c.text(50, 6, "PEEP!", font_bold12);
+        }
+    }
+
+    float bx = 64, X = 28;
+    Pose p = pose(EYES_OPEN);
+    if (t < TAP) {
+        p.eyes = (t / 600) % 2 ? EYES_OPEN : (m ? EYES_LEFT : EYES_RIGHT);
+    } else if (t < RUN) {
+        p.feet = m ? FEET_RIGHT : FEET_LEFT;
+        p.eyes = m ? EYES_LEFT : EYES_RIGHT;
+    } else {
+        uint32_t u = t - RUN;
+        X = 28 + u * 0.075f;
+        p.feet = (u / 90) % 2 ? FEET_RIGHT : FEET_LEFT;
+        p.eyes = m ? EYES_LEFT : EYES_RIGHT;
+    }
+    if (t >= TAP) bx = 64 + (t - TAP) * 0.09f;
+    int sx = m ? 128 - SPRITE_W - iround(X) : iround(X);
+    c.fill_rect(sx, Y, sx + SPRITE_W - 1, Y + 19, false);   // stands in front of the lines
+    clawd(c, sx, Y, p);
+    if (t >= TAP && t < TAP + 90) kick_leg(c, sx, Y, !m);
+    if (bx < 140) ball(c, mx(bx), 50, 3);
+}
+
 static const Anim A_SCORE = {"scoreboard", a_scoreboard, 3200, SCENE};
 static const Anim A_YELLOW = {"yellow_card", a_yellow_card, 3150, CALM};
 static const Anim A_RED = {"red_card", a_red_card, 3150, CALM};
@@ -308,5 +354,6 @@ static const Anim A_VAR = {"var_check", a_var_check, 4000, LOOP | SCENE};
 static const Anim A_SUB = {"substitution", a_substitution, 2700, SCENE};
 static const Anim A_STOPPAGE = {"stoppage_time", a_stoppage_time, 2950, CALM};
 static const Anim A_FULL = {"full_time", a_full_time, 2600, CALM};
+static const Anim A_KICKOFF = {"kickoff", a_kickoff, 3000, SCENE};
 
-ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_SUB, &A_STOPPAGE, &A_FULL);
+ANIM_LIST(anims_match, &A_SCORE, &A_YELLOW, &A_RED, &A_VAR, &A_SUB, &A_STOPPAGE, &A_FULL, &A_KICKOFF);
