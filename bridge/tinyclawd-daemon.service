@@ -1,0 +1,10 @@
+[Unit]
+Description=tiny clawd bridge (claude code -> usb pet)
+
+[Service]
+ExecStart=@PY@ @DIR@/tinyclawd.py daemon
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
