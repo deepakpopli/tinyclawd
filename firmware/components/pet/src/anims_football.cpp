@@ -550,6 +550,93 @@ static void a_free_kick(Canvas& c, uint32_t t, const Ctx& x) {
     else ball_in_net(c, s, corner, t - IN);
 }
 
+// -------------------------------------------------------------- head juggle
+// big eyes: a ball bounces on top of the head, the eyes nudge it up each touch
+
+static void a_head_juggle(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t h = hash32(x.seed + 1010);
+    int n = 4 + h % 4;
+    const uint32_t IN = 450, JUG = 3000, hop = JUG / n, BONK = 1050;
+    const float LOW = 7;                           // eyes sit this much lower while juggling
+
+    if (t < IN) {                                  // ball drops in, eyes go down a bit and look up
+        float u = t / (float)IN;
+        float k = ease(u);
+        face(c, eye(0, LOW * k, EYE_W, EYE_H - 4 * k));
+        ball(c, 64, -6 + 28 * u * u, 4);
+        return;
+    }
+    if (t < IN + JUG) {
+        // touches go eye to eye, the eye that hits it pops up
+        uint32_t tt = t - IN;
+        int k = tt / hop;
+        float u = (tt % hop) / (float)hop;
+        int from = k == 0 ? 0 : (hash32(x.seed * 5 + k) & 1 ? 1 : -1);
+        int to = hash32(x.seed * 5 + k + 1) & 1 ? 1 : -1;
+        float top = 2 + 7 * hashf(x.seed * 3 + k);
+        float x0 = 64 + from * 26, x1 = 64 + to * 26;
+        float bx = lerp(x0, x1, u);
+        float by = 22 - (22 - top) * sinf(u * (float)M_PI);
+        float pop = u < 0.18f ? sinf(u / 0.18f * (float)M_PI) : 0;
+        float catch_ = u > 0.85f ? (u - 0.85f) / 0.15f : 0;   // next eye gets ready
+        float dx = (bx - 64) / 6, dy = LOW - (22 - by) / 7;
+        Eye l = eye(dx, dy, EYE_W, EYE_H - 4), r = eye(dx, dy, EYE_W, EYE_H - 4);
+        r.mirror = true;
+        Eye& hit = from < 0 ? l : r;
+        if (from != 0) {
+            hit.dy -= 5 * pop;
+            hit.h += 2 * pop;
+        } else {
+            l.dy -= 4 * pop;
+            r.dy -= 4 * pop;
+        }
+        Eye& next = to < 0 ? l : r;
+        next.dy += 1.5f * catch_;
+        face(c, l, r);
+        ball(c, bx, by, 4);
+        return;
+    }
+    uint32_t u = t - IN - JUG;
+    if (u < BONK) {
+        // one last high one, the eyes are late and it lands on one of them
+        float last = (hash32(x.seed * 5 + n) & 1) ? 1 : -1;
+        float side = -last;
+        float ex = 64 + side * 26;
+        if (u < 450) {
+            float q = u / 450.0f;
+            float bx = lerp(64 + last * 26, ex, q), by = lerp(22, 26, q) - 26 * sinf(q * (float)M_PI);
+            float dx = (bx - 64) / 6 * (1 - q);
+            Eye l = eye(dx, LOW - (22 - fminf(by, 22)) / 7, EYE_W, EYE_H - 4), r = l;
+            r.mirror = true;
+            face(c, l, r);
+            ball(c, bx, by, 4);
+            return;
+        }
+        float q = (u - 450) / 600.0f;
+        Eye hit = eye(0, LOW + 4, EYE_W + 2, EYE_H - 10, SQUINT);
+        Eye other = eye(0, LOW, EYE_W, EYE_H - 4);
+        if (side > 0) {
+            hit.mirror = true;
+            face(c, other, hit);
+        } else {
+            other.mirror = true;
+            face(c, hit, other);
+        }
+        stars(c, ex, 12, q * 2);
+        ball(c, ex + side * 40 * q, 26 - 20 * q + 64 * q * q, 4);
+        return;
+    }
+    u -= BONK;
+    if (u < 300) {                                 // back up to the normal face
+        float k = ease(u / 300.0f);
+        face(c, eye(0, LOW * (1 - k), EYE_W, EYE_H - 4 * (1 - k)));
+        return;
+    }
+    u -= 300;
+    if (u < BLINK_MS) face(c, blink_eye(Eye(), u / (float)BLINK_MS));
+    else face(c);
+}
+
 static const Anim A_KEEPY = {"keepy_uppy", a_keepy_uppy, 5130, SCENE};
 static const Anim A_GOAL = {"goal", a_goal, 3880, SCENE};
 static const Anim A_WATCH = {"ball_watch", a_ball_watch, 4130, CALM};
@@ -560,5 +647,6 @@ static const Anim A_DRIBBLE = {"dribble", a_dribble, 3000, SCENE};
 static const Anim A_SLIDE = {"knee_slide", a_knee_slide, 1900, SCENE};
 static const Anim A_TROPHY = {"trophy", a_trophy, 2400, SCENE};
 static const Anim A_FREE_KICK = {"free_kick", a_free_kick, 3200, SCENE};
+static const Anim A_HEAD_JUGGLE = {"head_juggle", a_head_juggle, 5250, CALM};
 
-ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY, &A_FREE_KICK);
+ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY, &A_FREE_KICK, &A_HEAD_JUGGLE);
