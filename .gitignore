@@ -13,3 +13,8 @@ firmware/managed_components/
 firmware/dependencies.lock
 .cache/
 .vscode/
+
+# simulator
+firmware/sim/build/
+firmware/sim/sim
+firmware/sim/out/
