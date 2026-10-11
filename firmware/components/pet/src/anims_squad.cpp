@@ -132,7 +132,54 @@ static void a_subagents_march(Canvas& c, uint32_t t, const Ctx& x) {
     else c.text(2, 2, s, font_5x7);
 }
 
+// ------------------------------------------------------------ squad return
+// the subagents are done: they run back in and merge into one Clawd
+
+static void a_squad_return(Canvas& c, uint32_t t, const Ctx& x) {
+    int n = x.subagents < 2 ? 4 : (x.subagents > 8 ? 8 : x.subagents);
+    const uint32_t RUN = 900, MERGE = 1400, GROW = 1650, END = 3000;
+    const float CX = 64 - MINI_W / 2.0f, CY = 26;
+
+    if (t < MERGE) {
+        for (int i = 0; i < n; i++) {
+            uint32_t at = i * 70;
+            if (t < at) continue;
+            float k = seg(t, at, at + RUN);
+            bool right = (i + x.seed) % 2;
+            float lane = 6 + (n > 1 ? i * 40.0f / (n - 1) : 20);
+            float sx = right ? 124 : 4 - MINI_W;
+            float px = lerp(sx, CX, ease(k)), py = lerp(lane, CY, ease(k));
+            int step = (t / 90 + i) % 2;
+            Pose p = pose(right ? EYES_LEFT : EYES_RIGHT, ARMS_DOWN, k < 1 ? (step ? FEET_LEFT : FEET_RIGHT) : FEET_BOTH);
+            if (k >= 1) p.eyes = EYES_OPEN;
+            clawd(c, iround(px), iround(py) - (k < 1 ? step : 0), p, 0.5f);
+        }
+        return;
+    }
+    if (t < GROW) {
+        // poof: ring going out, the mini grows to full size
+        float k = seg(t, MERGE, GROW);
+        float r = 4 + 26 * ease_out(k);
+        if (k < 0.9f) c.ellipse(64 - r, 32 - r * 0.6f, 64 + r, 32 + r * 0.6f);
+        if (k < 0.4f) clawd(c, iround(CX), iround(CY) + (k < 0.2f ? 1 : -2), pose(EYES_CLOSED), 0.5f);
+        else clawd(c, 46, 20 - iround(3 * (1 - k)), pose(EYES_CLOSED));
+        return;
+    }
+    uint32_t u = t - GROW;
+    static const float J[] = {0, 3, 5, 3, 0};
+    bool rest = t > END - 350;
+    float j = rest ? 0 : pickf(J, 5, u / 90.0f);
+    clawd(c, 46, 20 - iround(j), pose(u > 500 && u < 800 ? EYES_WINK : EYES_OPEN, rest ? ARMS_DOWN : ARMS_UP));
+    if (!rest) {
+        static const int A[][2] = {{24, 14}, {104, 18}, {20, 44}, {108, 40}};
+        static const int B[][2] = {{30, 26}, {98, 10}, {26, 54}, {102, 50}};
+        const int (*p)[2] = (u / 120) % 2 ? A : B;
+        for (int k = 0; k < 4; k++) sparkle(c, p[k][0], p[k][1], 2);
+    }
+}
+
 static const Anim A_SUBAGENTS = {"subagents", a_subagents, 6000, LOOP | SCENE};
 static const Anim A_MARCH = {"subagents_march", a_subagents_march, 3000, SCENE};
+static const Anim A_RETURN = {"squad_return", a_squad_return, 3000, SCENE};
 
-ANIM_LIST(anims_squad, &A_SUBAGENTS, &A_MARCH);
+ANIM_LIST(anims_squad, &A_SUBAGENTS, &A_MARCH, &A_RETURN);
