@@ -702,6 +702,62 @@ static void a_crossbar(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ------------------------------------------------------------ rainbow flick
+// running with the ball, flicks it over its own head from behind, volleys it in
+
+static void a_rainbow_flick(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s = side_of(x.seed);
+    uint32_t h = hash32(x.seed + 1212);
+    float peak = 2 + 8 * hashf(h);
+    const char* word = goal_word(x.seed);
+    const int Y = 38;
+    const uint32_t RUN = 900, FLICK = 1150, VOLLEY = 1900, IN = 2250;
+
+    goal_net(c, s, t > IN && t < IN + 270 ? 2 : 0);
+    // Clawd keeps running: -30 .. 24
+    float X;
+    if (t < VOLLEY) X = -30 + 54 * (t / (float)VOLLEY);
+    else X = 24;
+    float bx, by = 59;
+    if (t < RUN) bx = X + 38 + 2 * sinf(t / 50.0f);
+    else if (t < FLICK) {                        // ball rolls back between the feet
+        float u = (t - RUN) / (float)(FLICK - RUN);
+        bx = lerp(X + 38, X + 6, ease(u));
+    } else if (t < VOLLEY) {                     // up over the head
+        float u = (t - FLICK) / (float)(VOLLEY - FLICK);
+        bx = lerp(X + 4, X + 38, u);
+        by = lerp(57, 50, u) - (57 - peak) * sinf(u * (float)M_PI);
+    } else if (t < IN) {                         // volley into the net
+        float u = (t - VOLLEY) / (float)(IN - VOLLEY);
+        bx = lerp(X + 38, 118, u);
+        by = lerp(50, 40, u) - 6 * sinf(u * (float)M_PI);
+    }
+    if (t < IN) ball(c, s.x(bx), by, 3);
+    else ball_in_net(c, s, 40, t - IN);
+
+    if (t < FLICK) running(c, s, X, Y, t, s.look(true), 100);
+    else if (t < FLICK + 100) {                  // the back heel
+        clawd(c, s.sx(X), Y, pose(EYES_OPEN, ARMS_DOWN, s.m ? FEET_LEFT : FEET_RIGHT));
+        float lx = s.x(X + 6), ly = Y + 16;
+        c.line(lx, ly, s.x(X + 1), ly - 4, 2);
+    } else if (t < VOLLEY) {
+        // eyes follow the ball over, arms out for balance
+        Eyes e = bx < X + 18 ? s.look(false) : s.look(true);
+        running(c, s, X, Y, t, e, 100);
+    } else if (t < IN) {
+        bool k = t < VOLLEY + 100;
+        clawd(c, s.sx(X), Y, pose(s.look(true), ARMS_DOWN, k ? s.plant() : FEET_BOTH));
+        if (k) {
+            int sx = s.sx(X);
+            if (s.m) c.line(sx + 6, Y + 14, sx - 2, Y + 8, 2);
+            else c.line(sx + 29, Y + 14, sx + 37, Y + 8, 2);
+        }
+    } else {
+        clawd(c, s.sx(X), Y - iround(hop(t - IN)), pose(EYES_OPEN, ARMS_UP));
+        shout(c, word, 64, 1, t - IN);
+    }
+}
+
 static const Anim A_KEEPY = {"keepy_uppy", a_keepy_uppy, 5130, SCENE};
 static const Anim A_GOAL = {"goal", a_goal, 3880, SCENE};
 static const Anim A_WATCH = {"ball_watch", a_ball_watch, 4130, CALM};
@@ -714,5 +770,7 @@ static const Anim A_TROPHY = {"trophy", a_trophy, 2400, SCENE};
 static const Anim A_FREE_KICK = {"free_kick", a_free_kick, 3200, SCENE};
 static const Anim A_HEAD_JUGGLE = {"head_juggle", a_head_juggle, 5250, CALM};
 static const Anim A_CROSSBAR = {"crossbar", a_crossbar, 3600, SCENE};
+static const Anim A_RAINBOW = {"rainbow_flick", a_rainbow_flick, 3300, SCENE};
 
-ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE, &A_SLIDE, &A_TROPHY, &A_FREE_KICK, &A_HEAD_JUGGLE, &A_CROSSBAR);
+ANIM_LIST(anims_football, &A_KEEPY, &A_GOAL, &A_WATCH, &A_PENALTY, &A_HEADER, &A_BICYCLE, &A_DRIBBLE,
+          &A_SLIDE, &A_TROPHY, &A_FREE_KICK, &A_HEAD_JUGGLE, &A_CROSSBAR, &A_RAINBOW);
