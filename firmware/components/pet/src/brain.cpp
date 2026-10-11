@@ -41,7 +41,7 @@ struct Pick {
 
 // idle micro behaviours
 static const Pick AWAKE[] = {
-    {"blink", 10, 0}, {"look_around", 8, 12}, {"wink", 3, 40}, {"side_eye", 3, 40},
+    {"blink", 4, 0}, {"look_around", 6, 12}, {"wink", 3, 40}, {"side_eye", 3, 40},
     {"peek", 3, 50}, {"turn_around", 2, 60}, {"music", 3, 90}, {"ball_watch", 3, 90},
     {"head_juggle", 2, 90}, {"spin", 2, 60}, {"wave", 1, 120}, {"dance", 1, 120},
     {"content", 2, 90}, {"yawn", 1, 120}, {"startled", 1, 180}, {"seq:concert", 1, 300},
@@ -85,6 +85,7 @@ static const Pick INTERRUPT[] = {{"penalty_save", 3, 0}, {"surprised", 2, 0}};
 static const Pick END[] = {{"full_time", 3, 0}, {"wave", 1, 0}};
 static const Pick PERM_IN[] = {{"surprised", 2, 0}, {"startled", 1, 0}};
 static const Pick P_SUBAGENTS_MARCH[] = {{"subagents_march", 1, 0}};
+static const Pick P_SUBSTITUTION[] = {{"substitution", 1, 0}};
 static const Pick P_SQUAD_RETURN[] = {{"squad_return", 1, 0}};
 static const Pick P_ANGRY[] = {{"angry", 2, 0}, {"dizzy", 1, 0}};
 static const Pick P_RED_CARD[] = {{"red_card", 1, 0}};
@@ -404,7 +405,7 @@ struct Brain::Impl {
     // queue an event reaction behind a wake up if one is playing
     void react(const Pick* pool, int n, uint32_t now) {
         const char* name = pick(pool, n, now);
-        if (oneshot && cur.a && !strcmp(cur.a->name, "wake_up") && now - cur.start < 400) {
+        if (oneshot && cur.a && (!strcmp(cur.a->name, "wake_up") || !strcmp(cur.a->name, "grumpy_wake"))) {
             const Anim* an = name ? find_anim(name) : nullptr;
             qn = 0;
             if (an) queue[qn++] = an;
@@ -679,6 +680,8 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
             if (s.mode == IDLE_M || s.mode == SLEEP_M) s.mode = TOOL_M;
             s.set_base(SUBS, 1, now, true);
             s.react(POOL(P_SUBAGENTS_MARCH), now);
+        } else if (n > was) {
+            s.react(POOL(P_SUBSTITUTION), now);   // another one joins the squad
         } else if (n == 0 && was > 0) {
             if (s.mode == TOOL_M || s.mode == THINK_M) {
                 s.mode = THINK_M;
