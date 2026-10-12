@@ -373,9 +373,206 @@ static void a_build_blocks(Canvas& c, uint32_t t, const Ctx& x) {
     if (clearing && q < 600 && (q / 150) % 2 == 0) c.fill_rect(0, 43, 127, 63, false);
 }
 
+// --------------------------------------------------------------------- radar
+// a sweep goes round, blips light up when it passes them, the eyes chase it
+
+// unit circle in 32 steps, filled once so shapes can be drawn without trig
+static float COS32[32], SIN32[32];
+
+static void init_table() {
+    static bool done = false;
+    if (done) return;
+    for (int i = 0; i < 32; i++) {
+        COS32[i] = cosf(i * PI / 16);
+        SIN32[i] = sinf(i * PI / 16);
+    }
+    done = true;
+}
+
+static const uint32_t RD_SWEEP = 2400, RD_REVS = 6;
+static const int RD_CX = 97, RD_CY = 32, RD_R = 27;
+
+struct Blip {
+    int a;     // angle step 0..31
+    float r;
+};
+
+// 0..2 blips per revolution
+static int blips(uint32_t rev, uint32_t seed, Blip* b) {
+    uint32_t h = hash32(rev * 4241 + seed);
+    int n = h % 4 == 0 ? 0 : (h % 4 == 3 ? 2 : 1);
+    for (int i = 0; i < n; i++) {
+        uint32_t g = hash32(h + i * 97);
+        b[i].a = g % 32;
+        b[i].r = 7 + (g >> 8) % 16;
+    }
+    return n;
+}
+
+static void a_radar(Canvas& c, uint32_t t, const Ctx& x) {
+    init_table();
+    uint32_t rev = (t / RD_SWEEP) % RD_REVS, in = t % RD_SWEEP;
+    float sa = 2 * PI * in / RD_SWEEP;   // sweep angle, clockwise from 3 o'clock
+    float step = in * 32.0f / RD_SWEEP;  // same in table steps
+
+    // dish: outer ring as 32 short lines, dotted middle ring, crosshair
+    for (int i = 0; i < 32; i++) {
+        int j = (i + 1) % 32;
+        c.line(RD_CX + RD_R * COS32[i], RD_CY + RD_R * SIN32[i], RD_CX + RD_R * COS32[j], RD_CY + RD_R * SIN32[j]);
+        if (i % 2 == 0) c.px(iround(RD_CX + 14 * COS32[i]), iround(RD_CY + 14 * SIN32[i]));
+    }
+    for (int d = -RD_R + 3; d <= RD_R - 3; d += 3) {
+        c.px(RD_CX + d, RD_CY);
+        c.px(RD_CX, RD_CY + d);
+    }
+    // sweep line and a dotted fading trail behind it
+    float tx = RD_CX + (RD_R - 1) * cosf(sa), ty = RD_CY + (RD_R - 1) * sinf(sa);
+    c.line(RD_CX, RD_CY, tx, ty);
+    for (int k = 1; k <= 2; k++) {
+        int i = ((int)step - k + 32) % 32;
+        for (int r = 4 + k; r < RD_R - 1; r += 1 + k) c.px(iround(RD_CX + r * COS32[i]), iround(RD_CY + r * SIN32[i]));
+    }
+
+    // blips from this and the last revolution, alive for a bit after the sweep hits them
+    int hits = 0;
+    float lookx = tx, looky = ty;
+    uint32_t newest = 9999;
+    for (int back = 1; back >= 0; back--) {
+        uint32_t rv = (rev + RD_REVS - back) % RD_REVS;
+        Blip b[2];
+        int n = blips(rv, x.seed, b);
+        for (int i = 0; i < n; i++) {
+            uint32_t hit = b[i].a * RD_SWEEP / 32;
+            int32_t age = (int32_t)in - (int32_t)hit + (back ? (int32_t)RD_SWEEP : 0);
+            if (back == 0 && age >= 0) hits++;
+            if (age < 0 || age > 3200) continue;
+            int bx = iround(RD_CX + b[i].r * COS32[b[i].a]), by = iround(RD_CY + b[i].r * SIN32[b[i].a]);
+            if (age < 250) c.fill_rect(bx - 2, by - 2, bx + 2, by + 2);
+            else if (age < 2400 || (age / 120) % 2 == 0) c.fill_rect(bx - 1, by - 1, bx + 1, by + 1);
+            if ((uint32_t)age < newest) {
+                newest = age;
+                if (age < 700) lookx = bx, looky = by;
+            }
+        }
+    }
+    // hits so far in this search
+    for (uint32_t rv = 0; rv < rev; rv++) {
+        Blip b[2];
+        hits += blips(rv, x.seed, b);
+    }
+
+    Eye e;
+    e.w = 10;
+    e.h = 18;
+    e.dx = clampf((lookx - 34) / 6, -5, 9);
+    e.dy = clampf((looky - 32) / 4, -6, 6);
+    if (newest < 600) {   // spotted one
+        float u = sinf(PI * newest / 600.0f);
+        e.w += 2 * u;
+        e.h += 5 * u;
+    } else {
+        e = maybe_blink(e, blink_k(in, 300 + hash32(rev + x.seed) % 1500));
+    }
+    eyes_at(c, 20, 46, 30, e);
+    char s[12];
+    snprintf(s, sizeof(s), "%d hits", hits);
+    c.text_center(33, 55, s, font_4x6);
+}
+
+// ----------------------------------------------------------------- satellite
+// the dish sends waves up, the satellite blinks, data comes back down
+
+static const uint32_t ST_UP = 1700, ST_WAIT = 600, ST_DOWN = 1500, ST_GOT = 900;
+static const uint32_t ST_CYC = ST_UP + ST_WAIT + ST_DOWN + ST_GOT;   // 4700
+static const int DISH_X = 106, DISH_Y = 46, SAT_Y = 9;
+
+static void sat(Canvas& c, int sx, int sy, bool blink) {
+    c.fill_rect(sx - 2, sy - 2, sx + 2, sy + 2);
+    c.rect(sx - 11, sy - 2, sx - 4, sy + 2);
+    c.rect(sx + 4, sy - 2, sx + 11, sy + 2);
+    c.vline(sx - 7, sy - 2, sy + 2);
+    c.vline(sx + 7, sy - 2, sy + 2);
+    c.hline(sx - 4, sx - 3, sy);
+    c.hline(sx + 3, sx + 4, sy);
+    c.vline(sx, sy + 3, sy + 4);
+    if (blink) sparkle(c, sx, sy + 7, 2);
+}
+
+static void dish(Canvas& c) {
+    // filled bowl, a feed held up by two struts, a short post on a base
+    float bowl[] = {93, 40, 97, 45, 102, 48, 110, 48, 115, 45, 119, 40};
+    c.fill_poly(bowl, 6);
+    c.line(95, 40, DISH_X, 32);
+    c.line(117, 40, DISH_X, 32);
+    c.fill_rect(DISH_X - 1, 30, DISH_X + 1, 32);
+    c.fill_rect(DISH_X - 1, 49, DISH_X + 1, 58);
+    float base[] = {DISH_X - 4.f, 59, DISH_X + 4.f, 59, DISH_X + 8.f, 63, DISH_X - 8.f, 63};
+    c.fill_poly(base, 4);
+}
+
+static void wave(Canvas& c, float cx, float y, float w) {
+    float p[] = {cx - w, y + 2, cx - w / 2, y, cx + w / 2, y, cx + w, y + 2};
+    c.polyline(p, 4);
+}
+
+static void a_satellite(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t cyc = t / ST_CYC, in = t % ST_CYC;
+    uint32_t h = hash32(cyc * 313 + x.seed);
+    // the satellite drifts a little across its patch of sky
+    float sx = 104 + 7 * sinf(2 * PI * (t % (ST_CYC * 3)) / (ST_CYC * 3));
+    // twinkly sky on the left
+    for (int k = 0; k < 5; k++) {
+        uint32_t g = hash32(k * 41 + x.seed);
+        int px = 4 + g % 60, py = 2 + (g >> 8) % 10;
+        if (((t / 400) + k) % 5 != 0) c.px(px, py);
+    }
+    dish(c);
+    float lookx = sx, looky = SAT_Y;
+    uint32_t u1 = ST_UP, u2 = u1 + ST_WAIT, u3 = u2 + ST_DOWN;
+    if (in < u1) {   // waves going up
+        for (int k = 0; k < 3; k++) {
+            float p = (in / (float)ST_UP) * 1.6f - k * 0.3f;
+            if (p < 0 || p > 1) continue;
+            float y = lerp(DISH_Y - 18, SAT_Y + 6, p);
+            wave(c, lerp(DISH_X, sx, p), y, lerp(7, 3, p));
+            if (k == 0) lookx = lerp(DISH_X, sx, p), looky = y;
+        }
+    } else if (in >= u2 && in < u3) {   // data dropping back in
+        for (int k = 0; k < 4; k++) {
+            float p = ((in - u2) / (float)ST_DOWN) * 1.6f - k * 0.2f;
+            if (p < 0 || p > 1) continue;
+            float dx = lerp(sx, DISH_X, p), dy = lerp(SAT_Y + 6, DISH_Y - 16, p);
+            c.fill_rect(iround(dx) - 1, iround(dy) - 1, iround(dx), iround(dy));
+            if (k == 0) lookx = dx, looky = dy;
+        }
+    } else if (in >= u3) {
+        lookx = DISH_X;
+        looky = DISH_Y;
+    }
+    bool blink = in >= u1 && in < u2 && ((in - u1) / 150) % 2 == 0;
+    sat(c, iround(sx), SAT_Y, blink);
+
+    Eye e;
+    e.w = 10;
+    e.h = 18;
+    e.dx = clampf((lookx - 40) / 6, -4, 10);
+    e.dy = clampf((looky - 34) / 3.5f, -7, 5);
+    if (in >= u3 && in < u3 + 700 && (h & 3) != 0) {
+        e.shape = HAPPY;
+        e.w = 8;
+        e.dy = -1 - 2 * sinf(PI * seg(in, u3, u3 + 700));
+    } else if (in >= u1 && in < u2) {
+        e.h = 20;   // waiting for the answer
+    }
+    if (h & 4) e = maybe_blink(e, blink_k(in, u1 + 150));
+    eyes_at(c, 26, 52, 36, e);
+}
+
 static const Anim A_PONDER = {"ponder", a_ponder, PD_CYC, LOOP};
 static const Anim A_COMPILE = {"compile", a_compile, CP_CYC, LOOP};
 static const Anim A_PAGE_FLIP = {"page_flip", a_page_flip, 3 * PF_SPREAD, LOOP};
 static const Anim A_BUILD = {"build_blocks", a_build_blocks, BB_CYC, LOOP};
+static const Anim A_RADAR = {"radar", a_radar, RD_SWEEP * RD_REVS, LOOP};
+static const Anim A_SATELLITE = {"satellite", a_satellite, 2 * ST_CYC, LOOP};
 
-ANIM_LIST(anims_work2, &A_PONDER, &A_COMPILE, &A_PAGE_FLIP, &A_BUILD);
+ANIM_LIST(anims_work2, &A_PONDER, &A_COMPILE, &A_PAGE_FLIP, &A_BUILD, &A_RADAR, &A_SATELLITE);
