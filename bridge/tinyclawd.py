@@ -164,6 +164,13 @@ def map_hook(d):
     return []
 
 
+def project(cwd):
+    """'/home/me/code/tinyclawd/' -> 'tinyclawd', short ascii for the pet screen"""
+    if not isinstance(cwd, str) or not cwd.strip("/"):
+        return ""
+    return clean(os.path.basename(cwd.rstrip("/")), 16)
+
+
 def hook_message(d):
     """what the hook sends to the daemon: one json line, the daemon keeps per session state"""
     return json.dumps({
@@ -172,6 +179,8 @@ def hook_message(d):
         "event": d.get("hook_event_name", ""),
         "aid": d.get("agent_id") or "",
         "lines": map_hook(d),
+        "proj": project(d.get("cwd")),
+        "tool": clean(d["tool_name"], 24) if d.get("tool_name") else "",
     })
 
 
@@ -356,12 +365,16 @@ class Session:
         self.perm = 0.0
         self.done_ts = 0.0
         self.seen = time.time()
+        self.busy = False   # between a prompt and Stop
+        self.tool = ""      # tool running now, "" = thinking
+        self.proj = ""
 
 
 class State:
     """per session bookkeeping so many claude code sessions can share one pet"""
 
     PERM_HOLD = 300      # a pending perm hides other sessions' tool noise this long
+    BUSY_TTL = 600       # a busy session this quiet probably lost its Stop hook
     SESSION_TTL = 3600   # forget a silent session (crashed, no SessionEnd)
     USAGE_EVERY = 30
 
@@ -369,6 +382,7 @@ class State:
         self.out = out   # function(line)
         self.sessions = {}
         self.last_sub = 0
+        self.last_busy = 0
         self.last_usage = None
         self.usage_sent = 0.0
 
@@ -382,16 +396,46 @@ class State:
                 return True
         return False
 
+    def perm_line(self):
+        waiting = [s for s in self.sessions.values() if s.perm]
+        if len(waiting) >= 2:
+            return "ev perm +%d" % len(waiting)
+        if waiting and waiting[0].proj:
+            return "ev perm " + waiting[0].proj
+        return "ev perm"
+
+    def working(self, now, other_than=None):
+        """busy sessions not waiting for you, newest first"""
+        w = [(s.seen, sid) for sid, s in self.sessions.items()
+             if sid != other_than and s.busy and not s.perm and now - s.seen < self.BUSY_TTL]
+        return [self.sessions[sid] for _, sid in sorted(w, reverse=True)]
+
+    def busy(self, now):
+        return sum(1 for s in self.sessions.values()
+                   if s.perm or (s.busy and now - s.seen < self.BUSY_TTL))
+
+    @staticmethod
+    def work_line(s):
+        return "ev tool " + s.tool if s.tool else "ev prompt"
+
     def send_subs(self):
         n = self.subs()
         if n != self.last_sub:
             self.last_sub = n
             self.out("ev sub %d" % n)
 
+    def send_busy(self, now):
+        # one session is the normal case, the pet only needs to hear about 2+
+        n = self.busy(now)
+        if n != self.last_busy and max(n, self.last_busy) >= 2:
+            self.out("sessions %d" % n)
+        self.last_busy = n
+
     def prune(self, now):
         for sid in [k for k, s in self.sessions.items() if now - s.seen > self.SESSION_TTL]:
             del self.sessions[sid]
         self.send_subs()
+        self.send_busy(now)
 
     def raw(self, line, now=None):
         """a plain protocol line from send / usage / replay"""
@@ -405,29 +449,38 @@ class State:
 
     def hook(self, m, now=None):
         now = now or time.time()
+        self.on_hook(m, now)
+        self.send_busy(now)
+
+    def on_hook(self, m, now):
         sid = str(m.get("sid") or "?")
         ev = m.get("event") or ""
         lines = m.get("lines")
         lines = [l for l in lines if isinstance(l, str)] if isinstance(lines, list) else []
         ts = as_num(m.get("ts")) or now
         aid = str(m.get("aid") or "")
+        tool = str(m.get("tool") or "")
 
         if ev == "SessionEnd":
-            self.sessions.pop(sid, None)
+            s = self.sessions.pop(sid, None)
             if not self.sessions:
                 self.last_sub = 0
                 for l in lines:
                     self.out(l)
-            else:
-                self.send_subs()
-                if self.perm_waiting():
-                    self.out("ev perm")
+                return
+            self.send_subs()
+            if self.perm_waiting():
+                self.out(self.perm_line())
+            elif s and s.busy and self.working(now):
+                self.out(self.work_line(self.working(now)[0]))
             return
 
         s = self.sessions.get(sid)
         if s is None:
             s = self.sessions[sid] = Session()
         s.seen = now
+        if m.get("proj"):
+            s.proj = str(m["proj"])[:16]
 
         if ev == "SubagentStart" and aid and aid not in s.gone:
             s.subs.add(aid)
@@ -441,33 +494,63 @@ class State:
             self.send_subs()
             return
 
+        if ev == "PreToolUse" and ts < s.done_ts:
+            return   # late async hook from before the turn ended
+
+        was = self.perm_line() if self.perm_waiting() else None
         if ev in ("PermissionRequest", "Notification") and lines:
             s.perm = now
+            s.busy = True
+            if tool and ev == "PermissionRequest":
+                s.tool = tool
         elif ev in ("PostToolUse", "PostToolUseFailure", "UserPromptSubmit",
                     "Stop", "StopFailure", "PermissionDenied"):
             s.perm = 0.0
-        if ev == "PreToolUse" and lines == ["ev perm"]:
-            s.perm = now
+        if ev == "PreToolUse":
+            s.busy = True
+            if lines == ["ev perm"]:
+                s.perm = now
+            elif lines and lines[0].startswith("ev tool "):
+                s.tool = lines[0][8:]
+        if ev == "UserPromptSubmit":
+            s.done_ts = 0.0
+            s.busy = True
+            s.tool = ""
+        asking = "ev perm" in lines
+        lines = [self.perm_line() if l == "ev perm" else l for l in lines]
 
         if ev in ("Stop", "StopFailure"):
             s.done_ts = ts
+            s.busy = False
+            s.tool = ""
             if self.perm_waiting():
-                self.out("ev perm")
+                self.out(self.perm_line())
                 return
-        if ev == "UserPromptSubmit":
-            s.done_ts = 0.0
+            others = self.working(now)
+            if others:
+                # a short party, then straight back to what the others are doing
+                self.out("ev done small")
+                self.out(self.work_line(others[0]))
+                return
 
-        if ev == "PreToolUse":
-            if ts < s.done_ts:
-                return   # late async hook from before the turn ended
-            if lines != ["ev perm"] and self.perm_waiting(hold=True, now=now):
-                return   # someone is waiting for you, keep showing that
+        if ev == "PreToolUse" and not asking and self.perm_waiting(hold=True, now=now):
+            return   # someone is waiting for you, keep showing that
         for l in lines:
             self.out(l)
         # a test or commit from another session still should not hide a waiting perm
         if lines and ev in ("PostToolUse", "PostToolUseFailure", "PreCompact") \
                 and self.perm_waiting(other_than=sid):
-            self.out("ev perm")
+            self.out(self.perm_line())
+            return
+
+        # the waiting list changed without a line saying so
+        now_perm = self.perm_line() if self.perm_waiting() else None
+        if ev in ("UserPromptSubmit", "PreToolUse", "Stop", "StopFailure"):
+            return
+        if was and not now_perm and self.working(now):
+            self.out(self.work_line(self.working(now)[0]))
+        elif was and now_perm and now_perm != was and now_perm not in lines:
+            self.out(now_perm)
 
 
 # ---------------------------------------------------------------- music
@@ -567,8 +650,10 @@ class Daemon:
             self.link.send(self.state.last_usage)
         if self.state.subs():
             self.link.send("ev sub %d" % self.state.subs())
+        if self.state.last_busy >= 2:
+            self.link.send("sessions %d" % self.state.last_busy)
         if self.state.perm_waiting():
-            self.link.send("ev perm")
+            self.link.send(self.state.perm_line())
         if self.music.line:
             self.link.send(self.music.line)
 

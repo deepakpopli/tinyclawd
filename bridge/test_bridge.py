@@ -140,12 +140,18 @@ class Replay(unittest.TestCase):
 
 class SessionState(unittest.TestCase):
     def setUp(self):
-        self.out = []
-        self.st = tc.State(self.out.append)
+        self.out = []   # without the sessions count, these tests are about one thing each
+        self.all = []
+        self.st = tc.State(self.keep)
 
-    def ev(self, sid, event, lines=(), aid="", ts=None):
+    def keep(self, line):
+        self.all.append(line)
+        if not line.startswith("sessions "):
+            self.out.append(line)
+
+    def ev(self, sid, event, lines=(), aid="", ts=None, proj="", tool=""):
         self.st.hook({"sid": sid, "event": event, "lines": list(lines), "aid": aid,
-                      "ts": ts or time.time()})
+                      "ts": ts or time.time(), "proj": proj, "tool": tool})
 
     def test_subagents_summed(self):
         self.ev("a", "SubagentStart", aid="1")
@@ -190,6 +196,84 @@ class SessionState(unittest.TestCase):
         self.st.raw("usage 5h=2", now=111)
         self.st.raw("usage 5h=2", now=150)
         self.assertEqual(self.out, ["usage 5h=1", "usage 5h=2", "usage 5h=2"])
+
+    def test_done_while_other_works(self):
+        self.ev("a", "UserPromptSubmit", ["ev prompt"])
+        self.ev("b", "UserPromptSubmit", ["ev prompt"])
+        self.ev("b", "PreToolUse", ["ev tool Bash"])
+        del self.out[:]
+        self.ev("a", "Stop", ["ev done"])
+        self.assertEqual(self.out, ["ev done small", "ev tool Bash"])
+        self.ev("b", "Stop", ["ev done"])
+        self.assertEqual(self.out[-1], "ev done")
+
+    def test_done_while_other_thinks(self):
+        self.ev("a", "UserPromptSubmit", ["ev prompt"])
+        self.ev("a", "PreToolUse", ["ev tool Read"])
+        self.ev("b", "UserPromptSubmit", ["ev prompt"])
+        del self.out[:]
+        self.ev("a", "Stop", ["ev done"])
+        self.assertEqual(self.out, ["ev done small", "ev prompt"])
+
+    def test_idle_session_does_not_count(self):
+        self.ev("a", "SessionStart", ["ev start"])
+        self.ev("b", "UserPromptSubmit", ["ev prompt"])
+        self.ev("b", "Stop", ["ev done"])
+        self.assertEqual(self.out[-1], "ev done")
+
+    def test_stuck_session_expires(self):
+        self.ev("a", "UserPromptSubmit", ["ev prompt"])
+        self.ev("b", "UserPromptSubmit", ["ev prompt"])
+        self.st.sessions["a"].seen -= 700   # lost its Stop
+        self.ev("b", "Stop", ["ev done"])
+        self.assertEqual(self.out[-1], "ev done")
+
+    def test_perm_names(self):
+        self.ev("a", "UserPromptSubmit", ["ev prompt"], proj="tinyclawd")
+        self.ev("a", "PermissionRequest", ["ev perm"], proj="tinyclawd", tool="Bash")
+        self.assertEqual(self.out[-1], "ev perm tinyclawd")
+        self.ev("b", "PreToolUse", ["ev perm"], proj="dimos")
+        self.assertEqual(self.out[-1], "ev perm +2")
+        # a gets its answer: back to one name
+        self.ev("a", "PostToolUse", [], proj="tinyclawd")
+        self.assertEqual(self.out[-1], "ev perm dimos")
+        # b answered a question, back to thinking
+        self.ev("b", "PostToolUse", [], proj="dimos")
+        self.assertEqual(self.out[-1], "ev prompt")
+
+    def test_perm_answered_goes_back_to_work(self):
+        self.ev("a", "PreToolUse", ["ev tool Bash"], proj="x")
+        self.ev("a", "Notification", ["ev perm"], proj="x")
+        self.ev("a", "PostToolUse", [], proj="x")
+        self.assertEqual(self.out, ["ev tool Bash", "ev perm x", "ev tool Bash"])
+
+    def test_sessions_count(self):
+        self.ev("a", "UserPromptSubmit", ["ev prompt"])
+        self.assertNotIn("sessions 1", self.all)   # one session is the normal case
+        self.ev("b", "UserPromptSubmit", ["ev prompt"])
+        self.ev("c", "PermissionRequest", ["ev perm"])
+        self.ev("c", "PostToolUse", [])
+        self.ev("a", "Stop", ["ev done"])
+        self.ev("c", "Stop", ["ev done"])
+        self.ev("b", "Stop", ["ev done"])
+        self.assertEqual([l for l in self.all if l.startswith("sessions")],
+                         ["sessions 2", "sessions 3", "sessions 2", "sessions 1"])
+
+    def test_end_while_busy_resumes_other(self):
+        self.ev("a", "UserPromptSubmit", ["ev prompt"])
+        self.ev("b", "PreToolUse", ["ev tool Grep"])
+        self.ev("a", "PreToolUse", ["ev tool Bash"])
+        self.ev("a", "SessionEnd", ["ev end"])
+        self.assertEqual(self.out[-1], "ev tool Grep")
+
+    def test_hook_message_project(self):
+        m = json.loads(tc.hook_message(hook("PermissionRequest", tool_name="Bash",
+                                            cwd="/home/me/My Code/tiny clawd/")))
+        self.assertEqual((m["proj"], m["tool"]), ("tinyclawd", "Bash"))
+        m = json.loads(tc.hook_message(hook("Stop", cwd="/home/me/" + "x" * 30)))
+        self.assertEqual(m["proj"], "x" * 16)
+        self.assertEqual(tc.project("/"), "")
+        self.assertEqual(tc.project(None), "")
 
     def test_prune(self):
         self.ev("a", "SubagentStart", aid="1")
