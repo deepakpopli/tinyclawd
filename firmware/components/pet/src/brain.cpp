@@ -32,6 +32,8 @@ static const uint32_t STALE_MS = 10 * 60000;   // no events for this long while 
 static const uint32_t SESSION_MS = 15 * 60000;
 static const uint32_t TAP_WINDOW = 4000;
 static const uint32_t TYPING_STALE_MS = 12000;   // the laptop resends every 5 s while you type
+static const uint32_t BREAK_MIN_MS = 25000;      // a little break while claude works, every 25-45 s
+static const uint32_t BREAK_MAX_MS = 45000;
 
 // -------------------------------------------------------------------- pools
 
@@ -155,6 +157,12 @@ static const Pick SLEEPING[] = {{"asleep", 1, 0}};
 static const Pick GROOVE[] = {{"equalizer", 1, 0}};
 static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
 static const Pick YOU_TYPING[] = {{"you_typing", 1, 0}};
+// little breaks while claude works, then back to the work
+static const Pick WORK_BREAK[] = {
+    {"coffee", 3, 120}, {"stretch", 2, 180}, {"lightbulb", 2, 60}, {"look_around", 3, 30},
+    {"wink", 2, 60}, {"juggle", 2, 180}, {"side_eye", 2, 60}, {"content", 2, 90},
+    {"paper_plane", 1, 180}, {"peek", 2, 60},
+};
 
 // little stories, played back to back. a|b = pick one
 static const char* const SEQS[][2] = {
@@ -224,6 +232,8 @@ struct Brain::Impl {
     int sessions = 0;              // busy sessions, dots when 2+
     bool resume = false;           // last line was "ev done small", others still work
     int typing = 0;                // you type on the laptop, keys per second
+    uint32_t next_break = 0;       // next little break while claude works, 0 = not working
+    bool on_break = false;         // cur is such a break, a new tool waits for it to end
     uint32_t typing_at = 0;        // last typing line
     Canvas a, b;   // scratch for transitions
 
@@ -338,6 +348,7 @@ struct Brain::Impl {
         cur.start = now;
         fill_ctx(cur.ctx);
         oneshot = is_oneshot;
+        on_break = false;
         mark(an, now);
     }
 
@@ -574,6 +585,7 @@ struct Brain::Impl {
             }
         }
 
+        work_breaks(now);
         if (mode == IDLE_M && !oneshot) idle_tick(now);
         if (mode == SLEEP_M && !oneshot && now >= next_micro) {
             // dreams now and then
@@ -621,6 +633,26 @@ struct Brain::Impl {
     }
 
     bool waiting_for_you() { return mode == WAIT_M; }
+
+    uint32_t span(uint32_t lo, uint32_t hi) { return lo + rand() % (hi - lo); }
+
+    // claude works on its own: no squad on screen, not waiting for you
+    bool working() { return (mode == THINK_M || mode == TOOL_M) && !subagents; }
+
+    // a long stretch of work gets a little break now and then
+    void work_breaks(uint32_t now) {
+        if (!working()) {
+            next_break = 0;
+            return;
+        }
+        if (!next_break) next_break = now + span(BREAK_MIN_MS, BREAK_MAX_MS);
+        if (oneshot || now < next_break) return;
+        next_break = now + span(BREAK_MIN_MS, BREAK_MAX_MS);
+        const char* name = pick(POOL(WORK_BREAK), now);
+        if (!name) return;
+        play_name(name, now);
+        on_break = true;
+    }
 
     int hour_now(uint32_t now) {
         if (hour < 0) return -1;
@@ -746,7 +778,7 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         if (s.mode != TOOL_M) {
             s.mode = TOOL_M;
             s.pending_tool = nullptr;
-            if (s.oneshot && s.cur.a && (resume || !strcmp(s.cur.a->name, "wake_up"))) {
+            if (s.oneshot && s.cur.a && (resume || s.on_break || !strcmp(s.cur.a->name, "wake_up"))) {
                 s.base_pool = pool;
                 s.base_n = n;
                 s.base_since = now;
