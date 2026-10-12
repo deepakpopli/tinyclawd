@@ -38,6 +38,15 @@ static uint32_t last_touch = 0;
 
 bool active() { return state != PET; }
 
+const char* where() {
+    static char s[32];
+    if (state == ITEMS) snprintf(s, sizeof(s), "menu %s", ITEMS_LIST[sel].name);
+    else if (state == GAMES) snprintf(s, sizeof(s), "games %s", game_count() ? game_at(sel)->id : "none");
+    else if (state == PLAY && game) snprintf(s, sizeof(s), "game %s", game->id);
+    else return "pet";
+    return s;
+}
+
 void close() {
     state = PET;
     game = nullptr;
@@ -193,7 +202,10 @@ static void dots(Canvas& c, int n, int at) {
 void draw(Canvas& c, uint32_t now) {
     if (state == PLAY && game) {
         c.clear();   // games draw on a blank canvas, like in the sim
-        if (!game->draw(c, now)) end_game();
+        bool on = game->draw(c, now);
+        // games restart themselves after a game over, so keep the best of every run
+        if (game_i < MAX_GAMES && game->score() > best[game_i]) best[game_i] = game->score();
+        if (!on) end_game();
         else return;
     }
     c.clear();
