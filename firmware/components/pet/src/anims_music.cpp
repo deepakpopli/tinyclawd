@@ -121,7 +121,112 @@ static void a_headbang(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ----------------------------------------------------------------- equalizer
+
+// levels are kept in 1/64 of a step (0..9 steps), ints only: the C3 has no FPU
+static const int Q = 64;
+static const int NB = 8;
+
+// made up bars when the laptop sends no levels: a kick on the beat,
+// a hat on the off beat, the middle wanders. target level 0..9
+static int fake_level(int i, uint32_t t, uint32_t seed) {
+    uint32_t step = t / (BEAT / 4);   // sixteenth notes
+    int q = step % 4;
+    uint32_t h = hash32(step * 8 + i + seed);
+    // some bars are louder than others
+    int phrase = hash32(t / (BEAT * 8) + seed) % 3;
+    int v;
+    if (i < 2) v = (q == 0 ? 8 : 6 - 2 * q) + h % 2 - i;
+    else if (i < 6) v = 3 + h % 5 + (q == 0 || q == 2) - (i == 5);
+    else v = (q == 2 ? 5 : 1) + h % 3 - (i - 6);
+    v += phrase - 1;
+    return v < 0 ? 0 : (v > 9 ? 9 : v);
+}
+
+// smoothed bars: rise fast, fall slow, caps hold then drop
+struct EqState {
+    uint32_t last = 0;
+    bool ok = false;
+    int lvl[NB], cap[NB];
+    uint32_t hold[NB];
+    bool vibe = false;
+    uint32_t vibe_at = 0;
+
+    void step(uint32_t t, const Ctx& x) {
+        int dt = ok && t >= last ? (int)(t - last) : -1;
+        if (dt > 400) dt = -1;   // a jump in time: start fresh
+        last = t;
+        for (int i = 0; i < NB; i++) {
+            int want = (x.eq_live ? x.eq[i] : fake_level(i, t, x.seed)) * Q;
+            if (dt < 0) {
+                lvl[i] = cap[i] = want;
+                hold[i] = t;
+                continue;
+            }
+            if (want > lvl[i]) lvl[i] += (want - lvl[i]) * (dt > 40 ? 40 : dt) / 40;
+            else {
+                lvl[i] -= dt * 14 * Q / 1000;   // 14 steps a second
+                if (lvl[i] < want) lvl[i] = want;
+            }
+            if (lvl[i] >= cap[i]) {
+                cap[i] = lvl[i];
+                hold[i] = t + 280;
+            } else if (t > hold[i]) {
+                cap[i] -= dt * 6 * Q / 1000;
+                if (cap[i] < lvl[i]) cap[i] = lvl[i];
+            }
+        }
+        ok = true;
+    }
+};
+
+// lit segments for a level: one always on, ten at the top
+static int segs(int lvl) { return 1 + (lvl + Q / 2) / Q; }
+
+static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
+    static EqState s;
+    s.step(t, x);
+    const int W = 13, GAP = 3, X0 = 1, BOT = 63;
+    int sum = 0;
+    for (int i = 0; i < NB; i++) {
+        int x0 = X0 + i * (W + GAP);
+        // chunky segments, 3 px on, 1 px off, like an old hifi
+        int n = segs(s.lvl[i]);
+        for (int k = 0; k < n; k++) c.fill_rect(x0, BOT - 4 * k - 2, x0 + W - 1, BOT - 4 * k);
+        // the cap floats one gap above the bar, a thin line
+        int cn = segs(s.cap[i]);
+        if (cn > n) c.hline(x0, x0 + W - 1, BOT - 4 * cn + 2);
+        else c.hline(x0, x0 + W - 1, BOT - 4 * n);
+        sum += s.lvl[i];
+    }
+
+    // eyes on top, bobbing to the bass
+    int bass = (s.lvl[0] + s.lvl[1]) / 2;   // 0..9*Q
+    int avg = sum / NB;
+    // loud: shut the eyes and vibe. hysteresis + a short hold so they do not flicker
+    bool loud = s.vibe ? avg > 4 * Q : avg > 5 * Q + Q / 2;
+    if (loud != s.vibe && t - s.vibe_at > 700) {
+        s.vibe = loud;
+        s.vibe_at = t;
+    }
+    float b = bass / (9.0f * Q);
+    float sway = 2 * sinf(2 * (float)M_PI * t / (BEAT * 4.0f));
+    Eye e;
+    e.w = 8 + 2 * b;
+    e.h = 15 - 3 * b;
+    e.dx = sway;
+    e.dy = -22 + 3 * b;   // eyes sit up at y ~10
+    if (s.vibe) {
+        e.shape = HAPPY;
+        e.dy -= 1;
+        face(c, e);
+        return;
+    }
+    face_blink(c, t % 4100, 3500 + x.seed % 400, e);
+}
+
 static const Anim A_NOW_PLAYING = {"now_playing", a_now_playing, 5600, CALM};
 static const Anim A_HEADBANG = {"headbang", a_headbang, 3900, CALM};
+static const Anim A_EQUALIZER = {"equalizer", a_equalizer, 9400, LOOP};
 
-ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG);
+ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER);
