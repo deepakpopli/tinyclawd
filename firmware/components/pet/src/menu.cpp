@@ -24,7 +24,7 @@ static const Entry ITEMS_LIST[] = {{I_GAMES, "games"}, {I_USAGE, "usage"}, {I_BA
 static const int N_ITEMS = sizeof(ITEMS_LIST) / sizeof(ITEMS_LIST[0]);
 
 static const int MAX_GAMES = 8;
-static int best[MAX_GAMES];   // best score per game, RAM only (TODO: keep in nvs)
+static int best[MAX_GAMES];   // best score per game, the firmware saves them (hw.cpp)
 
 static State state = PET;
 static int sel = 0;            // item or game on screen
@@ -37,6 +37,12 @@ static uint32_t hold_at = 0;
 static uint32_t last_touch = 0;
 
 bool active() { return state != PET; }
+
+int best_of(int g) { return g >= 0 && g < MAX_GAMES ? best[g] : 0; }
+
+void set_best(int g, int score) {
+    if (g >= 0 && g < MAX_GAMES) best[g] = score;
+}
 
 const char* where() {
     static char s[32];

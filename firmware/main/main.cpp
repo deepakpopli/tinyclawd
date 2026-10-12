@@ -80,6 +80,7 @@ static void render_task(void*) {
         int64_t t1 = esp_timer_get_time();
         int pages = sh1106::flush(s_canvas);
         hw::frame((uint32_t)(t1 - t0), (uint32_t)(esp_timer_get_time() - t1), pages);
+        hw::scores_tick(now);
 
         // if a frame ran long, don't try to catch up, and still let idle run
         if (xTaskDelayUntil(&wake, pdMS_TO_TICKS(FRAME_MS)) == pdFALSE) {

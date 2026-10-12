@@ -17,4 +17,7 @@ void draw_test(Canvas& c, uint32_t now);
 // the render task reports every frame, `hw stats` prints the averages
 void frame(uint32_t draw_us, uint32_t flush_us, int pages);
 
+// game high scores: loaded at boot, saved when one changes
+void scores_tick(uint32_t now);
+
 }

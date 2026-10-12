@@ -9,6 +9,8 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
+#include "game.h"
+#include "menu.h"
 #include "sh1106.h"
 #include "touch.h"
 
@@ -28,6 +30,7 @@ struct Saved {
 };
 
 static Settings s_set;
+static int s_saved_best[8];   // what is in nvs, so we only write on a change
 static int s_test = 0;
 
 static struct {
@@ -63,6 +66,39 @@ void hw::load() {
     }
     apply();
     s_stats.since = esp_timer_get_time();
+
+    // best scores, one key per game id ("b_run")
+    if (err == ESP_OK && nvs_open("scores", NVS_READONLY, &h) == ESP_OK) {
+        for (int i = 0; i < game_count() && i < 8; i++) {
+            char key[16];
+            snprintf(key, sizeof(key), "b_%s", game_at(i)->id);
+            int32_t v = 0;
+            if (nvs_get_i32(h, key, &v) == ESP_OK) {
+                menu::set_best(i, v);
+                s_saved_best[i] = v;
+            }
+        }
+        nvs_close(h);
+    }
+}
+
+void hw::scores_tick(uint32_t now) {
+    static uint32_t next = 0;
+    if ((int32_t)(now - next) < 0) return;
+    next = now + 3000;   // a quick look every few seconds is plenty
+    nvs_handle_t h = 0;
+    for (int i = 0; i < game_count() && i < 8; i++) {
+        int v = menu::best_of(i);
+        if (v == s_saved_best[i]) continue;
+        if (!h && nvs_open("scores", NVS_READWRITE, &h) != ESP_OK) return;
+        char key[16];
+        snprintf(key, sizeof(key), "b_%s", game_at(i)->id);
+        if (nvs_set_i32(h, key, v) == ESP_OK) s_saved_best[i] = v;
+    }
+    if (h) {
+        nvs_commit(h);
+        nvs_close(h);
+    }
 }
 
 static bool save() {
@@ -186,7 +222,8 @@ bool hw::line(char* line, char* reply, int len) {
             return true;
         }
         apply();
-        show(reply, len);
+        // a new i2c speed reconnects the screen on the next frame
+        show(reply, len, !strcmp(key, "i2c"));
     }
     return true;
 }
