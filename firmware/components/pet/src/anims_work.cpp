@@ -23,55 +23,141 @@ static float blink_k(uint32_t t, uint32_t at) {
 static Eye maybe_blink(const Eye& e, float k) { return k >= 0 ? blink_eye(e, k) : e; }
 
 // --------------------------------------------------------------------- working
-// two gears turning beside his eyes, he watches them like he is fixing something
+// Clawd at a little anvil, hammering a lump flat. sparks on every hit,
+// when it is done it becomes a neat tile and slides away, next lump drops in
 
-// a gear: solid body, square teeth, a hole. only one sin/cos per gear,
-// the teeth are found by rotating a step at a time
-static void gear(Canvas& c, float cx, float cy, float rin, float rout, int teeth, float ang) {
-    float ca = cosf(ang), sa = sinf(ang);
-    float step = 2 * PI / teeth;
-    float cs = cosf(step), ss = sinf(step);
-    float body[24];
-    for (int k = 0; k < teeth; k++) {
-        body[2 * k] = cx + rin * ca;
-        body[2 * k + 1] = cy + rin * sa;
-        c.line(cx + (rin - 2) * ca, cy + (rin - 2) * sa, cx + rout * ca, cy + rout * sa, 3);
-        float na = ca * cs - sa * ss;
-        sa = sa * cs + ca * ss;
-        ca = na;
+static const uint32_t WK_IN = 500, WK_HIT = 520, WK_HITS = 5, WK_YAY = 1100, WK_OUT = 600;
+static const uint32_t WK_CYC = WK_IN + WK_HITS * WK_HIT + WK_YAY + WK_OUT;   // 4800
+static const float WK_PX = 50, WK_PY = 42, WK_LEN = 24, WK_UP = -2.3f;
+static const int WK_X = 74, WK_TOP = 53;   // piece centre, anvil top
+static const char* const WK_MARKS[] = {"{}", "</>", "fn", "ok", "#!", "=>"};
+
+// the piece after k hits: starts tall and narrow, ends a flat tile
+static void wk_piece(Canvas& c, int cx, int bot, int k, bool done, const char* mark) {
+    int w = 9 + 3 * k, h = 12 - k;
+    int x0 = cx - w / 2, y0 = bot - h + 1;
+    c.fill_rect(x0, y0, x0 + w - 1, bot);
+    if (!done) {   // still lumpy: chipped corners and a dent on top
+        c.px(x0, y0, false);
+        c.px(x0 + w - 1, y0, false);
+        c.px(x0 + w - 1, y0 + 1, false);
+        if (k < 3) c.hline(x0 + 3, x0 + 4, y0, false);
+    } else {
+        c.text_center(cx, y0 + 1, mark, font_4x6, false);
     }
-    c.fill_poly(body, teeth);
-    c.fill_circle(cx, cy, 2, false);
+}
+
+// hammer from the pivot at angle a (radians, 0 = pointing right, + = down)
+static void wk_hammer(Canvas& c, float a) {
+    float ca = cosf(a), sa = sinf(a);
+    float tx = WK_PX + WK_LEN * ca, ty = WK_PY + WK_LEN * sa;
+    c.line(WK_PX, WK_PY, tx, ty, 2);
+    float nx = -sa, ny = ca;   // the way the head swings
+    float hx = tx - 3 * ca, hy = ty - 3 * sa;
+    float head[] = {hx - 4 * nx, hy - 4 * ny, hx - 4 * nx + 6 * ca, hy - 4 * ny + 6 * sa,
+                    hx + 5 * nx + 6 * ca, hy + 5 * ny + 6 * sa, hx + 5 * nx, hy + 5 * ny};
+    c.fill_poly(head, 4);
+}
+
+// angle where the bottom of the head just meets a piece with this top
+static float wk_hit_angle(int top) { return (top - 6 - WK_PY) / WK_LEN; }
+
+static void wk_anvil(Canvas& c) {
+    c.fill_rect(58, WK_TOP + 1, 92, WK_TOP + 3);
+    float horn[] = {92, (float)WK_TOP + 1, 103, (float)WK_TOP + 1, 92, (float)WK_TOP + 5};
+    c.fill_poly(horn, 3);
+    c.fill_rect(65, WK_TOP + 4, 84, WK_TOP + 6);
+    c.fill_rect(69, WK_TOP + 6, 80, 60);
+    c.fill_rect(61, 61, 88, 63);
 }
 
 static void a_working(Canvas& c, uint32_t t, const Ctx& x) {
-    // gears turn in little pushes, like someone cranking them
-    float turns = t / 1400.0f;
-    float push = turns - floorf(turns);
-    float ang = (floorf(turns) + ease(push * 1.6f)) * (2 * PI / 10);
-    gear(c, 97, 24, 11, 15, 10, ang);
-    gear(c, 115, 48, 6, 9, 6, -ang * 10 / 6 + 0.3f);
+    uint32_t cyc = t / WK_CYC, in = t % WK_CYC;
+    uint32_t h = hash32(cyc * 613 + x.seed);
+    const char* mark = WK_MARKS[h % 6];
+    uint32_t hits_at = WK_IN, yay_at = WK_IN + WK_HITS * WK_HIT, out_at = yay_at + WK_YAY;
 
-    // eyes on the left, focused on the gears
-    Eye e;
-    e.w = 12;
-    e.h = 18;
-    e.dx = 4;
-    e.dy = -1 + (push < 0.3f ? 1 : 0);   // a small nod with each push
-    uint32_t slot = t / 3100, in = t % 3100;
-    uint32_t h = hash32(slot * 17 + x.seed);
-    uint32_t at = 400 + h % 1800;
-    int ev = (h >> 12) % 4;
-    float k = -1;
-    if (ev == 0 || ev == 2) k = blink_k(in, at);
-    if (ev == 1 && in >= at && in < at + 900) {   // glance at you, then back to work
-        float u = sinf(PI * seg(in, at, at + 900));
-        e.dx = lerp(e.dx, -2, u);
-        e.h = lerp(18, EYE_H, u);
+    int k = in < hits_at ? 0 : (in < yay_at ? (in - hits_at) / WK_HIT : WK_HITS);
+    uint32_t u = in < hits_at ? 0 : (in - hits_at) % WK_HIT;
+    // this hit lands at u = 320, the piece flattens then
+    int flat = in >= yay_at ? WK_HITS : k + (u >= 320 ? 1 : 0);
+    bool done = in >= yay_at;
+
+    float a = WK_UP;
+    float lie = wk_hit_angle(WK_TOP - (12 - (int)WK_HITS));
+    if (in < hits_at) a = lerp(-1.5f, WK_UP, ease(seg(in, 0, 400)));
+    else if (!done) {
+        float prev = k == 0 ? WK_UP : wk_hit_angle(WK_TOP - (12 - k));
+        float hit = wk_hit_angle(WK_TOP - (12 - k));
+        if (u < 180) a = lerp(prev, WK_UP, ease(seg(u, 0, 180)));
+        else if (u < 240) a = WK_UP;
+        else if (u < 320) a = lerp(WK_UP, hit, ease_in(seg(u, 240, 320)));
+        else a = hit - (u < 380 ? 0.08f * seg(u, 320, 380) : 0.08f * (1 - seg(u, 380, 440)));
+    } else if (in < out_at) a = lerp(lie, -1.5f, ease_out(seg(in, yay_at, yay_at + 250)));
+    else a = -1.5f;
+
+    wk_anvil(c);
+    c.hline(0, 127, 63);
+    // a lamp over the anvil that swings a little after each hit
+    uint32_t since = in >= hits_at && !done ? (u >= 320 ? u - 320 : u + WK_HIT - 320) : 999;
+    float sw = since < 500 ? 3 * (1 - since / 500.0f) * sinf(since / 40.0f) : 0;
+    const int LAMP = 104;
+    float lx = LAMP + sw;
+    c.line(LAMP, 0, lx, 7);
+    float shade[] = {lx - 3, 7, lx + 3, 7, lx + 7, 12, lx - 7, 12};
+    c.fill_poly(shade, 4);
+    c.fill_rect(iround(lx) - 1, 13, iround(lx) + 1, 14);
+    for (int i = -1; i <= 1; i++) c.px(iround(lx + i * 9), 17 + (i ? 0 : 2));
+
+    // the piece: drops in, gets hit, slides off to the right when done
+    int px = WK_X, bot = WK_TOP;
+    if (in < hits_at) bot = iround(lerp(-14, WK_TOP, ease_in(seg(in, 0, 320))));
+    if (in >= out_at) px = iround(lerp(WK_X, 150, ease_in(seg(in, out_at, WK_CYC))));
+    bool squash = !done && u >= 320 && u < 380;   // squished a bit more right on impact
+    wk_piece(c, px, bot, flat + (squash ? 1 : 0), done, mark);
+    if (in >= hits_at && in < hits_at + 60) c.hline(WK_X - 7, WK_X + 7, WK_TOP + 1, false);   // landing thud
+
+    // sparks fly from the impact
+    if (!done && u >= 320 && u < 760 && in >= hits_at) {
+        float s = (u - 320) / 1000.0f;
+        int top = WK_TOP - (12 - flat);
+        if (u < 400) {   // a quick flash right where it hit
+            c.line(WK_X - 9, top - 2, WK_X - 13, top - 5);
+            c.line(WK_X + 9, top - 2, WK_X + 13, top - 5);
+            c.line(WK_X - 9, top + 3, WK_X - 13, top + 3);
+            c.line(WK_X + 9, top + 3, WK_X + 13, top + 3);
+        }
+        for (int i = 0; i < 8; i++) {
+            uint32_t g = hash32(h + k * 31 + i * 7);
+            if (s * 1000 > 260 + g % 180) continue;   // each one burns out on its own
+            float vx = (int)(g % 180) - 90;
+            float vy = -90 - (float)((g >> 8) % 90);
+            float sx = WK_X + vx * s, sy = top + vy * s + 400 * s * s;
+            c.line(sx, sy, sx - vx * 0.025f, sy - (vy + 800 * s) * 0.025f);
+        }
     }
-    eyes_at(c, 24, 58, 33, maybe_blink(e, k));
-    if (ev == 3 && in >= at && in < at + 1400)   // hard work: a sweat drop slides down
-        sweat(c, 10, 12 + 10 * seg(in, at, at + 1400));
+    if (done && in < out_at) {   // shiny new tile
+        bool alt = ((in - yay_at) / 160) % 2;
+        sparkle(c, WK_X - 16, alt ? 40 : 38, alt ? 2 : 3);
+        sparkle(c, WK_X + 15, alt ? 36 : 39, alt ? 3 : 2);
+    }
+
+    // Clawd: watches, winces on the hit, hops when the tile is done
+    Pose p = pose(EYES_RIGHT, ARMS_ONE_UP);
+    int cy = 39;
+    if (!done && in >= hits_at && u >= 320 && u < 420) {
+        p.eyes = EYES_CLOSED;
+        cy += 1;
+    }
+    if (done && in < out_at) {
+        uint32_t q = in - yay_at;
+        p.eyes = q < 700 ? EYES_CLOSED : EYES_RIGHT;
+        if (q > 100 && q < 700) cy -= iround(5 * fabsf(sinf(2 * PI * seg(q, 100, 700))));
+    }
+    if (in >= out_at) p.eyes = EYES_RIGHT;
+    if ((h >> 9) % 3 == 0 && !done && k >= 3) sweat(c, 10, 30 + 6 * seg(in, yay_at - 2 * WK_HIT, yay_at));
+    clawd(c, 14, cy, p);
+    wk_hammer(c, a + (cy - 39) * 0.02f);
 }
 
 // ------------------------------------------------------------------- searching
@@ -817,7 +903,7 @@ static void a_squish(Canvas& c, uint32_t t, const Ctx& x) {
     face_blink(c, t, 2600, e);
 }
 
-static const Anim A_WORKING = {"working", a_working, 9300, LOOP};
+static const Anim A_WORKING = {"working", a_working, 3 * WK_CYC, LOOP};
 static const Anim A_SEARCH = {"searching", a_searching, 9000, LOOP};
 static const Anim A_NEEDS = {"needs_you", a_needs_you, 8640, LOOP};
 static const Anim A_DONE = {"done", a_done, 2300, CALM};
