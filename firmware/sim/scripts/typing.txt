@@ -1,0 +1,17 @@
+# typing: you write a prompt, Clawd watches the keys, enter = thinking
+0 time 15:00
+# slow start, then faster
+4500 typing 2
++1500 typing 4
++2000 typing 6
+# a pause to think: "ready?"
++2500 typing 0
++2500 typing 3
++1500 typing 9
++2000 typing 13
+# enter
++2000 ev prompt
++2500 typing 0
++2000 ev tool Read
++2500 ev tool Edit
++3000 ev done
