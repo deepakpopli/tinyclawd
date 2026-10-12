@@ -520,11 +520,126 @@ static void a_git_branch(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// --------------------------------------------------------------- paper plane
+
+static const char* const SHEET[] = {"##########", "##########", "##########", "##########",
+                                    "##########", "##########", "##########", "##########"};
+static const char* const HALF_FOLD[] = {"##########", ".#########", "..########", "...#######",
+                                        "....######"};
+
+// a plane at x, y heading along ux, uy (unit), screen y points down
+static void plane(Canvas& c, float x, float y, float ux, float uy) {
+    float nx = uy, ny = -ux;   // "up" for the plane
+    float p[] = {x + 9 * ux, y + 9 * uy, x - 7 * ux + 6 * nx, y - 7 * uy + 6 * ny,
+                 x - 7 * ux - 3 * nx, y - 7 * uy - 3 * ny};
+    c.fill_poly(p, 3);
+    c.line(x + 8 * ux, y + 8 * uy, x - 6 * ux + nx, y - 6 * uy + ny, 1, false);
+}
+
+static const float PX0 = 44, PY0 = 28;
+
+static void plane_path(int kind, float d, float& x, float& y) {
+    if (kind == 1) {   // loop the loop
+        const float LY = PY0 + 4;   // bottom of the loop
+        if (d < 600) {
+            x = PX0 + d * 0.04f;
+            y = PY0 + 4 * ease_out(d / 600.0f);
+        } else if (d < 1500) {
+            float a = 2 * PI * (d - 600) / 900;
+            x = PX0 + 24 + 10 * sinf(a);
+            y = LY - 10 + 10 * cosf(a);
+        } else {
+            x = PX0 + 24 + (d - 1500) * 0.08f;
+            y = LY - 4 * ease_out((d - 1500) / 600.0f);
+        }
+        return;
+    }
+    if (kind == 2) {   // nose dive into the floor
+        d = fminf(d, 1150);
+        x = PX0 + 0.06f * d;
+        y = PY0 - 0.03f * d + 0.000045f * d * d;
+        return;
+    }
+    x = PX0 + d * 0.07f;   // a long glide
+    y = PY0 - 12 * ease_out(d / 900.0f) + 3 * sinf(d / 260.0f);
+}
+
+static void a_paper_plane(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s{(x.seed & 128) != 0};
+    int kind = hash32(x.seed + 5) % 3;
+    const int CX = 6, CY = 38, GY = 59;
+    const uint32_t THROW = 1800;
+    c.hline(0, 127, GY);
+    Pose p = pose(s.look(true));
+    int y = CY;
+    // folding: sheet, half, plane, each with a little bounce
+    if (t < THROW) {
+        int st = t < 600 ? 0 : (t < 1000 ? 1 : 2);
+        if (t >= 400 && t < 1200 && (t % 400) < 120) y -= 1;
+        if (t >= 1450) p.arms = ARMS_ONE_UP;
+        float back = t >= 1450 ? 3 * ease(seg(t, 1450, THROW)) : 0;
+        float lift = t >= 1450 ? 8 * ease(seg(t, 1450, THROW)) : 0;
+        int px0 = CX + 30 - iround(back), py0 = CY - 10 - iround(lift);
+        if (st == 0) art(c, s.box(px0, 10), py0, SHEET, 8, s.m);
+        else if (st == 1) art(c, s.box(px0, 10), py0 + 2, HALF_FOLD, 5, s.m);
+        else plane(c, s.px(px0 + 5), py0 + 4, s.m ? -1 : 1, 0);
+        if (st > 0 && t < (st == 1 ? 700u : 1100u)) sparkle(c, s.px(px0 + 12), py0 - 2, 2);
+        clawd(c, s.box(CX, SPRITE_W), y, p);
+        return;
+    }
+    float d = t - THROW;
+    float fx, fy, gx, gy;
+    plane_path(kind, d, fx, fy);
+    plane_path(kind, fminf(d + 25, kind == 2 ? 1120 : 99999), gx, gy);
+    float ux = gx - fx, uy = gy - fy, l = sqrtf(ux * ux + uy * uy);
+    if (l < 0.01f) {
+        ux = 1;
+        uy = 1;
+        l = 1.414f;
+    }
+    ux /= l;
+    uy /= l;
+    bool landed = kind == 2 && d >= 1150;
+    if (fx < 140) {
+        // dotted trail
+        if (!landed)
+            for (int k = 1; k <= 2; k++) {
+                float tx, ty;
+                plane_path(kind, fmaxf(0, d - k * 70), tx, ty);
+                c.px(s.px(iround(tx)), iround(ty));
+            }
+        plane(c, s.px(iround(fx)), fy, s.m ? -ux : ux, uy);
+    }
+    // clawd: arm down after the throw, then reacts
+    p.arms = d < 150 ? ARMS_ONE_UP : ARMS_DOWN;
+    if (landed) {
+        uint32_t q = d - 1150;
+        if (q < 300) {   // bonk
+            int bx = s.px(iround(fx) + 6);
+            c.line(bx, GY - 10, bx + (s.m ? -3 : 3), GY - 13);
+            c.line(bx + (s.m ? -2 : 2), GY - 6, bx + (s.m ? -6 : 6), GY - 6);
+        }
+        if (q >= 300) {
+            p.eyes = EYES_CLOSED;
+            sweat(c, s.px(CX + 36), CY - 8 + 6 * seg(q, 300, 1500));
+        }
+    } else if (fx > 128 || (kind == 1 && d > 600 && d < 1500)) {
+        bool yay = fx > 128 && d < (kind == 1 ? 3300 : 2600);
+        p.arms = yay ? ARMS_UP : ARMS_DOWN;
+        if (yay) {
+            y -= iround(hop(t, 4));
+            p.eyes = EYES_CLOSED;
+        }
+    }
+    clawd(c, s.box(CX, SPRITE_W), y, p);
+}
+
 static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
 static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
 static const Anim A_STRETCH = {"stretch", a_stretch, 4400, CALM};
 static const Anim A_JUGGLE = {"juggle", a_juggle, 7000, SCENE};
 static const Anim A_BUG = {"bug_squash", a_bug_squash, 5800, SCENE};
 static const Anim A_GIT = {"git_branch", a_git_branch, 5200, SCENE};
+static const Anim A_PLANE = {"paper_plane", a_paper_plane, 5000, SCENE};
 
-ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG, &A_GIT);
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG, &A_GIT, &A_PLANE);
