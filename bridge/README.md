@@ -113,6 +113,7 @@ the capture only runs while the music watcher says something plays, and stops wi
 | SessionEnd | `ev end` (when no other session is left) |
 | UserPromptSubmit | `ev prompt` |
 | PreToolUse | `ev tool <tool_name>`, `AskUserQuestion` / `ExitPlanMode` give `ev perm` |
+| PreToolUse, Bash | the command picks the look: `Grep` (grep, rg, find), `Read` (cat, ls, sed -n), `Build` (make, idf.py, cargo build), `Test`, `Git`, `Install` (pip, apt, npm install), `WebFetch` (curl, wget), else `Bash` |
 | PermissionRequest | `ev perm` |
 | Notification `permission_prompt`, `elicitation_dialog`, `agent_needs_input`... | `ev perm` |
 | PostToolUse, Bash test command | `ev test pass` (or `fail` if the output says so, e.g. piped into tail) |

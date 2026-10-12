@@ -14,7 +14,7 @@ on its own.
 | `ev start` | a claude code session started |
 | `ev end` | session ended |
 | `ev prompt` | you sent a prompt, claude is thinking |
-| `ev tool <Name>` | a tool started: `Bash`, `Read`, `Edit`, `Write`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, `Task`, `TodoWrite`, `mcp__x__y`... |
+| `ev tool <Name>` | a tool started: `Bash`, `Read`, `Edit`, `Write`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, `Task`, `TodoWrite`, `mcp__x__y`... a Bash command can also come as what it does: `Build`, `Test`, `Git`, `Install`, `Grep`, `Read`, `WebFetch` |
 | `ev toolfail <Name>` | that tool returned an error |
 | `ev perm` | claude is waiting for you (permission or a question) |
 | `ev perm <project>` | same, and which project is waiting (ascii, up to 16 chars), shown small at the bottom |
