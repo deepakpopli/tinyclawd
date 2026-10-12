@@ -4,12 +4,12 @@
 
 extern const AnimList anims_claude, anims_idle, anims_work, anims_moods;
 extern const AnimList anims_usage, anims_football, anims_match, anims_squad;
-extern const AnimList anims_music;
+extern const AnimList anims_music, anims_more;
 
 static const AnimList* const LISTS[] = {
     &anims_claude, &anims_idle, &anims_work, &anims_moods,
     &anims_usage, &anims_football, &anims_match, &anims_squad,
-    &anims_music,
+    &anims_music, &anims_more,
 };
 static const int NLISTS = sizeof(LISTS) / sizeof(LISTS[0]);
 
