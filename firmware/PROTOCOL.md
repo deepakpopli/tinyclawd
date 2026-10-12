@@ -31,6 +31,7 @@ on its own.
 | `music 1 <artist - title>` | music started or the track changed. title is ascii, up to 48 chars, may be empty |
 | `music 0` | music stopped |
 | `typing <n>` | you are typing on the laptop, n = keys per second (1-15). `typing 0` = stopped. sent when it changes, and again every 5 s while it goes on. only a count, never which keys |
+| `eq 13579753` | music levels, 8 digits 0-9, bass on the left. only while music plays, up to ~12 a second and only when they changed. the laptop sends levels, never sound. no `eq` for 500 ms and the pet makes up its own bars |
 | `time 23:15` | local time, so it knows when it is night |
 | `touch tap` / `touch double` / `touch long` | fake a touch (testing) |
 | `touch down` / `touch up` | fake the pad edges, hold to open the menu (testing) |

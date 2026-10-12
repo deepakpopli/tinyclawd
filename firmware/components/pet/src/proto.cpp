@@ -98,6 +98,21 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         snprintf(reply, len, "ok");
         return true;
     }
+    if (!strcmp(line, "eq")) {
+        uint8_t lv[8];
+        int n = 0;
+        while (n < 8 && rest[n] >= '0' && rest[n] <= '9') {
+            lv[n] = rest[n] - '0';
+            n++;
+        }
+        if (n < 8 || rest[8]) {
+            snprintf(reply, len, "err want eq <8 digits>");
+            return false;
+        }
+        b.eq(lv, now);
+        snprintf(reply, len, "ok");
+        return true;
+    }
     if (!strcmp(line, "touch")) {
         Touch t = TOUCH_TAP;
         if (!strcmp(rest, "double")) t = TOUCH_DOUBLE;

@@ -20,6 +20,8 @@ struct Ctx {
     const char* track = ""; // song playing on the laptop ("artist - title"), "" if none
     const char* who = "";   // project waiting for you ("tinyclawd", "2 waiting"), "" if unknown
     int typing = 0;         // how fast you type on the laptop, keys per second, 0 = not typing
+    uint8_t eq[8] = {};     // music levels 0..9, bass first (from the laptop)
+    bool eq_live = false;   // eq got an update in the last 500 ms, else fake it
 };
 
 // an animation is a pure function of time: draw(canvas, ms since start, ctx)

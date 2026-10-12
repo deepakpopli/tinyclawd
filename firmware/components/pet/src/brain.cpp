@@ -212,6 +212,8 @@ struct Brain::Impl {
     int done = 0, bugs = 0;
     bool music = false;            // the laptop is playing music
     char track[49] = "";
+    uint8_t eq[8] = {};            // last music levels from the laptop
+    uint32_t eq_at = 0;            // when they came, 0 = never
     char who[17] = "";             // project waiting for you
     int sessions = 0;              // busy sessions, dots when 2+
     bool resume = false;           // last line was "ev done small", others still work
@@ -626,6 +628,8 @@ struct Brain::Impl {
         if (!p.a) return;
         uint32_t t = now - p.start;
         if (!(p.a->flags & LOOP) && t >= p.a->ms) t = p.a->ms ? p.a->ms - 1 : 0;
+        memcpy(p.ctx.eq, eq, sizeof(eq));   // levels change while it plays
+        p.ctx.eq_live = eq_at && now - eq_at < 500;
         p.a->draw(c, t, p.ctx);
     }
 
@@ -911,6 +915,11 @@ void Brain::music(bool on, const char* title, uint32_t now) {
 }
 
 void Brain::typing(int rate, uint32_t now) { p->set_typing(rate, now); }
+
+void Brain::eq(const uint8_t* levels, uint32_t now) {
+    memcpy(p->eq, levels, sizeof(p->eq));
+    p->eq_at = now ? now : 1;
+}
 
 void Brain::clock(int hour, int minute, uint32_t now) {
     p->hour = hour;
