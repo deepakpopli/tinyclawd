@@ -138,7 +138,10 @@ static const ToolMap TOOLS[] = {
     {"WebSearch", POOL(T_WEB)}, {"TodoWrite", POOL(T_TODO)}, {"mcp__", POOL(T_MCP)},
 };
 
-static const Pick THINK[] = {{"thinking", 5, 0}, {"ponder", 3, 0}};
+static const Pick THINK[] = {
+    {"thinking_words", 6, 0}, {"thinking", 3, 0}, {"big_spinner", 3, 0}, {"lightbulb", 3, 0},
+    {"idea_orbit", 3, 0}, {"ponder", 2, 0}, {"vibe_think", 2, 0},
+};
 static const Pick WAIT[] = {{"needs_you", 3, 0}, {"var_check", 2, 0}};
 static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
@@ -554,8 +557,8 @@ struct Brain::Impl {
         }
 
         // long tool runs and waits rotate between variants
-        if (!oneshot && (mode == TOOL_M || mode == WAIT_M) && base_n > 1) {
-            uint32_t every = mode == TOOL_M ? TOOL_ROTATE_MS : WAIT_ROTATE_MS;
+        if (!oneshot && (mode == TOOL_M || mode == WAIT_M || mode == THINK_M) && base_n > 1) {
+            uint32_t every = mode == WAIT_M ? WAIT_ROTATE_MS : TOOL_ROTATE_MS;   // tools and long thinking
             const char* name = now - cur.start > every ? pick(base_pool, base_n, now) : nullptr;
             if (name && strcmp(name, cur.a->name)) {
                 base = find_anim(name);
