@@ -154,7 +154,7 @@ bool draw(Canvas& c, uint32_t now) {
             c.fill_rect(64 - w / 2, 52, 64 + w / 2, 63, false);
             c.text_center(64, 55, say);
             if (!strcmp(say, "allowed") || !strcmp(say, "denied!"))
-                clawd(c, 104, 40, pose(EYES_OPEN, ARMS_UP), 0.5f);
+                clawd(c, 108, 51, pose(EYES_OPEN, ARMS_UP), 0.5f);   // bottom right, clear of the timer bar
         }
         if (u > 700) {
             if (lives <= 0) go(OVER, now);
