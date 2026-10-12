@@ -497,11 +497,11 @@ def music_line(text):
         f = row.split("\t", 3)
         if len(f) < 4 or f[0] != "Playing":
             continue
-        artist, title = f[2].strip(), f[3].strip()
+        # ascii only, one space between words, so "山下" is just gone
+        artist, title = (re.sub(r" +", " ", re.sub(r"[^\x20-\x7e]", "", s)).strip()
+                         for s in f[2:4])
         name = "%s - %s" % (artist, title) if artist and title else artist or title
-        name = re.sub(r"[^\x20-\x7e]", "", name)
-        name = re.sub(r" +", " ", name).strip()[:48].strip()
-        return ("music 1 " + name).strip()
+        return ("music 1 " + name[:48]).strip()
     return None
 
 
