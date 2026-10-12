@@ -47,6 +47,7 @@ static const Pick AWAKE[] = {
     {"head_juggle", 2, 90}, {"spin", 2, 60}, {"wave", 1, 120}, {"dance", 1, 120},
     {"content", 2, 90}, {"yawn", 1, 120}, {"startled", 1, 180}, {"seq:concert", 1, 300},
     {"seq:training", 1, 300}, {"keepy_uppy", 1, 180}, {"dribble", 1, 180}, {"penalty_save", 1, 240},
+    {"usage", 2, 600},   // only once usage data came in (extra_ok)
 };
 static const Pick BORED[] = {
     {"bored", 6, 45}, {"yawn", 4, 60}, {"keepy_uppy", 4, 120}, {"dribble", 3, 120},
@@ -56,7 +57,7 @@ static const Pick BORED[] = {
     {"bicycle_kick", 1, 200}, {"penalty_save", 2, 150}, {"half_time", 2, 200},
     {"turn_around", 2, 60}, {"spin", 1, 60}, {"blink", 3, 0},
     {"seq:match", 3, 240}, {"seq:training", 2, 240}, {"seq:concert", 2, 300},
-    {"seq:nap", 1, 600},
+    {"seq:nap", 1, 600}, {"usage", 2, 600},
 };
 static const Pick DROWSY[] = {
     {"yawn", 5, 30}, {"bored", 3, 30}, {"blink", 2, 0}, {"side_eye", 1, 60},
