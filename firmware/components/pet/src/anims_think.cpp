@@ -48,6 +48,12 @@ static void big_star(Canvas& c, int cx, int cy, int i, float k, float rot) {
     c.fill_rect(cx - 2, cy - 2, cx + 2, cy + 2);
 }
 
+// small pixel art: '#' = on, anything else = skip
+static void art(Canvas& c, int x, int y, const char* const* rows, int n, bool on = true) {
+    for (int r = 0; r < n; r++)
+        for (int q = 0; rows[r][q]; q++)
+            if (rows[r][q] == '#') c.px(x + q, y + r, on);
+}
 
 static float blink_k(uint32_t t, uint32_t at) {
     return t >= at && t < at + BLINK_MS ? (t - at) / (float)BLINK_MS : -1;
@@ -180,7 +186,138 @@ static void a_big_spinner(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ----------------------------------------------------------------- lightbulb
+// eyes squeeze, sparks, the bulb flickers and then really comes on
+
+static const char* const BULB[] = {
+    ".....#####.....",
+    "...##.....##...",
+    "..#.........#..",
+    ".#...........#.",
+    ".#...........#.",
+    "#.............#",
+    "#.............#",
+    "#.............#",
+    "#.............#",
+    ".#...........#.",
+    ".#...........#.",
+    "..#.........#..",
+    "...#.......#...",
+    "....#.....#....",
+    "....#######....",
+    ".....#####.....",
+    "....#######....",
+    ".....#####.....",
+    "......###......",
+};
+static const char* const GLOW[] = {
+    "...............",
+    ".....#####.....",
+    "...#########...",
+    "..###########..",
+    "..###########..",
+    ".#############.",
+    ".#############.",
+    ".#############.",
+    ".#############.",
+    "..###########..",
+    "..###########..",
+    "...#########...",
+    "....#######....",
+    ".....#####.....",
+};
+static const char* const FILAMENT[] = {
+    "...............",
+    "...............",
+    "...............",
+    "...............",
+    "...............",
+    "....#.....#....",
+    "....##...##....",
+    "....#.#.#.#....",
+    "....#..#..#....",
+    ".....#...#.....",
+    ".....#...#.....",
+    ".....#...#.....",
+    ".....#...#.....",
+    ".....#...#.....",
+};
+static const int BULB_H = sizeof(BULB) / sizeof(BULB[0]);
+static const int GLOW_H = sizeof(GLOW) / sizeof(GLOW[0]);
+
+static const uint32_t LB_STRAIN = 1600, LB_FLICK = 2300, LB_ON = 3900, LB_CYC = 4600;
+
+static void a_lightbulb(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t cyc = t / LB_CYC, in = t % LB_CYC;
+    uint32_t h = hash32(cyc * 131 + x.seed);
+    int bx = 57, by = 0;
+
+    // is the bulb lit? off while straining, stutters, then on
+    bool lit = false;
+    if (in >= LB_FLICK && in < LB_ON) lit = true;
+    else if (in >= LB_STRAIN && in < LB_FLICK) {
+        static const uint8_t PAT[] = {1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1};
+        lit = PAT[((in - LB_STRAIN) / 50 + (h & 7)) % 14];
+    }
+
+    // eyes: squeezed and shaking a little, then wide open, then easing back
+    Eye e;
+    float wide = ease_out(seg(in, LB_FLICK, LB_FLICK + 140)) * (1 - ease(seg(in, LB_ON, LB_CYC)));
+    float pop = in >= LB_FLICK && in < LB_FLICK + 300 ? sinf(PI * seg(in, LB_FLICK, LB_FLICK + 300)) : 0;
+    e.w = lerp(14, 13, wide);
+    e.h = lerp(6, 22, wide) + 3 * pop;
+    e.dy = lerp(14, 11, wide) - 2 * pop;
+    if (in >= 250 && in < LB_FLICK) {
+        // squeezed shut > <, shaking a little while trying hard
+        e.shape = SQUINT;
+        e.dy = 10;
+        e.dx = ((in / 70) % 2 ? 1 : -1) * seg(in, 250, LB_STRAIN);
+    } else if (in < 250) {
+        e.h = lerp(6, 3, seg(in, 0, 250));
+    }
+    if (wide > 0.9f && in > LB_FLICK + 400) e = maybe_blink(e, blink_k(in, LB_FLICK + 900 + (h >> 4) % 400));
+    face(c, e);
+
+    if (lit) {
+        art(c, bx, by, GLOW, GLOW_H);
+        art(c, bx, by, FILAMENT, GLOW_H, false);
+    }
+    art(c, bx, by, BULB, BULB_H);
+
+    if (in >= LB_FLICK && in < LB_ON) {
+        // rays, pulsing out
+        float k = (in - LB_FLICK) % 500 / 500.0f;
+        int a = 3 + iround(3 * k);
+        int cx = bx + 7, cy = by + 8;
+        c.hline(cx - 10 - a, cx - 10, cy);
+        c.hline(cx + 10, cx + 10 + a, cy);
+        c.line(cx - 9, cy - 6, cx - 9 - a, cy - 6 - a / 2);
+        c.line(cx + 9, cy - 6, cx + 9 + a, cy - 6 - a / 2);
+        c.line(cx - 9, cy + 6, cx - 9 - a, cy + 6 + a / 2);
+        c.line(cx + 9, cy + 6, cx + 9 + a, cy + 6 + a / 2);
+        // happy sparkles off to the sides
+        if ((in / 180) % 2) {
+            sparkle(c, 30, 8, 2);
+            sparkle(c, 98, 12, 2);
+        } else {
+            sparkle(c, 24, 14, 1);
+            sparkle(c, 104, 6, 2);
+        }
+    } else if (in < LB_STRAIN) {
+        // little sparks fizzing around the bulb while it is off
+        for (int i = 0; i < 2; i++) {
+            uint32_t slot = (in + i * 130) / 260;
+            uint32_t sh = hash32(slot * 17 + i * 5 + cyc * 3 + x.seed);
+            if (in < 300) continue;
+            int sx = bx + 7 + ((sh & 1) ? 1 : -1) * (11 + (sh >> 3) % 6);
+            int sy = by + 3 + (sh >> 7) % 12;
+            sparkle(c, sx, sy, (sh >> 12) % 2 + 1);
+        }
+    }
+}
+
 static const Anim A_WORDS = {"thinking_words", a_thinking_words, 4 * TW_WORD, LOOP};
 static const Anim A_BIG_SPIN = {"big_spinner", a_big_spinner, 7040, LOOP};
+static const Anim A_BULB = {"lightbulb", a_lightbulb, LB_CYC, LOOP};
 
-ANIM_LIST(anims_think, &A_WORDS, &A_BIG_SPIN);
+ANIM_LIST(anims_think, &A_WORDS, &A_BIG_SPIN, &A_BULB);
