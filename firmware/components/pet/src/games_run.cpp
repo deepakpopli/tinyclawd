@@ -8,9 +8,11 @@
 static const int GROUND = 60;
 static const int CX = 12;               // Clawd's left edge
 static const int CW = 18, CH = 12;      // mini Clawd at scale 0.5
-static const float GRAV = 0.0009f;      // px / ms^2
-static const float GRAV_HELD = 0.0004f;
-static const float JUMP_V = -0.17f;     // px / ms
+static const float GRAV = 0.0006f;      // px / ms^2, floaty so jumps are easy to time
+static const float GRAV_HELD = 0.0003f;
+static const float JUMP_V = -0.15f;     // px / ms
+static const int LIVES = 3;
+static const uint32_t SAFE_MS = 1500;   // blink after a hit, can't be hit again
 static const int MAX_OBS = 6;
 
 enum Kind : uint8_t { BUG, WALL, STACK, TOKEN };
@@ -23,9 +25,9 @@ struct Obs {
 
 static Obs obs[MAX_OBS];
 static uint32_t bot_until, bot_tired;
-static uint32_t rng, t0, last, died, last_input;
+static uint32_t rng, t0, last, died, last_input, hit_at;
 static float dist, y, vy, next_gap;
-static int tokens, best, final_score;
+static int tokens, best, final_score, lives;
 static bool held, dead, new_best;
 
 static uint32_t rnd() {
@@ -33,7 +35,7 @@ static uint32_t rnd() {
     return rng >> 8;
 }
 
-static float speed() { return clampf(0.06f + dist * 0.0000045f, 0.06f, 0.14f); }
+static float speed() { return clampf(0.045f + dist * 0.0000015f, 0.045f, 0.1f); }
 
 static int w_of(Kind k) { return k == BUG ? 8 : (k == TOKEN ? 5 : (k == WALL ? 13 : 6)); }
 static int h_of(Kind k) { return k == BUG ? 5 : (k == TOKEN ? 5 : (k == WALL ? 9 : 14)); }
@@ -48,6 +50,8 @@ static void run_start(uint32_t now, uint32_t seed, int b) {
     vy = 0;
     next_gap = 60;
     tokens = 0;
+    lives = LIVES;
+    hit_at = 0;
     best = b;
     held = dead = new_best = false;
     bot_tired = now + 20000 + rnd() % 20000;   // the bot gets sloppy after this
@@ -65,7 +69,7 @@ static void run_input(Btn b, uint32_t now) {
         if (y == 0) vy = JUMP_V;
     } else if (b == BTN_UP) {
         held = false;
-        if (vy < -0.11f) vy = -0.11f;   // let go early, short hop
+        if (vy < -0.1f) vy = -0.1f;   // let go early, short hop
     }
 }
 
@@ -76,14 +80,15 @@ static void spawn() {
     if (!o) return;
     uint32_t r = rnd() % 10;
     o->kind = r < 5 ? BUG : (r < 7 ? WALL : (r < 8 ? STACK : TOKEN));
-    if (dist < 400 && o->kind != BUG) o->kind = r < 7 ? BUG : TOKEN;   // easy start
+    if (dist < 700 && o->kind != BUG) o->kind = r < 7 ? BUG : TOKEN;          // only bugs at first
+    if (dist < 1800 && o->kind == STACK) o->kind = BUG;                        // tall ones come late
     o->x = 130;
     o->alive = true;
-    // gap grows with speed so every jump stays possible
-    next_gap = 45 + speed() * 400 + rnd() % 50;
+    // gap grows with speed so every jump stays possible, and there is time to breathe
+    next_gap = 70 + speed() * 500 + rnd() % 60;
 }
 
-static void step(float dt) {
+static void step(float dt, uint32_t now) {
     float v = speed();
     dist += v * dt;
     for (Obs& o : obs)
@@ -100,18 +105,22 @@ static void step(float dt) {
         if (y >= 0) y = vy = 0;
     }
 
-    // hits, a little forgiving
+    // hits, forgiving: the box is a few px smaller than Clawd
     int top = GROUND - CH + iround(y);
+    bool safe = hit_at && now - hit_at < SAFE_MS;
     for (Obs& o : obs) {
         if (!o.alive) continue;
         int ox = iround(o.x), w = w_of(o.kind), h = h_of(o.kind);
         int oy = o.kind == TOKEN ? GROUND - 22 : GROUND - h;
-        bool hit = ox < CX + CW - 3 && ox + w > CX + 3 && oy < top + CH - 1 && oy + h > top + 2;
+        bool hit = ox < CX + CW - 5 && ox + w > CX + 5 && oy < top + CH - 3 && oy + h > top + 2;
         if (!hit) continue;
         if (o.kind == TOKEN) {
             tokens += 5;
             o.alive = false;
-        } else {
+        } else if (!safe && --lives > 0) {
+            hit_at = now;
+            o.alive = false;
+        } else if (!safe) {
             dead = true;
             final_score = run_score();
             new_best = final_score > best;
@@ -120,6 +129,9 @@ static void step(float dt) {
         }
     }
 }
+
+static const uint8_t HEART[] = {0x6c, 0xfe, 0xfe, 0x7c, 0x38, 0x10};
+static const uint8_t HEART_EMPTY[] = {0x6c, 0x92, 0x82, 0x44, 0x28, 0x10};
 
 static void draw_obs(Canvas& c, const Obs& o, uint32_t now) {
     int x = iround(o.x);
@@ -168,7 +180,7 @@ static bool run_draw(Canvas& c, uint32_t now) {
         // small fixed steps so a slow frame never skips through a bug
         while (dt > 0 && !dead) {
             uint32_t s = dt > 8 ? 8 : dt;
-            step((float)s);
+            step((float)s, now);
             dt -= s;
         }
         if (dead) died = now;
@@ -196,7 +208,11 @@ static bool run_draw(Canvas& c, uint32_t now) {
         if (o.alive) draw_obs(c, o, now);
 
     Feet f = y < 0 ? FEET_BOTH : (((uint32_t)(dist / 6)) & 1 ? FEET_LEFT : FEET_RIGHT);
-    clawd(c, CX, GROUND - CH + 1 + iround(y), pose(EYES_RIGHT, y < 0 ? ARMS_UP : ARMS_DOWN, f), 0.5f);
+    // blink for a moment after a hit
+    bool hurt = hit_at && now - hit_at < SAFE_MS;
+    if (!hurt || (now / 100) & 1)
+        clawd(c, CX, GROUND - CH + 1 + iround(y), pose(hurt ? EYES_CLOSED : EYES_RIGHT, y < 0 ? ARMS_UP : ARMS_DOWN, f), 0.5f);
+    for (int i = 0; i < LIVES; i++) c.blit(52 + i * 9, 1, 7, 6, i < lives ? HEART : HEART_EMPTY);
 
     snprintf(buf, sizeof(buf), "%d", run_score());
     c.text(127 - c.text_width(buf), 0, buf);
