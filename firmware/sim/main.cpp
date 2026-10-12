@@ -159,19 +159,23 @@ static int soak(int hours) {
         rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
         return rng % n;
     };
-    static int plays[256];
-    static uint32_t screen_ms[256];
+    static int plays[256], work_plays[256];
+    static uint32_t screen_ms[256], work_ms[256];
     brain.begin(0, 7);
     char reply[64], line[64];
     auto send = [&](const char* l, uint32_t now) {
         snprintf(line, sizeof(line), "%s", l);
         proto_line(brain, line, now, reply, sizeof(reply));
     };
-    const char* tools[] = {"Bash", "Read", "Grep", "Glob", "Edit", "Write", "WebFetch", "TodoWrite", "mcp__x__y"};
+    // what the bridge sends: real tools plus the kinds of bash command
+    const char* tools[] = {"Bash", "Read", "Grep", "Glob", "Edit", "Write", "WebFetch", "TodoWrite", "mcp__x__y",
+                           "Bash", "Grep", "Read", "Build", "Test", "Git", "Install", "Edit", "Bash"};
+    const int ntools = sizeof(tools) / sizeof(tools[0]);
     uint32_t end = hours * 3600000u, now = 0, next_ev = 5000;
     int state = 0, steps_left = 0, turns_left = 0;
     const char* shown = "";
-    int changes = 0;
+    int changes = 0, work_changes = 0;
+    uint32_t work_total = 0;
     send("time 09:00", 0);
     while (now < end) {
         if (now >= next_ev) {
@@ -194,7 +198,7 @@ static int soak(int hours) {
                 else if (r < 15) send(rnd(3) ? "ev test pass" : "ev test fail", now);
                 else if (r < 17) send("ev commit", now);
                 else if (r < 19) send("ev toolfail Bash", now);
-                else { snprintf(l, sizeof(l), "ev tool %s", tools[rnd(9)]); send(l, now); }
+                else { snprintf(l, sizeof(l), "ev tool %s", tools[rnd(ntools)]); send(l, now); }
                 next_ev = now + 800 + rnd(9000);
                 if (--steps_left <= 0) state = 3;
             } else if (state == 3) {   // turn done
@@ -214,18 +218,31 @@ static int soak(int hours) {
         int idx = -1;
         for (int i = 0; i < anim_count(); i++)
             if (anim_at(i) == a) idx = i;
+        bool work = state == 2 || state == 3;   // between a prompt and done
         if (strcmp(cur, shown)) {
             shown = cur;
             changes++;
             if (idx >= 0) plays[idx]++;
+            if (idx >= 0 && work) work_plays[idx]++, work_changes++;
         }
         if (idx >= 0) screen_ms[idx] += FRAME_MS * 5;
+        if (idx >= 0 && work) work_ms[idx] += FRAME_MS * 5, work_total += FRAME_MS * 5;
         now += FRAME_MS * 5;   // 10 fps is enough for stats
     }
     printf("%d hours, %d changes (one every %.1f s)\n", hours, changes, end / 1000.0 / changes);
-    printf("%-18s %6s %8s\n", "anim", "plays", "screen%");
+    // while claude works: how many different ones, and the biggest share
+    int distinct = 0, top = 0;
+    for (int i = 0; i < anim_count(); i++) {
+        if (work_plays[i]) distinct++;
+        if (work_ms[i] > work_ms[top]) top = i;
+    }
+    printf("work: %.0f min, %d changes (one every %.1f s), %d different, top %s %.1f%%\n",
+           work_total / 60000.0, work_changes, work_total / 1000.0 / (work_changes ? work_changes : 1),
+           distinct, anim_at(top)->name, 100.0 * work_ms[top] / (work_total ? work_total : 1));
+    printf("%-18s %6s %8s %6s %8s\n", "anim", "plays", "screen%", "work", "work%");
     for (int i = 0; i < anim_count(); i++)
-        printf("%-18s %6d %7.1f%%\n", anim_at(i)->name, plays[i], 100.0 * screen_ms[i] / end);
+        printf("%-18s %6d %7.1f%% %6d %7.1f%%\n", anim_at(i)->name, plays[i], 100.0 * screen_ms[i] / end,
+               work_plays[i], 100.0 * work_ms[i] / (work_total ? work_total : 1));
     return 0;
 }
 
