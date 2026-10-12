@@ -62,6 +62,9 @@ so stop the daemon first. session files are one line per entry, `<ms> <line>` fr
   session's `ev done` or `ev end` does not hide another session that is waiting for you (`ev perm`),
   `ev end` only goes out when the last session ends, usage is only forwarded when it changed or
   every 30 s
+- asks `playerctl` every 2 s if something plays (spotify, youtube in a browser...), sends
+  `music 1 artist - title` when it starts or the track changes and `music 0` after 5 s of quiet.
+  no playerctl, no music mode
 
 ## hook mapping
 
