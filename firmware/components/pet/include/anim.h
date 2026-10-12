@@ -18,6 +18,7 @@ struct Ctx {
     int bugs = 0;           // failures this session
     const char* tool = "";  // last tool name
     const char* track = ""; // song playing on the laptop ("artist - title"), "" if none
+    const char* who = "";   // project waiting for you ("tinyclawd", "2 waiting"), "" if unknown
 };
 
 // an animation is a pure function of time: draw(canvas, ms since start, ctx)

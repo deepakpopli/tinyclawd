@@ -8,6 +8,7 @@
 #include "menu.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 bool idle_at_rest(uint32_t t, uint32_t seed);
@@ -206,6 +207,7 @@ struct Brain::Impl {
     int done = 0, bugs = 0;
     bool music = false;            // the laptop is playing music
     char track[49] = "";
+    char who[17] = "";             // project waiting for you
     Canvas a, b;   // scratch for transitions
 
     uint32_t rand() {
@@ -282,6 +284,7 @@ struct Brain::Impl {
         c.bugs = bugs;
         c.tool = tool;
         c.track = track;
+        c.who = who;
     }
 
     void mark(const Anim* an, uint32_t now) {
@@ -678,6 +681,13 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         else if (s.rand() % 2) s.react(POOL(TOOL_FAIL), now);
         break;
     case EV_PERM:
+        // "+2" = two sessions waiting, else a project name
+        if (*arg == '+') snprintf(s.who, sizeof(s.who), "%d waiting", atoi(arg + 1));
+        else {
+            strncpy(s.who, arg, sizeof(s.who) - 1);
+            s.who[sizeof(s.who) - 1] = 0;
+        }
+        if (s.mode == WAIT_M) break;   // already waiting, only the name changed
         s.qn = 0;
         s.oneshot = false;
         s.go_mode(WAIT_M, now);

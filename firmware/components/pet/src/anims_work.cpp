@@ -148,6 +148,7 @@ static void a_needs_you(Canvas& c, uint32_t t, const Ctx& x) {
         c.text(6, 20, "!", font_bold24);
         c.text(115, 20, "!", font_bold24);
     }
+    if (*x.who) c.text_center(64, 57, x.who, font_5x7);   // which project
     // a hard flash every few seconds so it is seen from across the room
     uint32_t f = t % 2880;
     if (f < 90 || (f >= 180 && f < 270)) c.invert();

@@ -180,6 +180,13 @@ static void a_var_check(Canvas& c, uint32_t t, const Ctx& x) {
     int end = c.text(x0, 54, "checking", font_5x7);
     int dots = (t / 300) % 4;
     for (int i = 0; i < dots; i++) end = c.text(end, 54, ".", font_5x7);
+
+    // which project, small under the eyes (14 chars fit)
+    if (*x.who) {
+        char w[15];
+        snprintf(w, sizeof(w), "%s", x.who);
+        c.text_center(27, 57, w, font_4x6);
+    }
 }
 
 // ------------------------------------------------------------ substitution
