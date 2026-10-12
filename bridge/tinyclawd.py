@@ -17,6 +17,7 @@ import re
 import select
 import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -469,16 +470,94 @@ class State:
             self.out("ev perm")
 
 
+# ---------------------------------------------------------------- music
+
+PLAYER_FORMAT = "{{status}}\t{{playerName}}\t{{artist}}\t{{title}}"
+
+
+def playerctl():
+    """one line per player, '' when nothing plays, None when playerctl is not installed"""
+    try:
+        p = subprocess.run(["playerctl", "-a", "metadata", "--format", PLAYER_FORMAT],
+                           capture_output=True, text=True, timeout=2)
+    except FileNotFoundError:
+        return None
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    # exit 1 + "No players found" on stderr when nothing is open. with many players one
+    # can fail and still leave good lines, so look at stdout either way
+    if p.returncode != 0 and not p.stdout.strip():
+        return ""
+    return p.stdout
+
+
+def music_line(text):
+    """playerctl output -> 'music 1 artist - title' for the first playing player, else None"""
+    for row in (text or "").splitlines():
+        f = row.split("\t", 3)
+        if len(f) < 4 or f[0] != "Playing":
+            continue
+        artist, title = f[2].strip(), f[3].strip()
+        name = "%s - %s" % (artist, title) if artist and title else artist or title
+        name = re.sub(r"[^\x20-\x7e]", "", name)
+        name = re.sub(r" +", " ", name).strip()[:48].strip()
+        return ("music 1 " + name).strip()
+    return None
+
+
+class Music:
+    """polls playerctl, sends music 1 on start / track change, music 0 after 5 s of silence"""
+
+    EVERY = 2
+    OFF_AFTER = 5   # pauses and skips are shorter than this, no flicker
+
+    def __init__(self, out, run=playerctl):
+        self.out = out   # function(line)
+        self.run = run   # function() -> playerctl output
+        self.line = None   # what the pet shows now, None = no music
+        self.last_play = 0.0
+        self.off = False
+        self.stop = False
+
+    def poll(self, now=None):
+        if self.off:
+            return
+        now = now or time.time()
+        text = self.run()
+        if text is None:
+            log("playerctl not found, no music mode")
+            self.off = True
+            return
+        line = music_line(text)
+        if line:
+            self.last_play = now
+            if line != self.line:
+                self.line = line
+                self.out(line)
+        elif self.line and now - self.last_play >= self.OFF_AFTER:
+            self.line = None
+            self.out("music 0")
+
+    def loop(self):
+        while not self.stop and not self.off:
+            try:
+                self.poll()
+            except Exception as e:
+                log("music:", e)
+            time.sleep(self.EVERY)
+
+
 # ---------------------------------------------------------------- daemon
 
 DEVICE_PREFIXES = ("ok", "err", "touch", "boot")
 
 
 class Daemon:
-    def __init__(self, port=None, stdout=False, path=None):
+    def __init__(self, port=None, stdout=False, path=None, player=playerctl):
         self.path = path or sock_path()
         self.link = Link(port, stdout, self.on_connect, self.on_device)
         self.state = State(self.link.send)
+        self.music = Music(self.link.send, player)
         self.last_time = 0.0
 
     def on_connect(self):
@@ -490,6 +569,8 @@ class Daemon:
             self.link.send("ev sub %d" % self.state.subs())
         if self.state.perm_waiting():
             self.link.send("ev perm")
+        if self.music.line:
+            self.link.send(self.music.line)
 
     def send_time(self):
         self.last_time = time.time()
@@ -558,6 +639,7 @@ class Daemon:
         log("listening on", self.path)
         t = threading.Thread(target=self.link.run, daemon=True)
         t.start()
+        threading.Thread(target=self.music.loop, daemon=True).start()
         try:
             while until is None or not until.is_set():
                 r, _, _ = select.select([srv], [], [], 1.0)
@@ -575,6 +657,7 @@ class Daemon:
             pass
         finally:
             self.link.stop = True
+            self.music.stop = True
             srv.close()
             try:
                 os.unlink(self.path)
