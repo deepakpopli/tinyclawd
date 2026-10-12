@@ -75,71 +75,107 @@ static void a_working(Canvas& c, uint32_t t, const Ctx& x) {
 }
 
 // ------------------------------------------------------------------- searching
+// a magnifier goes through the code line by line, matches light up,
+// and a little hourglass runs in the corner
 
-struct SearchCycle {
-    int legs;        // sweeps
-    uint32_t leg;    // ms per sweep
-    bool found;
-    float row;       // which row it searches (dy)
-    uint32_t len;
+static const int SR_LINES = 5, SR_X0 = 4, SR_X1 = 94;
+static const uint32_t SR_LINE = 720, SR_HOLD = 900;
+static const uint32_t SR_CYCLE = SR_LINES * SR_LINE + SR_HOLD;
+
+struct CodeLine {
+    int n;          // words
+    int x[4], w[4];
+    int match;      // word index that matches, or -1
 };
 
-static SearchCycle search_cycle(uint32_t i, uint32_t seed) {
-    uint32_t h = hash32(i * 2654435761u + seed);
-    SearchCycle s;
-    s.legs = 2 + h % 3;
-    s.leg = 420 + (h >> 4) % 380;
-    s.found = (h >> 12) % 3 != 0;
-    s.row = (float)((int)((h >> 16) % 9) - 4);
-    s.len = s.legs * s.leg + (s.found ? 1500 : 900);
-    return s;
+static CodeLine code_line_at(uint32_t cycle, int i, uint32_t seed) {
+    uint32_t h = hash32(cycle * 97 + i * 13 + seed);
+    CodeLine l;
+    int xx = SR_X0 + (i == 0 ? 0 : (h % 3) * 8);
+    l.n = 2 + (h >> 4) % 3;
+    for (int k = 0; k < l.n; k++) {
+        l.x[k] = xx;
+        l.w[k] = 6 + ((h >> (8 + k * 4)) & 7) * 3;
+        if (xx + l.w[k] > SR_X1) l.w[k] = SR_X1 - xx;
+        xx += l.w[k] + 5;
+        if (xx > SR_X1 - 6) { l.n = k + 1; break; }
+    }
+    l.match = (h >> 24) % 5 < 2 || i == (int)(cycle + seed) % SR_LINES ? (h >> 28) % l.n : -1;
+    return l;
+}
+
+// sand f = 0..1 already fallen, k = 1 upright .. -1 upside down (for the flip)
+static void hourglass(Canvas& c, float cx, float cy, float f, float k) {
+    const float H = 14, W = 9;
+    c.line(cx - W, cy - H * k, cx + W, cy - H * k, 2);
+    c.line(cx - W, cy + H * k, cx + W, cy + H * k, 2);
+    float glass[] = {cx - W + 2, cy - (H - 1) * k, cx - 1, cy, cx - W + 2, cy + (H - 1) * k};
+    float glass2[] = {cx + W - 2, cy - (H - 1) * k, cx + 1, cy, cx + W - 2, cy + (H - 1) * k};
+    c.polyline(glass, 3);
+    c.polyline(glass2, 3);
+    // top sand sits in the neck and drains, the pile grows at the bottom
+    float top = (H - 2) * (1 - f), pile = (H - 5) * f;
+    if (top > 0.5f) {
+        float hw = (W - 2) * top / (H - 1) - 1;
+        float p[] = {cx - hw, cy - top * k, cx + hw, cy - top * k, cx, cy - 1 * k};
+        c.fill_poly(p, 3);
+    }
+    if (pile > 0.5f) {
+        float base = cy + (H - 2) * k;
+        float p[] = {cx - W + 3, base, cx + W - 3, base, cx, base - pile * k};
+        c.fill_poly(p, 3);
+    }
+    if (f < 1 && k > 0.9f) c.vline(iround(cx), iround(cy), iround(cy + H - 2 - pile));
 }
 
 static void a_searching(Canvas& c, uint32_t t, const Ctx& x) {
-    uint32_t i = 0, start = 0;
-    SearchCycle s = search_cycle(0, x.seed);
-    while (t >= start + s.len) {
-        start += s.len;
-        s = search_cycle(++i, x.seed);
+    uint32_t cycle = t / SR_CYCLE, in = t % SR_CYCLE;
+    int cur = in / SR_LINE;   // line being searched, SR_LINES = all done
+    float f = (in % SR_LINE) / (float)SR_LINE;
+    float lens_x = lerp(SR_X0 + 4, SR_X1 - 4, ease(f));
+
+    int hits = 0;
+    bool just_found = false;
+    for (int i = 0; i < SR_LINES; i++) {
+        CodeLine l = code_line_at(cycle, i, x.seed);
+        int y = 15 + i * 10;
+        for (int k = 0; k < l.n; k++) {
+            bool lit = k == l.match && (i < cur || (i == cur && lens_x > l.x[k] + l.w[k] / 2));
+            if (lit) {
+                hits++;
+                if (i == cur && lens_x < l.x[k] + l.w[k] / 2 + 14) just_found = true;
+                c.fill_rect(l.x[k] - 2, y - 3, l.x[k] + l.w[k] + 1, y + 4);
+                c.fill_rect(l.x[k], y - 1, l.x[k] + l.w[k] - 1, y + 1, false);
+            } else {
+                c.fill_rect(l.x[k], y - 1, l.x[k] + l.w[k] - 1, y + 1);
+            }
+        }
     }
-    uint32_t in = t - start, sweep = s.legs * s.leg;
-    float dir = (hash32(i + x.seed) & 1) ? 1 : -1;
-    Eye e;
-    e.w = 8;
-    e.h = 8;
-    if (in < sweep) {
-        // legs: 0 -> -22 -> +22 -> ... -> 0, the first and last are half legs
-        float pos = in / (float)s.leg;
-        int leg = (int)pos;
-        float f = pos - leg;
-        float a = leg == 0 ? 0 : (leg % 2 ? -22 : 22) * dir;
-        float b = leg == s.legs - 1 ? 0 : (leg % 2 ? 22 : -22) * dir;
-        e.dx = lerp(a, b, ease(f));
-        e.dy = s.row * sinf(PI * in / sweep);
-        face(c, e);
-        float ux = 64 + e.dx * 2;
-        c.hline(iround(ux - 10), iround(ux + 10), 56);
-        return;
+
+    // header: what is searching and how many it found
+    c.fill_rect(0, 0, 127, 9);
+    const char* what = !strcmp(x.tool, "Glob") ? "search glob" : "search grep";
+    c.text(3, 1, what, font_5x7, false);
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%d", hits);
+    c.text(124 - c.text_width(buf), 1, buf, font_5x7, false);
+
+    // magnifier on the line being searched, it hops a bit when it finds one
+    if (cur < SR_LINES) {
+        float ly = 15 + cur * 10 - (just_found ? 2 : 0);
+        c.fill_circle(lens_x, ly, 6);
+        c.fill_circle(lens_x, ly, 4, false);
+        c.line(lens_x + 4, ly + 4, lens_x + 9, ly + 9, 3);
     }
-    uint32_t q = in - sweep;
-    if (s.found) {
-        const Key g[] = {{0, 0}, {180, 1}, {1200, 1}, {1500, 0}};
-        float k = KEYS(g, q);
-        e.w = lerp(8, 14, k);
-        e.h = lerp(8, 26, k);
-        e.dy = -2 * k;
-        if (q > 120 && q < 1000) c.text(61, 0, "!", font_bold16);
-        face(c, maybe_blink(e, blink_k(q, 950)));
-        return;
+
+    // hourglass: sand runs for a whole pass, then it flips
+    float sand = clamp01(in / (float)(SR_CYCLE - 400));
+    float k = 1;
+    if (in >= SR_CYCLE - 400) {
+        k = cosf(PI * seg(in, SR_CYCLE - 400, SR_CYCLE));
+        if (k < 0) sand = 0;   // past the half: the full end is now on top
     }
-    // not found: squint, a little "?" and back to it
-    const Key l[] = {{0, 0}, {200, 0.35f}, {650, 0.35f}, {900, 0}};
-    e.w = 10;
-    e.h = 10;
-    e.lid = KEYS(l, q);
-    e.dy = 2 * e.lid;
-    face(c, e);
-    if (q > 150 && q < 750) c.text(104, 8, "?", font_6x10);
+    hourglass(c, 115, 36, sand, k < 0 ? -k : k);
 }
 
 // ------------------------------------------------------------------- needs you
