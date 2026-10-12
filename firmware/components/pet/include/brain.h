@@ -31,6 +31,7 @@ public:
     void touch(Touch t, uint32_t now);
     void usage(int pct5h, int pctwk, int ctx, int reset_min, uint32_t now);
     void music(bool on, const char* title, uint32_t now);   // title = "artist - title", may be empty
+    void typing(int rate, uint32_t now);         // you type on the laptop, keys per second, 0 = stopped
     void clock(int hour, int minute, uint32_t now);
     void sessions(int n);                        // claude code sessions busy right now
     void play(const char* name, uint32_t now);   // debug: play one animation now

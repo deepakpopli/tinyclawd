@@ -93,6 +93,11 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         snprintf(reply, len, "ok");
         return true;
     }
+    if (!strcmp(line, "typing")) {
+        b.typing(atoi(rest), now);
+        snprintf(reply, len, "ok");
+        return true;
+    }
     if (!strcmp(line, "touch")) {
         Touch t = TOUCH_TAP;
         if (!strcmp(rest, "double")) t = TOUCH_DOUBLE;
