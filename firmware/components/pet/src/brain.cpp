@@ -72,7 +72,7 @@ static const Pick ASLEEP[] = {
 // while music plays on the laptop
 static const Pick MUSIC[] = {
     {"dance", 4, 60}, {"headbang", 3, 60}, {"now_playing", 3, 120}, {"content", 2, 90},
-    {"wink", 1, 40}, {"spin", 1, 90},
+    {"wink", 1, 40}, {"spin", 1, 90}, {"music", 3, 60},
 };
 
 // celebrations, by how long claude worked on the turn
@@ -146,7 +146,7 @@ static const Pick WAIT[] = {{"needs_you", 3, 0}, {"var_check", 2, 0}};
 static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
-static const Pick GROOVE[] = {{"music", 1, 0}};
+static const Pick GROOVE[] = {{"equalizer", 1, 0}};
 static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
 static const Pick YOU_TYPING[] = {{"you_typing", 1, 0}};
 
@@ -407,7 +407,7 @@ struct Brain::Impl {
         if (!oneshot) show(base, now, false);
     }
 
-    // the idle base: watching you type, bobbing along while music plays, or the plain face
+    // the idle base: watching you type, the equalizer while music plays, or the plain face
     void idle_base(uint32_t now, bool force = false) {
         set_base(typing ? YOU_TYPING : (music ? GROOVE : IDLE), 1, now, force);
     }

@@ -7,7 +7,7 @@ static const uint32_t BEAT = 470;   // about 128 bpm
 static float beat_phase(uint32_t t) { return (t % BEAT) / (float)BEAT; }
 
 // equalizer bars along the bottom edge, k scales them (0 = gone)
-static void eq_bars(Canvas& c, uint32_t t, uint32_t seed, float k) {
+static void eq_bars(Canvas& c, uint32_t t, uint32_t seed, float k, const uint8_t* live) {
     if (k <= 0) return;
     uint32_t beat = t / BEAT;
     float p = beat_phase(t);
@@ -17,10 +17,15 @@ static void eq_bars(Canvas& c, uint32_t t, uint32_t seed, float k) {
         float peak = 2 + hash32(beat * 31 + i * 7 + seed) % 9;
         // the middle bars hit harder, like a real spectrum
         if (i > 3 && i < 10) peak += 1;
-        int h = iround(peak * (1 - 0.6f * p) * k);
+        float fall = 0.6f * p;
+        if (live) {   // real levels from the laptop, 14 bars share 8 bands
+            peak = 2 + live[i * 8 / 14];
+            fall = 0;
+        }
+        int h = iround(peak * (1 - fall) * k);
         if (h > 0) c.fill_rect(x, 63 - h + 1, x + 5, 63);
         // the cap falls slower than the bar
-        int cap = iround(peak * (1 - 0.25f * p) * k) + 2;
+        int cap = iround(peak * (1 - fall * 0.4f) * k) + 2;
         if (k > 0.5f) c.hline(x, x + 5, 63 - cap);
     }
 }
@@ -63,7 +68,7 @@ static void a_now_playing(Canvas& c, uint32_t t, const Ctx& x) {
     float k = ease(seg(t, IN0, IN1)) * (1 - ease(seg(t, OUT0, OUT1)));
     int y = iround(lerp(-12, 1, k));
     if (k > 0) title_strip(c, y, t - IN0, x.track);
-    eq_bars(c, t, x.seed, k);
+    eq_bars(c, t, x.seed, k, x.eq_live ? x.eq : nullptr);
 
     // eyes look up at the title, then bob to the beat
     float look = ease(seg(t, IN0, 700)) * (1 - ease(seg(t, 1200, 1600)));
@@ -137,9 +142,9 @@ static int fake_level(int i, uint32_t t, uint32_t seed) {
     int phrase = hash32(t / (BEAT * 8) + seed) % 3;
     int v;
     if (i < 2) v = (q == 0 ? 8 : 6 - 2 * q) + h % 2 - i;
-    else if (i < 6) v = 3 + h % 5 + (q == 0 || q == 2) - (i == 5);
+    else if (i < 6) v = 2 + h % 5 + (q == 0 || q == 2) - (i == 5);
     else v = (q == 2 ? 5 : 1) + h % 3 - (i - 6);
-    v += phrase - 1;
+    v += phrase - 2;
     return v < 0 ? 0 : (v > 9 ? 9 : v);
 }
 
