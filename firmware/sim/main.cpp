@@ -4,12 +4,14 @@
 //   ./sim anim blink [ms]         one animation -> out/blink.frames
 //   ./sim all                     every animation
 //   ./sim script demo.txt         a fake session through the brain -> out/demo.frames
+//   ./sim game run [ms]           a game played by its bot -> out/game_run.frames
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "anim.h"
 #include "brain.h"
+#include "game.h"
 #include "proto.h"
 
 static const int FRAME_MS = 20;   // render at 50 fps, gif.py merges equal frames
@@ -48,6 +50,34 @@ static void render_anim(const Anim* a, uint32_t ms) {
     }
     w.close();
     printf("%s %u ms\n", a->name, ms);
+}
+
+// the game's bot holds the button, short presses also send a tap
+static void render_game(const Game* g, uint32_t ms) {
+    char name[64];
+    snprintf(name, sizeof(name), "game_%s", g->id);
+    Writer w;
+    if (!w.open(name)) return;
+    Canvas c;
+    uint32_t seed = getenv("SEED") ? strtoul(getenv("SEED"), nullptr, 10) : 12345;
+    g->start(0, seed, 12);
+    bool held = false;
+    uint32_t down_at = 0;
+    uint32_t t = 0;
+    for (; t < ms; t += FRAME_MS) {
+        bool b = g->bot(t);
+        if (b != held) {
+            held = b;
+            g->input(b ? BTN_DOWN : BTN_UP, t);
+            if (b) down_at = t;
+            else if (t - down_at < 300) g->input(BTN_TAP, t);
+        }
+        c.clear();
+        if (!g->draw(c, t)) break;
+        w.frame(c);
+    }
+    w.close();
+    printf("%s %u ms, score %d\n", g->name, t, g->score());
 }
 
 // script lines: "<ms> <protocol line>" absolute, or "+<ms> <line>" relative.
@@ -201,7 +231,7 @@ static int soak(int hours) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        fprintf(stderr, "usage: sim list | anim <name> [ms] | all | script <file>\n");
+        fprintf(stderr, "usage: sim list | anim <name> [ms] | all | script <file> | games | game <id> [ms]\n");
         return 1;
     }
     const char* cmd = argv[1];
@@ -219,6 +249,15 @@ int main(int argc, char** argv) {
         render_anim(a, argc >= 4 ? atoi(argv[3]) : a->ms);
     } else if (!strcmp(cmd, "all")) {
         for (int i = 0; i < anim_count(); i++) render_anim(anim_at(i), anim_at(i)->ms);
+    } else if (!strcmp(cmd, "games")) {
+        for (int i = 0; i < game_count(); i++) printf("%-10s %s\n", game_at(i)->id, game_at(i)->name);
+    } else if (!strcmp(cmd, "game") && argc >= 3) {
+        const Game* g = find_game(argv[2]);
+        if (!g) {
+            fprintf(stderr, "no game %s\n", argv[2]);
+            return 1;
+        }
+        render_game(g, argc >= 4 ? atoi(argv[3]) : 30000);
     } else if (!strcmp(cmd, "soak")) {
         return soak(argc >= 3 ? atoi(argv[2]) : 12);
     } else if (!strcmp(cmd, "script") && argc >= 3) {
