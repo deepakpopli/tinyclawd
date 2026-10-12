@@ -35,7 +35,7 @@ static uint32_t rnd() {
 
 static float speed() { return clampf(0.06f + dist * 0.0000045f, 0.06f, 0.14f); }
 
-static int w_of(Kind k) { return k == BUG ? 8 : (k == TOKEN ? 5 : (k == WALL ? 15 : 6)); }
+static int w_of(Kind k) { return k == BUG ? 8 : (k == TOKEN ? 5 : (k == WALL ? 13 : 6)); }
 static int h_of(Kind k) { return k == BUG ? 5 : (k == TOKEN ? 5 : (k == WALL ? 9 : 14)); }
 
 static int run_score() { return (int)(dist / 10) + tokens; }
@@ -135,8 +135,8 @@ static void draw_obs(Canvas& c, const Obs& o, uint32_t now) {
         break;
     }
     case WALL:
-        c.rect(x, GROUND - 9, x + 14, GROUND);
-        c.text(x + 2, GROUND - 7, "429", font_4x6);
+        c.rect(x, GROUND - 9, x + 12, GROUND);
+        c.text(x + 1, GROUND - 7, "429", font_4x6);
         break;
     case STACK:
         for (int i = 0; i < 2; i++) c.text(x, GROUND - 13 + i * 7, "}", font_5x7);
@@ -219,7 +219,7 @@ static bool run_bot(uint32_t now) {
         // a bit of noise in when he reacts, more as it speeds up, so he dies some day
         float lead = 1 + v * 50 + (hashf(now / 500 + (uint32_t)o.x) - 0.5f) * (now > bot_tired ? 30 : 4);
         if (gap > 0 && gap < lead) {
-            bot_until = now + (o.kind == STACK ? 320 : o.kind == WALL ? 220 : 140);
+            bot_until = now + (o.kind == STACK ? 380 : o.kind == WALL ? 340 : 140);
             return true;
         }
     }
