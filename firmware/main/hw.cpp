@@ -77,12 +77,12 @@ static bool save() {
     return ok;
 }
 
-static void show(char* reply, int len) {
+static void show(char* reply, int len, bool restarting = false) {
     const sh1106::Conf& c = s_set.screen;
     snprintf(reply, len, "ok offset=%d flip=%d mirror=%d contrast=%d i2c=%lu double=%lu long=%lu test=%d screen=%s",
              c.offset, c.flip, c.mirror, c.contrast, (unsigned long)(c.hz / 1000),
              (unsigned long)s_set.double_ms, (unsigned long)s_set.long_ms, s_test,
-             sh1106::ok() ? "ok" : "missing");
+             sh1106::ok() ? "ok" : (restarting ? "restarting" : "missing"));
 }
 
 static void stats(char* reply, int len) {
