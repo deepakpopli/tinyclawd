@@ -19,8 +19,8 @@ ev() {
     printf '    "%s": [{ %s"hooks": [{ "type": "command", "command": "%s", "async": true, "timeout": 5 }] }]' "$1" "$m" "$CMD"
 }
 
-echo "1) add this to the \"hooks\" object in ~/.claude/settings.json"
-echo "   (merge by hand if you already have hooks for the same events):"
+echo "1) run: $PY $DIR/install_hooks.py   (adds them for you, keeps your hooks, makes a backup)"
+echo "   or add this to the \"hooks\" object in ~/.claude/settings.json by hand:"
 echo
 echo '  "hooks": {'
 {
