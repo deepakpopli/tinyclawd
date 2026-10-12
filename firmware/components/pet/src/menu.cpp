@@ -212,7 +212,9 @@ static void big_text(Canvas& c, int y, const char* s, const Font& f) {
     int i = 0;
     for (; s[i] && i < 23; i++) up[i] = s[i] >= 'a' && s[i] <= 'z' ? s[i] - 32 : s[i];
     up[i] = 0;
-    c.text_center(64, y, up, f);
+    // too wide for the screen: the smaller font still fits 20 letters
+    const Font& use = c.text_width(up, f) > 124 ? font_6x10 : f;
+    c.text_center(64, use.h < f.h ? y + (f.h - use.h) / 2 : y, up, use);
 }
 
 static void dots(Canvas& c, int n, int at) {
