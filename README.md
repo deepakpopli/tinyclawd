@@ -153,7 +153,7 @@ needs openscad 2025+ and the original Mochi STLs in `hardware/original/` (downlo
 
 ## license
 
-print files: CC BY-NC-SA 4.0, because the inner frame is Dave0616's Mochi housing
+code: [MIT](LICENSE). print files: [CC BY-NC-SA 4.0](hardware/LICENSE), because the inner frame is Dave0616's Mochi housing
 (same license, credit above). so please don't sell printed ones.
 
 fan-made, not affiliated with Anthropic. Clawd belongs to them.
