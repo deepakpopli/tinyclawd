@@ -102,6 +102,105 @@ static void a_coffee(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
-static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
+// --------------------------------------------------------------- rubber duck
 
-ANIM_LIST(anims_more, &A_COFFEE);
+static const char* const DUCK[] = {
+    ".....####.........",
+    "....######........",
+    "...##.#####.......",
+    ".##########.......",
+    "###########.......",
+    "..#########.......",
+    "....#######......#",
+    "...############.##",
+    "..###############.",
+    "..######....#####.",
+    "..#######..######.",
+    "..###############.",
+    "...#############..",
+    "....###########...",
+};
+
+// a little bounce, 300 ms per hop
+static float hop(uint32_t u, float h = 4) {
+    return h * sinf(PI * (u % 300) / 300.0f);
+}
+
+// rounded box with a little tail pointing down at tx
+static void bubble_box(Canvas& c, int x0, int y0, int x1, int y1, int tx) {
+    c.fill_rect(x0, y0, x1, y1, false);
+    c.rect(x0, y0, x1, y1);
+    c.px(x0, y0, false);
+    c.px(x1, y0, false);
+    c.px(x0, y1, false);
+    c.px(x1, y1, false);
+    c.hline(tx, tx + 3, y1, false);
+    c.line(tx, y1, tx - 2, y1 + 4);
+    c.line(tx + 3, y1, tx - 2, y1 + 4);
+}
+
+static const char* const SAY[] = {"so this fn", "then x is 0", "it loops", "wait...", "line 42",
+                                  "it returns", "but why", "if null"};
+static const char* const AHA[] = {"aha!", "got it!", "oh! null", "a typo!"};
+
+static void a_rubber_duck(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s{(x.seed & 4) != 0};
+    const int GY = 58, CX = 10, CY = 38, DX = 80;
+    c.hline(0, 127, GY);
+    uint32_t h = hash32(x.seed + 77);
+    bool talk = t >= 500 && t < 3200;
+    bool aha = t >= 4000 && t < 4600;
+    // clawd
+    Pose p = pose(s.look(true));
+    int y = CY;
+    if (talk) {
+        p.arms = (t / 220) % 3 == 1 ? ARMS_ONE_UP : ARMS_DOWN;
+        y -= (t / 160) % 2;
+    }
+    if (aha) {
+        p.arms = ARMS_UP;
+        y -= iround(hop(t - 4000, 6));
+    }
+    if (t >= 4600) {
+        p.eyes = t < 5600 ? EYES_CLOSED : s.look(true);
+        y -= iround(hop(t - 4600, 2)) * (t < 5500);
+    }
+    clawd(c, s.box(CX, SPRITE_W), y, p);
+    // duck: tilts its head while listening
+    bool tilt = t >= 3300 && t < 3900;
+    art(c, s.box(DX, 18), GY - 14 + tilt, DUCK, 14, s.m);
+    if (tilt) c.px(s.px(DX + 5), GY - 12 + 1);   // blink
+    // speech bubble
+    char buf[16];
+    const char* line = nullptr;
+    if (talk) line = SAY[(h + ((t - 500) / 900) * 3) % 8];
+    else if (t >= 3200 && t < 4000) {
+        int n = 1 + (t - 3200) / 250;
+        memcpy(buf, "...", 3);
+        buf[n > 3 ? 3 : n] = 0;
+        line = buf;
+    } else if (t >= 4600 && t < 5600) line = AHA[(h >> 8) % 4];
+    if (line) {
+        int w = c.text_width(line) + 8;
+        if (w < 22) w = 22;
+        int x0 = 30, x1 = x0 + w;
+        bool pop = (talk && (t - 500) % 900 < 70) || (t >= 4600 && t < 4670);
+        if (pop) x1 -= 4;
+        int ax0 = s.m ? 127 - x1 : x0, ax1 = s.m ? 127 - x0 : x1;
+        bubble_box(c, ax0, 4, ax1, 18 - pop, s.px(CX + 26) - (s.m ? 3 : 0));
+        c.text(ax0 + 4 + (pop ? -2 : 0), 8 - pop, line);
+    }
+    if (aha) c.text(s.box(CX + 14, 4), 14 - iround(hop(t - 4000, 6)), "!", font_bold16);
+    // thank you duck: a heart and a squeak
+    if (t >= 4800 && t < 6000) heart(c, s.px(DX + 9), GY - 20 - 10 * seg(t, 4800, 6000), 0.55f);
+    if (t >= 5000 && t < 5400 && (t / 100) % 2) {
+        int bx = s.px(DX - 2), d = s.m ? 1 : -1;
+        c.line(bx, GY - 12, bx + 3 * d, GY - 14);
+        c.line(bx, GY - 10, bx + 4 * d, GY - 10);
+    }
+}
+
+static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
+static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
+
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK);
