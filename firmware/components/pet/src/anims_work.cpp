@@ -23,39 +23,55 @@ static float blink_k(uint32_t t, uint32_t at) {
 static Eye maybe_blink(const Eye& e, float k) { return k >= 0 ? blink_eye(e, k) : e; }
 
 // --------------------------------------------------------------------- working
+// two gears turning beside his eyes, he watches them like he is fixing something
 
-static const float WK[] = {-6, -3, 0, 3, 6, 6, 3, 0, -3, -6, -6, -6};
+// a gear: solid body, square teeth, a hole. only one sin/cos per gear,
+// the teeth are found by rotating a step at a time
+static void gear(Canvas& c, float cx, float cy, float rin, float rout, int teeth, float ang) {
+    float ca = cosf(ang), sa = sinf(ang);
+    float step = 2 * PI / teeth;
+    float cs = cosf(step), ss = sinf(step);
+    float body[24];
+    for (int k = 0; k < teeth; k++) {
+        body[2 * k] = cx + rin * ca;
+        body[2 * k + 1] = cy + rin * sa;
+        c.line(cx + (rin - 2) * ca, cy + (rin - 2) * sa, cx + rout * ca, cy + rout * sa, 3);
+        float na = ca * cs - sa * ss;
+        sa = sa * cs + ca * ss;
+        ca = na;
+    }
+    c.fill_poly(body, teeth);
+    c.fill_circle(cx, cy, 2, false);
+}
 
 static void a_working(Canvas& c, uint32_t t, const Ctx& x) {
-    // reading speed drifts a little so the sweep never feels like a metronome
-    float i = t / 80.0f + 2 * sinf(t / 2300.0f);
+    // gears turn in little pushes, like someone cranking them
+    float turns = t / 1400.0f;
+    float push = turns - floorf(turns);
+    float ang = (floorf(turns) + ease(push * 1.6f)) * (2 * PI / 10);
+    gear(c, 97, 24, 11, 15, 10, ang);
+    gear(c, 115, 48, 6, 9, 6, -ang * 10 / 6 + 0.3f);
+
+    // eyes on the left, focused on the gears
     Eye e;
-    e.dx = pickf(WK, 12, i);
-    e.dy = 6;
+    e.w = 12;
     e.h = 18;
+    e.dx = 4;
+    e.dy = -1 + (push < 0.3f ? 1 : 0);   // a small nod with each push
     uint32_t slot = t / 3100, in = t % 3100;
     uint32_t h = hash32(slot * 17 + x.seed);
     uint32_t at = 400 + h % 1800;
-    int ev = (h >> 12) % 5;
+    int ev = (h >> 12) % 4;
     float k = -1;
     if (ev == 0 || ev == 2) k = blink_k(in, at);
-    if (ev == 2 && k < 0) k = blink_k(in, at + BLINK_MS + 80);   // double blink
-    if (ev == 1 && in >= at && in < at + 900) {   // glance up at you
+    if (ev == 1 && in >= at && in < at + 900) {   // glance at you, then back to work
         float u = sinf(PI * seg(in, at, at + 900));
-        e.dy = lerp(e.dy, -3, u);
-        e.dx *= 1 - u;
+        e.dx = lerp(e.dx, -2, u);
         e.h = lerp(18, EYE_H, u);
-        k = blink_k(in, at + 380);
     }
-    if (ev == 3 && in >= at && in < at + 500) {   // spotted something
-        float u = sinf(PI * seg(in, at, at + 500));
-        e.w += 2 * u;
-        e.h += 4 * u;
-    }
-    face(c, maybe_blink(e, k));
-    int on = (int)(i / 3) % 4;
-    for (int d = 0; d < 3; d++)
-        if (on > d) c.fill_rect(56 + d * 7, 56, 59 + d * 7, 59);
+    eyes_at(c, 24, 58, 33, maybe_blink(e, k));
+    if (ev == 3 && in >= at && in < at + 1400)   // hard work: a sweat drop slides down
+        sweat(c, 10, 12 + 10 * seg(in, at, at + 1400));
 }
 
 // ------------------------------------------------------------------- searching
