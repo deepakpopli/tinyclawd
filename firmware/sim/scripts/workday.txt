@@ -1,0 +1,130 @@
+# workday: a long turn with many kinds of bash commands, music on and
+# you typing in another window while claude works. look for the little
+# breaks, the equalizer swaps, the note top left and the keys bottom right
+0 time 10:00
+1000 ev start
++3000 ev prompt
+7000 ev tool Read
+13092 ev tool Read
+20000 music 1 Daft Punk - Around the World
+20029 ev tool Grep
+20300 eq 11223122
+20383 eq 43334210
+20466 eq 21222310
+20549 eq 54333310
+20632 eq 11332211
+20715 eq 32232310
+20798 eq 11223122
+20881 eq 43334210
+20964 eq 21222310
+21047 eq 54333310
+21130 eq 11332211
+21213 eq 32232310
+21296 eq 11223122
+21379 eq 43334210
+21462 eq 21222310
+21545 eq 54333310
+21628 eq 11332211
+21711 eq 32232310
+21794 eq 11223122
+21877 eq 43334210
+21960 eq 21222310
+22043 eq 54333310
+22126 eq 11332211
+22209 eq 32232310
+22292 eq 11223122
+22375 eq 43334210
+22458 eq 21222310
+22541 eq 54333310
+22624 eq 11332211
+22707 eq 32232310
+22790 eq 11223122
+22873 eq 43334210
+22956 eq 21222310
+23039 eq 54333310
+23122 eq 11332211
+23205 eq 32232310
+23288 eq 11223122
+23371 eq 43334210
+23454 eq 21222310
+23537 eq 54333310
+23620 eq 11332211
+23703 eq 32232310
+23786 eq 11223122
+23869 eq 43334210
+23952 eq 21222310
+24035 eq 54333310
+24118 eq 11332211
+24201 eq 32232310
+24284 eq 11223122
+24367 eq 43334210
+24450 eq 21222310
+24533 eq 54333310
+24616 eq 11332211
+24699 eq 32232310
+24782 eq 11223122
+24865 eq 43334210
+24948 eq 21222310
+25031 eq 54333310
+25114 eq 11332211
+25197 eq 32232310
+28371 ev tool Bash
+32608 ev tool Build
+40422 ev tool Edit
+46462 ev tool Test
+48962 ev test pass
+50886 ev tool Git
+56170 ev tool Install
+60000 typing 5
+61097 ev tool WebFetch
+65000 typing 6
+68142 ev tool Read
+70000 typing 7
+75000 typing 8
+75984 ev tool Edit
+80000 typing 5
+82003 ev tool Build
+85000 typing 0
+89122 ev tool Test
+91622 ev test pass
+97576 ev tool Grep
+102411 ev tool Bash
+111112 ev tool Git
+112612 ev commit
+117154 ev tool Edit
+121261 ev tool Build
+127036 ev tool Install
+134379 ev tool Read
+140668 ev tool WebFetch
+143668 ev perm tinyclawd
+150000 typing 7
+152159 ev tool Test
+154659 ev test pass
+155000 typing 8
+159349 ev tool Edit
+160000 typing 5
+164656 ev tool Grep
+165000 typing 6
+169245 ev tool Build
+170000 typing 7
+174381 ev tool Git
+175000 typing 0
+175881 ev commit
+182025 ev tool Bash
+187062 ev tool Test
+189562 ev test pass
+192145 ev tool Edit
+196159 ev tool Read
+200202 ev tool Build
+205917 ev tool Test
+208417 ev test pass
+211682 ev tool Git
+213182 ev commit
+217040 ev tool Edit
+222403 ev tool Install
+228772 ev tool Grep
+235341 ev tool Bash
+240970 ev tool Build
+244970 ev done
+250970 music 0
+253970 ev end
