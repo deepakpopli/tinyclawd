@@ -30,6 +30,7 @@ public:
     void event(Ev e, const char* arg, uint32_t now);
     void touch(Touch t, uint32_t now);
     void usage(int pct5h, int pctwk, int ctx, int reset_min, uint32_t now);
+    void music(bool on, const char* title, uint32_t now);   // title = "artist - title", may be empty
     void clock(int hour, int minute, uint32_t now);
     void play(const char* name, uint32_t now);   // debug: play one animation now
     void tune(bool fast);                        // debug: short idle timings (bored in 20 s)

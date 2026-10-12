@@ -76,6 +76,18 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         snprintf(reply, len, "err bad time");
         return false;
     }
+    if (!strcmp(line, "music")) {
+        if (*rest != '0' && *rest != '1') {
+            snprintf(reply, len, "err want music 0 or music 1 <title>");
+            return false;
+        }
+        bool on = *rest == '1';
+        const char* title = rest + 1;
+        while (*title == ' ') title++;
+        b.music(on, title, now);
+        snprintf(reply, len, "ok");
+        return true;
+    }
     if (!strcmp(line, "touch")) {
         Touch t = TOUCH_TAP;
         if (!strcmp(rest, "double")) t = TOUCH_DOUBLE;

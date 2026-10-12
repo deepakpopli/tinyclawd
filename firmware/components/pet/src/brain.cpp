@@ -194,6 +194,8 @@ struct Brain::Impl {
     int pct5h = -1, pctwk = -1, ctxpct = -1, reset_min = -1;
     bool warned90 = false;
     int done = 0, bugs = 0;
+    bool music = false;            // the laptop is playing music
+    char track[49] = "";
     Canvas a, b;   // scratch for transitions
 
     uint32_t rand() {
@@ -269,6 +271,7 @@ struct Brain::Impl {
         c.done = done;
         c.bugs = bugs;
         c.tool = tool;
+        c.track = track;
     }
 
     void mark(const Anim* an, uint32_t now) {
@@ -766,6 +769,14 @@ void Brain::usage(int pct5h, int pctwk, int ctx, int reset_min, uint32_t now) {
         s.react(POOL(P_STOPPAGE_TIME), now);
     } else if (pct5h >= 80 && was >= 0 && was < 80) s.react(POOL(P_TIRED), now);
     if (pct5h < 90) s.warned90 = false;
+}
+
+void Brain::music(bool on, const char* title, uint32_t now) {
+    Impl& s = *p;
+    (void)now;
+    s.music = on;
+    strncpy(s.track, on ? title : "", sizeof(s.track) - 1);
+    s.track[sizeof(s.track) - 1] = 0;
 }
 
 void Brain::clock(int hour, int minute, uint32_t now) {
