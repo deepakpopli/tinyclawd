@@ -17,12 +17,16 @@ on its own.
 | `ev tool <Name>` | a tool started: `Bash`, `Read`, `Edit`, `Write`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, `Task`, `TodoWrite`, `mcp__x__y`... |
 | `ev toolfail <Name>` | that tool returned an error |
 | `ev perm` | claude is waiting for you (permission or a question) |
+| `ev perm <project>` | same, and which project is waiting (ascii, up to 16 chars), shown small at the bottom |
+| `ev perm +<n>` | n sessions are waiting, shown as `2 waiting` |
 | `ev done` | claude finished its turn |
+| `ev done small` | one session finished while others still work: a short party, the next line is what the others do (`ev prompt` or `ev tool <Name>`) |
 | `ev sub <n>` | n subagents are running now (0 when they are all back) |
 | `ev test pass` / `ev test fail` | a test command finished |
 | `ev commit` | a git commit went through |
 | `ev interrupt` | you pressed esc |
 | `ev compact` | the context was compacted |
+| `sessions <n>` | n claude code sessions are busy. 2 or more: small dots in the corner while working. only sent when 2+ were involved, so `sessions 1` / `sessions 0` end it |
 | `usage 5h=42 wk=18 ctx=37 reset=135` | usage in %, `reset` = minutes until the 5 hour window resets. any field can be left out |
 | `music 1 <artist - title>` | music started or the track changed. title is ascii, up to 48 chars, may be empty |
 | `music 0` | music stopped |
@@ -75,4 +79,12 @@ the setting lines answer with the full `hw` line, so you see what changed. a bad
 < ok
 > ev done
 < ok
+```
+
+two sessions, one finishes while the other is still running a command:
+
+```
+> ev done small
+> ev tool Bash
+> sessions 1
 ```
