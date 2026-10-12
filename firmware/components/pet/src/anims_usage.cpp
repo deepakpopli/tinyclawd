@@ -84,52 +84,78 @@ static void a_usage(Canvas& c, uint32_t t, const Ctx& x) {
 
 // ------------------------------------------------------------------- context
 
+// a box getting stuffed with pages. up to 80% they fit, past that they stick
+// out over the top, the lid gets pushed up and he strains
 static void a_context(Canvas& c, uint32_t t, const Ctx& x) {
-    const int X0 = 92, X1 = 120, Y0 = 9, Y1 = 58;
-    int pct = x.ctx;
-    float k = ease_out(seg(t, 200, 1400));
-    float level = pct < 0 ? 0 : clamp01(pct / 100.0f) * k;
-    // jar
-    c.rect(X0, Y0, X1, Y1);
-    c.fill_rect(X0 + 7, Y0 - 5, X1 - 7, Y0 - 1);
-    int inner = Y1 - Y0 - 3;
-    float top = Y1 - 2 - inner * level;
-    if (level > 0) {
-        for (int xx = X0 + 2; xx <= X1 - 2; xx++) {
-            float wy = top + (level < 0.99f ? sinf(xx / 3.0f + t / 220.0f) : 0);
-            int y0 = iround(wy);
-            if (y0 < Y0 + 2) y0 = Y0 + 2;
-            c.vline(xx, y0, Y1 - 2);
+    const int X0 = 80, X1 = 122, BOT = 61, TOP = 22;   // the box
+    const int ROW = 5;
+    int pct = x.ctx < 0 ? 0 : (x.ctx > 100 ? 100 : x.ctx);
+    int rows = (pct + 5) / 10;   // 8 rows fill the box, 9 and 10 stick out
+    const uint32_t DROP = 160, GAP = 110;
+    uint32_t done = rows * (DROP + GAP);
+    int shown = t >= done ? rows : t / (DROP + GAP);
+    float fall = t >= done ? 1 : seg(t % (DROP + GAP), 0, DROP);
+    bool over = rows > 8 && t >= done;
+    float press = over ? ((t / 140) % 2 ? 1 : 0) : 0;   // the lid jumps on the pile
+
+    // the box: walls bulge out when it is too full
+    int bulge = over ? 2 : 0;
+    float lw[] = {(float)X0, (float)TOP, (float)X0 - bulge, (TOP + BOT) / 2.f, (float)X0, (float)BOT};
+    float rw[] = {(float)X1, (float)TOP, (float)X1 + bulge, (TOP + BOT) / 2.f, (float)X1, (float)BOT};
+    c.polyline(lw, 3, 2);
+    c.polyline(rw, 3, 2);
+    c.line(X0, BOT, X1, BOT, 2);
+
+    // pages: rows of blocks with gaps, the newest one falls in
+    int top_y = BOT - 2;
+    for (int r = 0; r <= shown && r < rows; r++) {
+        float k = r < shown ? 1 : fall;
+        if (r == shown && t >= done) break;
+        int y1 = BOT - 2 - r * ROW;
+        int y = iround(lerp(0, y1, ease_in(k)));
+        uint32_t h = hash32(r * 31 + x.seed);
+        int xx = X0 + 3 + (int)(h % 3);
+        while (xx < X1 - 4) {
+            int w = 5 + (int)((h >>= 3) % 12);
+            if (xx + w > X1 - 3) w = X1 - 3 - xx;
+            c.fill_rect(xx, y - ROW + 2, xx + w, y);
+            xx += w + 2;
         }
+        if (k >= 1) top_y = y - ROW + 2;
     }
-    bool full = pct > 80;
-    char s[16];
-    if (pct < 0) {
-        snprintf(s, sizeof(s), "ctx --");
-        c.text_center((X0 + X1) / 2 + 1, 28, "?", font_6x10);
-    } else snprintf(s, sizeof(s), "ctx %d%%", iround(pct * k));
-    c.text_center(46, 56, s, font_5x7);
-    // eyes look at the jar, at the level
+
+    // the lid: sits on the box, or gets pushed up and tilted by the pile
+    float lid_y = top_y < TOP ? top_y - 2 - press : TOP - 3;
+    if (t < done + 200) lid_y = lerp(-4, lid_y, ease_in(seg(t, done, done + 200)));
+    float tilt = top_y < TOP ? 5 : 0;
+    float lid[] = {X0 - 3.f, lid_y + tilt, X1 + 3.f, lid_y - tilt, X1 + 3.f, lid_y - tilt - 3, X0 - 3.f, lid_y + tilt - 3};
+    c.fill_poly(lid, 4);
+
+    char s[20];
+    snprintf(s, sizeof(s), x.ctx < 0 ? "context --" : "context %d%%", pct);
+    c.text_center(38, 56, s, font_5x7);
+
+    // eyes watch the box. they strain as it fills, and squeeze shut when it overflows
     Eye e;
     e.w = 11;
-    e.h = 20;
+    e.h = pct > 60 ? 20 - (pct - 60) / 4 : 20;
     e.dx = 4;
-    e.dy = clampf((top - 30) / 4, -4, 5) - 4;
-    if (full && k > 0.8f) {
-        e.shape = SAD;
-        e.dy = -2;
+    e.dy = -4;
+    if (over) {
+        e.shape = SQUINT;
+        e.dy = -6 + press;
+    } else {
+        uint32_t slot = t / 2700, h = hash32(slot * 7 + x.seed);
+        float bk = blink_k(t % 2700, 700 + h % 1600);
+        if (bk >= 0) e = blink_eye(e, bk);
     }
-    uint32_t slot = t / 2700, h = hash32(slot * 7 + x.seed);
-    float bk = blink_k(t % 2700, 700 + h % 1600);
-    if (bk >= 0 && e.shape == RECT) e = blink_eye(e, bk);
     Eye r = e;
     r.mirror = true;
-    draw_eye(c, 30, 28, e);
-    draw_eye(c, 62, 28, r);
-    if (full && k > 0.8f) {
-        uint32_t q = t % 2000;
-        if (q < 1400) sweat(c, 80, 6 + 18 * ease_in(q / 1400.0f));
-        if ((t / 300) % 2) c.hline(X0 + 2, X1 - 2, Y0 + 2);   // brim flashing
+    draw_eye(c, 24, 28, e);
+    draw_eye(c, 54, 28, r);
+    if (pct > 80 && t >= done) {   // sweating it
+        uint32_t q = t % 1600;
+        if (q < 1200) sweat(c, 8, 6 + 16 * ease_in(q / 1200.0f));
     }
 }
 
