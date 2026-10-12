@@ -61,20 +61,23 @@ static void a_scoreboard(Canvas& c, uint32_t t, const Ctx& x) {
 
 // ------------------------------------------------------------------ cards
 
+// a solid card in the ref's fist. yellow has an x on it (a failed test), red is plain
 static void card(Canvas& c, int x, int y, bool red) {
-    if (red) {
-        c.fill_rect(x, y, x + 15, y + 21);
-        return;
+    c.fill_rect(x, y, x + 19, y + 27);
+    if (!red) {
+        c.line(x + 5, y + 7, x + 14, y + 16, 3, false);
+        c.line(x + 5, y + 16, x + 14, y + 7, 3, false);
     }
-    c.rect(x, y, x + 15, y + 21);
-    for (int k = y + 3; k < y + 20; k += 3) c.hline(x + 3, x + 12, k);
+    c.fill_rect(x + 3, y + 24, x + 16, y + 35, false);   // gap so the fist shows
+    c.fill_rect(x + 4, y + 25, x + 15, y + 34);
+    for (int k = 0; k < 2; k++) c.hline(x + 4, x + 11, y + 28 + k * 3, false);
 }
 
 static void card_anim(Canvas& c, uint32_t t, const Ctx& x, bool red) {
     uint32_t h = hash32(x.seed + (red ? 31 : 37));
     bool left = h & 1;                      // which side the ref holds it
     bool extra = h & 2;                     // tear (red) or sweat drop (yellow)
-    int cx = left ? 8 : 104;
+    int cx = left ? 6 : 102;
     const uint32_t UP = 300, SHOWN = 650, HOLD = 2410, GONE = 2710, BLINK = GONE + BLINK_MS;
 
     Eye react = red ? eye(0, 4, EYE_W, EYE_H, SAD) : eye(0, -2, 15, 26);
@@ -95,11 +98,12 @@ static void card_anim(Canvas& c, uint32_t t, const Ctx& x, bool red) {
 
     if (t >= UP && t < GONE) {
         float y;
-        if (t < SHOWN) y = 64 - 54 * ease(seg(t, UP, SHOWN));
-        else if (t < HOLD) y = 10 - ((t - SHOWN) % 360 < 90 ? 1 : 0);
-        else y = 10 + 54 * ease_in(seg(t, HOLD, GONE));
+        if (t < SHOWN) y = 64 - 56 * ease(seg(t, UP, SHOWN));
+        else if (t < HOLD) y = 8 - ((t - SHOWN) % 360 < 90 ? 1 : 0);
+        else y = 8 + 56 * ease_in(seg(t, HOLD, GONE));
         card(c, cx, iround(y), red);
     }
+    if (!red && t >= SHOWN && t < HOLD) c.text_center(64, 55, "TEST FAILED", font_5x7);
     if (extra && t >= SHOWN + 200 && t < GONE) {
         float k = seg(t, SHOWN + 200, GONE);
         float ex = (left ? RIGHT_X : LEFT_X) + react.dx;
