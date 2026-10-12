@@ -316,8 +316,80 @@ static void a_lightbulb(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ---------------------------------------------------------------- idea orbit
+// little shapes circle above the head like ideas, then click together
+
+static void idea_shape(Canvas& c, int kind, int x, int y, int r) {
+    switch (kind) {
+    case 0: c.fill_rect(x - r, y - r, x + r, y + r); break;
+    case 1: {
+        float p[] = {(float)x, (float)(y - r - 1), (float)(x + r + 1), (float)(y + r), (float)(x - r - 1), (float)(y + r)};
+        c.fill_poly(p, 3);
+        break;
+    }
+    case 2: c.fill_circle(x, y, r); break;
+    default:
+        c.fill_rect(x - r - 1, y - 1, x + r + 1, y + 1);
+        c.fill_rect(x - 1, y - r - 1, x + 1, y + r + 1);
+        break;
+    }
+}
+
+static const uint32_t IO_REV = 2600, IO_CYC = 6400;
+static const uint32_t IO_IN = 4600, IO_CLICK = 5200, IO_CALM = 5900;
+
+static void a_idea_orbit(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t in = t % IO_CYC;
+    float dir = (x.seed & 1) ? -1 : 1;
+    // radius: grows out, orbits, then spirals in fast
+    float rad = ease_out(seg(in, 0, 500)) * (1 - ease_in(seg(in, IO_IN, IO_CLICK)));
+    float base = dir * ((t % IO_REV) / (float)IO_REV + 0.6f * ease_in(seg(in, IO_IN, IO_CLICK)));
+    int first = x.seed % 4;
+    const float CX = 64, CY = 10, RX = 36, RY = 6;
+
+    // eyes look up and follow the first one round, happy when they click
+    Eye e;
+    e.w = 12;
+    e.h = 19;
+    e.dy = 8;
+    if (in < IO_CLICK) {
+        e.dx = 6 * tcos(base) * rad;
+        e.dy = 6 - 2 * rad;
+    } else if (in < IO_CALM) {
+        float k = seg(in, IO_CLICK, IO_CALM);
+        e.shape = HAPPY;
+        e.w = 10;
+        e.dy = 8 - 3 * sinf(PI * k);
+    }
+    if (in > IO_CALM) e = maybe_blink(e, blink_k(in, IO_CALM + 100));
+    face(c, e);
+
+    if (in < IO_CLICK) {
+        for (int i = 0; i < 4; i++) {
+            float p = base + i * 0.25f;
+            float sn = tsin(p);
+            int r = sn > 0.3f ? 3 : 2;   // the ones in front look bigger
+            idea_shape(c, (first + i) % 4, iround(CX + RX * rad * tcos(p)), iround(CY + RY * rad * sn), r);
+        }
+    } else if (in < IO_CALM) {
+        // click: a big sparkle and four small ones flying out
+        float k = seg(in, IO_CLICK, IO_CALM);
+        int r = iround(6 * (1 - k)) + 2;
+        sparkle(c, 64, 10, r);
+        c.fill_rect(63, 9, 65, 11);
+        int d = iround(8 + 22 * ease_out(k));
+        if (k < 0.8f) {
+            sparkle(c, 64 - d, 6, 2);
+            sparkle(c, 64 + d, 6, 2);
+            sparkle(c, 64 - d / 2, 15, 1);
+            sparkle(c, 64 + d / 2, 15, 1);
+        }
+    }
+}
+
 static const Anim A_WORDS = {"thinking_words", a_thinking_words, 4 * TW_WORD, LOOP};
 static const Anim A_BIG_SPIN = {"big_spinner", a_big_spinner, 7040, LOOP};
 static const Anim A_BULB = {"lightbulb", a_lightbulb, LB_CYC, LOOP};
+static const Anim A_ORBIT = {"idea_orbit", a_idea_orbit, IO_CYC, LOOP};
 
-ANIM_LIST(anims_think, &A_WORDS, &A_BIG_SPIN, &A_BULB);
+ANIM_LIST(anims_think, &A_WORDS, &A_BIG_SPIN, &A_BULB, &A_ORBIT);
