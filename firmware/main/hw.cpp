@@ -121,6 +121,8 @@ static bool num(const char* s, long lo, long hi, long* out, char* reply, int len
 
 bool hw::line(char* line, char* reply, int len) {
     if (strncmp(line, "hw", 2) || (line[2] && line[2] != ' ')) return false;
+    char* end = line + strlen(line);
+    while (end > line && end[-1] == ' ') *--end = 0;
     char* key = line + 2;
     while (*key == ' ') key++;
     char* arg = strchr(key, ' ');
