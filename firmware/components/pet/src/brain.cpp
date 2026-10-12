@@ -37,6 +37,7 @@ static const uint32_t BREAK_MAX_MS = 45000;
 static const uint32_t SONG_MIN_MS = 30000;       // music on while claude works: the equalizer
 static const uint32_t SONG_MAX_MS = 50000;       // every 30-50 s, for 6 s
 static const uint32_t SONG_MS = 6000;
+static const uint32_t TYPING_ROTATE_MS = 10000;  // long typing switches what watches you
 
 // -------------------------------------------------------------------- pools
 
@@ -159,7 +160,9 @@ static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
 static const Pick GROOVE[] = {{"equalizer", 1, 0}};
 static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
-static const Pick YOU_TYPING[] = {{"you_typing", 1, 0}};
+static const Pick YOU_TYPING[] = {
+    {"you_typing", 4, 0}, {"typing_along", 3, 0}, {"letters_fly", 3, 0}, {"keyboard_peek", 3, 0},
+};
 // little breaks while claude works, then back to the work
 static const Pick WORK_BREAK[] = {
     {"coffee", 3, 120}, {"stretch", 2, 180}, {"lightbulb", 2, 60}, {"look_around", 3, 30},
@@ -432,7 +435,8 @@ struct Brain::Impl {
 
     // the idle base: watching you type, the equalizer while music plays, or the plain face
     void idle_base(uint32_t now, bool force = false) {
-        set_base(typing ? YOU_TYPING : (music ? GROOVE : IDLE), 1, now, force);
+        if (typing) set_base(POOL(YOU_TYPING), now, force);
+        else set_base(music ? GROOVE : IDLE, 1, now, force);
     }
 
     void go_mode(Mode m, uint32_t now) {
@@ -543,7 +547,7 @@ struct Brain::Impl {
 
     void typing_stopped(uint32_t now) {
         if (mode != IDLE_M) return;
-        bool watching = cur.a && !strcmp(cur.a->name, "you_typing");
+        bool watching = !oneshot && base_pool == YOU_TYPING;
         idle_base(now, true);
         if (watching) show(find_anim("typing_ready"), now, true);   // "ready?"
         next_micro = now + gap();
@@ -581,9 +585,9 @@ struct Brain::Impl {
             }
         }
 
-        // long tool runs and waits rotate between variants
-        if (!oneshot && (mode == TOOL_M || mode == WAIT_M || mode == THINK_M) && base_n > 1) {
-            uint32_t every = mode == WAIT_M ? WAIT_ROTATE_MS : TOOL_ROTATE_MS;   // tools and long thinking
+        // long tool runs, waits and typing rotate between variants
+        uint32_t every = rotate_every();
+        if (!oneshot && every && base_n > 1 && cur.a) {
             const char* name = now - cur.start > every ? pick(base_pool, base_n, now) : nullptr;
             if (name && strcmp(name, cur.a->name)) {
                 base = find_anim(name);
@@ -639,6 +643,13 @@ struct Brain::Impl {
     }
 
     bool waiting_for_you() { return mode == WAIT_M; }
+
+    uint32_t rotate_every() {
+        if (mode == WAIT_M) return WAIT_ROTATE_MS;
+        if (mode == TOOL_M || mode == THINK_M) return TOOL_ROTATE_MS;
+        if (mode == IDLE_M && base_pool == YOU_TYPING) return TYPING_ROTATE_MS;
+        return 0;
+    }
 
     uint32_t span(uint32_t lo, uint32_t hi) { return lo + rand() % (hi - lo); }
 
@@ -739,6 +750,22 @@ struct Brain::Impl {
         c.px(6, 3 + y);
         c.px(7, 4 + y);
         c.px(7, 5 + y);
+    }
+
+    // you type while claude works: a small keyboard in the bottom right corner
+    void typing_sign(Canvas& c, uint32_t now) {
+        if (!typing || (mode != THINK_M && mode != TOOL_M)) return;
+        c.fill_rect(112, 55, 127, 63, false);
+        c.hline(114, 126, 57);
+        c.hline(114, 126, 63);
+        c.vline(114, 57, 63);
+        c.vline(126, 57, 63);
+        uint32_t step = now / (700 / (typing + 2) + 60);   // faster typing, faster keys
+        for (int k = 0; k < 3; k++) {
+            int x = 117 + k * 3;
+            if ((step * 7 + k * 3) % 5 < 2) c.fill_rect(x, 59, x + 1, 61);   // pressed
+            else c.px(x, 60);
+        }
     }
 
     void render_and_remember(Canvas& out, uint32_t now) {
@@ -1014,6 +1041,7 @@ void Brain::render(Canvas& c, uint32_t now) {
         p->render_and_remember(c, now);
         p->session_dots(c);
         p->music_sign(c, now);
+        p->typing_sign(c, now);
     }
     menu::ring(c, now);
 }
