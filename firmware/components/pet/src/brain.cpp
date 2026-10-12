@@ -64,6 +64,11 @@ static const Pick DROWSY[] = {
 static const Pick ASLEEP[] = {
     {"dream", 5, 60}, {"asleep", 3, 0},
 };
+// while music plays on the laptop
+static const Pick MUSIC[] = {
+    {"dance", 4, 60}, {"headbang", 3, 60}, {"now_playing", 3, 120}, {"content", 2, 90},
+    {"wink", 1, 40}, {"spin", 1, 90},
+};
 
 // celebrations, by how long claude worked on the turn
 static const Pick DONE_QUICK[] = {
@@ -133,6 +138,8 @@ static const Pick WAIT[] = {{"needs_you", 3, 0}, {"var_check", 2, 0}};
 static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
+static const Pick GROOVE[] = {{"music", 1, 0}};
+static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
 
 // little stories, played back to back. a|b = pick one
 static const char* const SEQS[][2] = {
@@ -380,11 +387,14 @@ struct Brain::Impl {
         if (!oneshot) show(base, now, false);
     }
 
+    // the idle base: the plain face, or bobbing along while music plays
+    void idle_base(uint32_t now, bool force = false) { set_base(music ? GROOVE : IDLE, 1, now, force); }
+
     void go_mode(Mode m, uint32_t now) {
         mode = m;
         switch (m) {
         case IDLE_M:
-            set_base(IDLE, 1, now);
+            idle_base(now);
             next_micro = now + gap();
             break;
         case THINK_M: set_base(subagents ? SUBS : THINK, 1, now); break;
@@ -394,14 +404,17 @@ struct Brain::Impl {
         }
     }
 
-    uint32_t gap() { return timing->gap_min + rand() % (timing->gap_max - timing->gap_min); }
+    uint32_t gap() {
+        uint32_t g = timing->gap_min + rand() % (timing->gap_max - timing->gap_min);
+        return music ? 2 * g : g;   // the music loop is fun to watch on its own
+    }
 
     void wake(uint32_t now) {
         // asleep or dozing: open the eyes first
         if (mode == SLEEP_M || (cur.a && (!strcmp(cur.a->name, "sleepy") || !strcmp(cur.a->name, "dream")))) {
             mode = IDLE_M;
             base_pool = nullptr;
-            set_base(IDLE, 1, now);
+            idle_base(now);
             show(find_anim("wake_up"), now, true);
         }
     }
@@ -489,7 +502,7 @@ struct Brain::Impl {
     }
 
     void idle_tick(uint32_t now) {
-        uint32_t quiet = now - last_activity;
+        uint32_t quiet = music ? 0 : now - last_activity;   // music is company
         // usage limit reached: show it now and then
         if (pct5h >= 100 && now >= next_micro && rand() % 3 == 0) {
             play_name("limit_hit", now);
@@ -510,7 +523,8 @@ struct Brain::Impl {
             now < next_micro + 600)
             return;
         const char* name;
-        if (quiet > timing->drowsy) name = pick(DROWSY, sizeof(DROWSY) / sizeof(Pick), now);
+        if (music) name = pick(MUSIC, sizeof(MUSIC) / sizeof(Pick), now);
+        else if (quiet > timing->drowsy) name = pick(DROWSY, sizeof(DROWSY) / sizeof(Pick), now);
         else if (quiet > timing->bored) name = pick(BORED, sizeof(BORED) / sizeof(Pick), now);
         else name = pick(AWAKE, sizeof(AWAKE) / sizeof(Pick), now);
         // tired eyes win sometimes when usage is high
@@ -692,7 +706,7 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
                 s.mode = THINK_M;
                 s.set_base(THINK, 1, now, true);
             } else if (s.mode == IDLE_M) {
-                s.set_base(IDLE, 1, now, true);
+                s.idle_base(now, true);
             }
             s.react(POOL(P_SQUAD_RETURN), now);
         }
@@ -732,7 +746,7 @@ void Brain::touch(Touch t, uint32_t now) {
         // woken up by a poke: grumpy
         s.mode = IDLE_M;
         s.base_pool = nullptr;
-        s.set_base(IDLE, 1, now);
+        s.idle_base(now);
         s.qn = 0;
         s.play_name(find_anim("grumpy_wake") ? "grumpy_wake" : "wake_up", now);
         return;
@@ -773,10 +787,21 @@ void Brain::usage(int pct5h, int pctwk, int ctx, int reset_min, uint32_t now) {
 
 void Brain::music(bool on, const char* title, uint32_t now) {
     Impl& s = *p;
-    (void)now;
+    bool was = s.music;
+    if (on && was && !strncmp(s.track, title, sizeof(s.track) - 1)) return;   // same song again
+    if (!on && !was) return;
     s.music = on;
     strncpy(s.track, on ? title : "", sizeof(s.track) - 1);
     s.track[sizeof(s.track) - 1] = 0;
+    s.activity(now);   // also restarts the idle clock when it stops
+    if (!on) {
+        if (s.mode == IDLE_M) s.idle_base(now);
+        return;
+    }
+    s.wake(now);
+    if (s.mode != IDLE_M) return;   // claude is busy, the title can wait
+    s.react(POOL(NOW_PLAYING), now);
+    s.idle_base(now);
 }
 
 void Brain::clock(int hour, int minute, uint32_t now) {
