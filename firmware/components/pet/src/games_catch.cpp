@@ -207,4 +207,4 @@ static bool catch_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_catch = {"catch", "token catch", catch_start, catch_input, catch_draw, catch_score, catch_bot};
+extern const Game game_catch = {"catch", "token catch", catch_start, catch_input, catch_draw, catch_score, catch_bot, nullptr};

@@ -252,7 +252,8 @@ void draw(Canvas& c, uint32_t now) {
         return;
     }
     const Game* g = game_at(sel);
-    icon_play(c, 64, 14);
+    if (g->icon) g->icon(c, 64, 14, now);
+    else icon_play(c, 64, 14);
     big_text(c, 31, g->name, font_bold12);
     if (sel < MAX_GAMES && best[sel] > 0) {
         char line[20];

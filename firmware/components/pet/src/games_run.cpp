@@ -242,4 +242,4 @@ static bool run_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_run = {"run", "bug run", run_start, run_input, run_draw, run_score_fn, run_bot};
+extern const Game game_run = {"run", "bug run", run_start, run_input, run_draw, run_score_fn, run_bot, nullptr};

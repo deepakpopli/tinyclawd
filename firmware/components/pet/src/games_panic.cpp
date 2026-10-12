@@ -190,4 +190,4 @@ bool bot(uint32_t now) {
 
 }  // namespace
 
-extern const Game game_panic = {"panic", "permission panic", start, input, draw, score, bot};
+extern const Game game_panic = {"panic", "permission panic", start, input, draw, score, bot, nullptr};

@@ -271,4 +271,4 @@ static bool whack_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_whack = {"whack", "whack a bug", whack_start, whack_input, whack_draw, whack_score, whack_bot};
+extern const Game game_whack = {"whack", "whack a bug", whack_start, whack_input, whack_draw, whack_score, whack_bot, nullptr};

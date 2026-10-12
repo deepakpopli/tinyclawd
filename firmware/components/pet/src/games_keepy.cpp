@@ -168,4 +168,4 @@ static bool keepy_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_keepy = {"keepy", "keepy uppy", keepy_start, keepy_input, keepy_draw, keepy_score, keepy_bot};
+extern const Game game_keepy = {"keepy", "keepy uppy", keepy_start, keepy_input, keepy_draw, keepy_score, keepy_bot, nullptr};

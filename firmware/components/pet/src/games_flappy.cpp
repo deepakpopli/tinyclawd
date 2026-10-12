@@ -220,4 +220,4 @@ static bool flappy_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_flappy = {"flappy", "flappy clawd", flappy_start, flappy_input, flappy_draw, flappy_score, flappy_bot};
+extern const Game game_flappy = {"flappy", "flappy clawd", flappy_start, flappy_input, flappy_draw, flappy_score, flappy_bot, nullptr};
