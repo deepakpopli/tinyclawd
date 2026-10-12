@@ -376,6 +376,107 @@ class MusicWatch(unittest.TestCase):
         self.assertEqual(sent[-1], "music 1 A - B")
 
 
+class Typing(unittest.TestCase):
+    def setUp(self):
+        self.out = []
+        self.k = tc.Keys(self.out.append, source=None, env={"DISPLAY": ":1"})
+
+    def run_until(self, t0, t1, step=0.25):
+        t = t0
+        while t <= t1 + 1e-9:
+            self.k.tick(now=1000 + t)
+            t += step
+
+    def type_keys(self, t0, t1, per_s):
+        # key presses at a steady rate, ticking like the daemon does
+        t = t0
+        while t < t1:
+            self.k.press(now=1000 + t)
+            self.k.tick(now=1000 + t)
+            t += 1.0 / per_s
+
+    def test_burst_then_pause(self):
+        self.type_keys(0, 5, 6)
+        self.assertEqual(self.out[0], "typing 1")
+        self.assertEqual(self.out[-1], "typing 6")
+        self.run_until(5, 6.5)
+        self.assertNotIn("typing 0", self.out)   # slows down, but still inside the 3 s
+        self.run_until(7, 8.5)
+        self.assertEqual(self.out[-1], "typing 0")
+        n = len(self.out)
+        self.run_until(9, 20)
+        self.assertEqual(len(self.out), n)   # stopped stays quiet
+
+    def test_rate_limited(self):
+        self.type_keys(0, 10, 15)
+        sent = [l for l in self.out if l != "typing 0"]
+        self.assertEqual(sent[-1], "typing 15")
+        # never more than 2 lines a second, and no line for every key
+        self.assertLessEqual(len(self.out), 10 * 2)
+        self.assertLess(len(self.out), 15)
+
+    def test_small_changes_wait(self):
+        self.type_keys(0, 5, 6)
+        n = len(self.out)
+        self.type_keys(5, 5.6, 7)   # a little faster: not right away
+        self.assertEqual(set(self.out[n:]), set(self.out[n:]) & {"typing 6"})
+        self.type_keys(5.6, 9, 7)
+        self.assertEqual(self.out[-1], "typing 7")
+
+    def test_keepalive_and_resend(self):
+        self.type_keys(0, 12, 4)
+        self.assertGreaterEqual(self.out.count("typing 4"), 2)
+        d = tc.Daemon(stdout=True, path="/tmp/tinyclawd-test-unused.sock", player=lambda: "")
+        sent = []
+        d.link.send = sent.append
+        d.on_connect()
+        self.assertFalse(any(l.startswith("typing") for l in sent))
+        d.keys.rate = 4
+        d.on_connect()
+        self.assertEqual(sent[-1], "typing 4")
+
+    def test_turned_off(self):
+        self.assertIsNone(self.k.why_off())
+        for env in ({"DISPLAY": ":1", "TINYCLAWD_NO_KEYS": "1"}, {},
+                    {"DISPLAY": ":1", "XDG_SESSION_TYPE": "wayland"}):
+            k = tc.Keys(self.out.append, source=lambda f: self.fail("ran"), env=env)
+            self.assertTrue(k.why_off())
+            k.loop()   # returns right away
+        d = tc.Daemon(stdout=True, path="/tmp/tinyclawd-test-unused.sock", player=lambda: "",
+                      no_keys=True)
+        self.assertTrue(d.keys.why_off())
+        self.assertEqual(self.out, [])
+
+    def test_missing_xinput(self):
+        def gone(on_press):
+            raise FileNotFoundError("xinput")
+        k = tc.Keys(self.out.append, source=gone, env={"DISPLAY": ":1"})
+        k.watch()
+        self.assertTrue(k.off)
+        k.loop()
+        self.assertEqual(self.out, [])
+
+    def test_only_key_presses_counted(self):
+        text = ("EVENT type 13 (RawKeyPress)\n    device: 3 (14)\n    detail: 38\n"
+                "EVENT type 14 (RawKeyRelease)\n    device: 3 (14)\n    detail: 38\n"
+                "EVENT type 2 (KeyPress)\n    device: 11 (11)\n    detail: 38\n"
+                "EVENT type 13 (RawKeyPress)\n    device: 3 (14)\n    detail: 40\n")
+        fake = tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False)
+        fake.write("#!/bin/sh\nprintf '%s'\n" % text.replace("%", "%%"))
+        fake.close()
+        os.chmod(fake.name, 0o755)
+        bindir = tempfile.mkdtemp()
+        os.symlink(fake.name, os.path.join(bindir, "xinput"))
+        old = os.environ["PATH"]
+        os.environ["PATH"] = bindir + os.pathsep + old
+        try:
+            got = []
+            tc.xinput_keys(lambda: got.append(1))
+        finally:
+            os.environ["PATH"] = old
+        self.assertEqual(len(got), 2)
+
+
 class FakePort(unittest.TestCase):
     """daemon talking to a pty pair instead of the pet"""
 
@@ -389,7 +490,7 @@ class FakePort(unittest.TestCase):
         self.slave = slave
         self.sock = os.path.join(tempfile.mkdtemp(), "t.sock")
         self.stop = threading.Event()
-        self.d = tc.Daemon(port=self.slave_name, path=self.sock, player=lambda: "")
+        self.d = tc.Daemon(port=self.slave_name, path=self.sock, player=lambda: "", no_keys=True)
         self.t = threading.Thread(target=self.d.run, args=(self.stop,), daemon=True)
         self.t.start()
         self.buf = b""

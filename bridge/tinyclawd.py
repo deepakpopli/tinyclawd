@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # tiny clawd bridge: claude code hooks + status line -> usb serial -> pet
 #
-#   tinyclawd.py daemon [--port P] [--stdout]   owns the serial port
+#   tinyclawd.py daemon [--port P] [--stdout] [--no-keys]   owns the serial port
 #   tinyclawd.py hook                           called by claude code hooks (json on stdin)
 #   tinyclawd.py usage                          called from the status line (json on stdin)
 #   tinyclawd.py send "ev perm"                 one raw line
@@ -650,17 +650,137 @@ class Music:
             time.sleep(self.EVERY)
 
 
+# ---------------------------------------------------------------- typing
+
+# privacy: we only count that a key went down. which key it was is never read,
+# kept, logged or sent, only "typing <keys per second>" leaves this file.
+# turn it off with TINYCLAWD_NO_KEYS=1 or daemon --no-keys.
+
+def xinput_keys(on_press):
+    """runs xinput until it exits and calls on_press() for every key press.
+    raises FileNotFoundError when xinput is not installed."""
+    p = subprocess.Popen(["xinput", "test-xi2", "--root"], stdout=subprocess.PIPE,
+                         stderr=subprocess.DEVNULL, text=True, errors="replace")
+    try:
+        for line in p.stdout:
+            # only the event type line counts. the lines after it (device, key code)
+            # are dropped right here without looking at them
+            if line.startswith("EVENT type") and "(RawKeyPress)" in line:
+                on_press()
+    finally:
+        p.kill()
+        p.wait()
+
+
+class Keys:
+    """counts key presses and sends typing <n> (keys per second, 0 = stopped)"""
+
+    WINDOW = 2.0      # rate over the last 2 s
+    QUIET = 3.0       # no keys this long = typing 0
+    MIN_GAP = 0.5     # at most 2 lines a second
+    SETTLE = 1.5      # a change of 1 waits this long, so it does not flicker
+    KEEPALIVE = 5.0   # resend while typing so the pet knows we are still here
+    TICK = 0.25
+
+    def __init__(self, out, source=xinput_keys, env=None):
+        self.out = out          # function(line)
+        self.source = source    # function(on_press), blocks while it runs
+        self.env = os.environ if env is None else env
+        self.times = []         # when keys went down, nothing else
+        self.lock = threading.Lock()
+        self.rate = 0           # what the pet was told
+        self.sent_at = 0.0
+        self.off = False
+        self.stop = False
+
+    def why_off(self):
+        if self.off:
+            return "turned off"
+        if self.env.get("TINYCLAWD_NO_KEYS", "") not in ("", "0"):
+            return "TINYCLAWD_NO_KEYS is set"
+        if self.env.get("XDG_SESSION_TYPE") == "wayland":
+            return "wayland session"
+        if not self.env.get("DISPLAY"):
+            return "no DISPLAY"
+        return None
+
+    def press(self, now=None):
+        with self.lock:
+            self.times.append(now or time.time())
+
+    def tick(self, now=None):
+        now = now or time.time()
+        with self.lock:
+            self.times = [t for t in self.times if now - t < max(self.WINDOW, self.QUIET)]
+            last = self.times[-1] if self.times else 0.0
+            n = sum(1 for t in self.times if now - t < self.WINDOW)
+        raw = n / self.WINDOW
+        if not last or now - last >= self.QUIET:
+            rate = 0
+        else:
+            rate = max(1, min(15, int(raw + 0.5)))
+        if self.rate and rate and abs(raw - self.rate) < 0.75:
+            rate = self.rate   # wobbling around the same speed
+        if rate == self.rate:
+            if rate and now - self.sent_at >= self.KEEPALIVE:
+                self.send(rate, now)
+            return
+        if rate == 0 or self.rate == 0:
+            self.send(rate, now)   # start and stop go out right away
+        elif now - self.sent_at >= (self.MIN_GAP if abs(rate - self.rate) >= 2 else self.SETTLE):
+            self.send(rate, now)
+
+    def send(self, rate, now):
+        self.rate = rate
+        self.sent_at = now
+        self.out("typing %d" % rate)
+
+    def watch(self):
+        """keeps the key source running, waits longer and longer if it keeps dying"""
+        wait = 2
+        while not self.stop and not self.off:
+            start = time.time()
+            try:
+                self.source(self.press)
+            except FileNotFoundError:
+                log("xinput not found, no typing reactions")
+                self.off = True
+                return
+            except Exception as e:
+                log("keys:", e)
+            if self.stop:
+                return
+            wait = 2 if time.time() - start > 30 else min(wait * 2, 60)
+            time.sleep(wait)
+
+    def loop(self):
+        why = self.why_off()
+        if why:
+            log("typing reactions off:", why)
+            return
+        threading.Thread(target=self.watch, daemon=True).start()
+        while not self.stop and not self.off:
+            try:
+                self.tick()
+            except Exception as e:
+                log("keys:", e)
+            time.sleep(self.TICK)
+
+
 # ---------------------------------------------------------------- daemon
 
 DEVICE_PREFIXES = ("ok", "err", "touch", "boot")
 
 
 class Daemon:
-    def __init__(self, port=None, stdout=False, path=None, player=playerctl):
+    def __init__(self, port=None, stdout=False, path=None, player=playerctl, keys=xinput_keys,
+                 no_keys=False):
         self.path = path or sock_path()
         self.link = Link(port, stdout, self.on_connect, self.on_device)
         self.state = State(self.link.send)
         self.music = Music(self.link.send, player)
+        self.keys = Keys(self.link.send, keys)
+        self.keys.off = no_keys
         self.last_time = 0.0
 
     def on_connect(self):
@@ -676,6 +796,8 @@ class Daemon:
             self.link.send(self.state.perm_line())
         if self.music.line:
             self.link.send(self.music.line)
+        if self.keys.rate:
+            self.link.send("typing %d" % self.keys.rate)
 
     def send_time(self):
         self.last_time = time.time()
@@ -745,6 +867,7 @@ class Daemon:
         t = threading.Thread(target=self.link.run, daemon=True)
         t.start()
         threading.Thread(target=self.music.loop, daemon=True).start()
+        threading.Thread(target=self.keys.loop, daemon=True).start()
         try:
             while until is None or not until.is_set():
                 r, _, _ = select.select([srv], [], [], 1.0)
@@ -763,6 +886,7 @@ class Daemon:
         finally:
             self.link.stop = True
             self.music.stop = True
+            self.keys.stop = True
             srv.close()
             try:
                 os.unlink(self.path)
@@ -784,7 +908,7 @@ def cmd_daemon(args):
             return 1
     # systemd stops us with SIGTERM, clean up the socket like on ctrl-c
     signal.signal(signal.SIGTERM, on_term)
-    return Daemon(args.port, args.stdout, args.sock).run()
+    return Daemon(args.port, args.stdout, args.sock, no_keys=args.no_keys).run()
 
 
 # ---------------------------------------------------------------- replay
@@ -948,6 +1072,7 @@ def main(argv=None):
     d = sub.add_parser("daemon", help="own the serial port and forward events")
     d.add_argument("--port", help="serial port, default: auto detect")
     d.add_argument("--stdout", "--dry-run", action="store_true", help="print lines, no serial")
+    d.add_argument("--no-keys", action="store_true", help="do not watch the keyboard")
     d.set_defaults(fn=cmd_daemon)
 
     sub.add_parser("hook", help="claude code hook, json on stdin").set_defaults(fn=cmd_hook)
