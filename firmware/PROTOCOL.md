@@ -26,6 +26,7 @@ on its own.
 | `usage 5h=42 wk=18 ctx=37 reset=135` | usage in %, `reset` = minutes until the 5 hour window resets. any field can be left out |
 | `time 23:15` | local time, so it knows when it is night |
 | `touch tap` / `touch double` / `touch long` | fake a touch (testing) |
+| `touch down` / `touch up` | fake the pad edges, hold to open the menu (testing) |
 | `play <anim>` | play one animation now (testing) |
 | `now` | pet answers `ok <anim playing>` |
 | `tune fast` / `tune normal` | short idle timings (bored after 30 s, asleep after 3 min) for testing |
@@ -57,7 +58,7 @@ the setting lines answer with the full `hw` line, so you see what changed. a bad
 |---|---|
 | `ok` / `ok <info>` | answer to a line |
 | `err <why>` | answer to a bad line |
-| `touch tap` / `touch double` / `touch long` | the head was touched |
+| `touch tap` / `touch double` / `touch long` | the head was touched (down / up edges are not printed) |
 | `boot tinyclawd 1` | printed once at start |
 | `raw 1` / `raw 0` | touch pin changed (only after `hw touchraw 1`) |
 
