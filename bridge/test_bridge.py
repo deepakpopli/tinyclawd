@@ -86,6 +86,19 @@ class HookMapping(unittest.TestCase):
         m = json.loads(tc.hook_message(hook("PreToolUse", tool_name="Read", agent_id="ag1")))
         self.assertEqual((m["sid"], m["aid"], m["lines"]), ("s1", "ag1", ["ev tool Read"]))
 
+    def test_screen_slash_commands(self):
+        self.assertEqual(tc.map_hook(hook("UserPromptSubmit", prompt="/usage")), ["play usage"])
+        self.assertEqual(tc.map_hook(hook("UserPromptSubmit", prompt=" /cost ")), ["play usage"])
+        self.assertEqual(tc.map_hook(hook("UserPromptExpansion", command_name="context")), ["play context"])
+        self.assertEqual(tc.map_hook(hook("UserPromptExpansion", command_name="review")), [])
+        self.assertEqual(tc.map_hook(hook("UserPromptSubmit", prompt="/review the pr")), ["ev prompt"])
+        # a screen is not a claude turn, the session must not look busy
+        out = []
+        st = tc.State(out.append)
+        st.hook(json.loads(tc.hook_message(hook("UserPromptSubmit", prompt="/usage"))))
+        self.assertEqual(out, ["play usage"])
+        self.assertFalse(any(x.busy for x in st.sessions.values()))
+
     def test_hook_cli_is_silent(self):
         env = dict(os.environ, TINYCLAWD_SOCK="/tmp/tinyclawd-test-nothing-here.sock")
         for data in (json.dumps(hook("Stop")), "not json", ""):

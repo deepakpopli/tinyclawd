@@ -99,6 +99,8 @@ PERM_NOTES = {
     "worker_permission_prompt", "agent_needs_input",
 }
 ASKING_TOOLS = {"AskUserQuestion", "ExitPlanMode"}
+# slash commands that open a screen on the pet instead of a claude turn
+SCREEN_CMDS = {"usage": "usage", "cost": "usage", "status": "usage", "context": "context"}
 
 
 INSTALL_RE = re.compile(r"\b(pip3?|uv pip|uv|apt(-get)?|brew|conda|npm|pnpm|yarn|bun) (install|add|i)\b[^;&|]*")
@@ -107,6 +109,14 @@ INSTALL_RE = re.compile(r"\b(pip3?|uv pip|uv|apt(-get)?|brew|conda|npm|pnpm|yarn
 def is_test(cmd):
     # "pip install pytest" is not a test run
     return bool(TEST_RE.search(INSTALL_RE.sub("", cmd or "")))
+
+
+def slash(d):
+    """'/usage now' -> 'usage', from a prompt or a slash command expansion"""
+    if d.get("command_name"):
+        return str(d["command_name"]).lstrip("/").lower()
+    p = (d.get("prompt") or "").strip() if isinstance(d.get("prompt"), str) else ""
+    return p[1:].split(None, 1)[0].lower() if p.startswith("/") and len(p) > 1 else ""
 
 
 def map_hook(d):
@@ -120,8 +130,11 @@ def map_hook(d):
         return ["ev start"]
     if ev == "SessionEnd":
         return ["ev end"]
-    if ev == "UserPromptSubmit":
-        return ["ev prompt"]
+    if ev in ("UserPromptSubmit", "UserPromptExpansion"):
+        cmd = slash(d)
+        if cmd in SCREEN_CMDS:
+            return ["play " + SCREEN_CMDS[cmd]]
+        return ["ev prompt"] if ev == "UserPromptSubmit" else []
     if ev == "PreToolUse":
         if tool in ASKING_TOOLS:
             return ["ev perm"]
@@ -181,6 +194,7 @@ def hook_message(d):
         "lines": map_hook(d),
         "proj": project(d.get("cwd")),
         "tool": clean(d["tool_name"], 24) if d.get("tool_name") else "",
+        "slash": clean(slash(d), 24),
     })
 
 
@@ -460,6 +474,12 @@ class State:
         ts = as_num(m.get("ts")) or now
         aid = str(m.get("aid") or "")
         tool = str(m.get("tool") or "")
+        if m.get("slash"):
+            log("slash command /%s (%s)" % (m["slash"], ev))
+        if lines and all(l.startswith("play ") for l in lines):
+            for l in lines:
+                self.out(l)   # a screen like /usage, not a claude turn
+            return
 
         if ev == "SessionEnd":
             s = self.sessions.pop(sid, None)
