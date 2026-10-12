@@ -49,6 +49,21 @@ the first designs were sketched in python: [`animations/`](animations).
 there is also a 3D viewer: `hardware/build_live_viewer.py` builds `hardware/out/clawd_live.html`,
 the printed body with every animation playing on its screen.
 
+## games
+
+there is only one button, the touch pad on its head. so everything works with tap, double tap
+and hold:
+
+- hold the head: a ring fills around the screen. let go early and it's love, hold until it's
+  full and the menu opens
+- in the menu: tap = next, hold = open, double tap = back
+- in a game: press = jump / kick / allow, hold the full ring to leave
+
+| | |
+|---|---|
+| <img src="docs/gifs/game_run.gif"> bug run: jump over bugs and 429 walls | <img src="docs/gifs/game_keepy.gif"> keepy uppy: tap when the ball hits the head |
+| <img src="docs/gifs/game_penalty.gif"> penalties: aim, power, then you're in goal | <img src="docs/gifs/game_panic.gif"> permission panic: allow `npm test`, never `rm -rf /` |
+
 ## hardware
 
 - ESP32-C3 Super Mini
@@ -87,6 +102,7 @@ cd firmware/sim && make
 python3 gif.py out/demo.frames         # -> out/demo.gif (needs pillow)
 python3 gif.py --scale 2 out/*.frames  # smaller gifs
 ./sim anim goal ; ./sim list ; ./sim soak 12
+./sim game run                         # a game played by its own bot -> out/game_run.frames
 ```
 
 ## status
@@ -95,6 +111,9 @@ python3 gif.py --scale 2 out/*.frames  # smaller gifs
 - [x] animation designs (71 in the firmware)
 - [x] firmware (esp-idf), builds, not tested on the board yet
 - [x] laptop bridge (claude code status line + hooks over usb)
+- [x] one button menu + 4 games
+- [ ] focus timer, clock, quiet mode
+- [ ] high scores kept after a reboot
 
 ## build the hardware files
 
