@@ -208,6 +208,7 @@ struct Brain::Impl {
     bool music = false;            // the laptop is playing music
     char track[49] = "";
     char who[17] = "";             // project waiting for you
+    bool resume = false;           // last line was "ev done small", others still work
     Canvas a, b;   // scratch for transitions
 
     uint32_t rand() {
@@ -609,6 +610,8 @@ void Brain::begin(uint32_t now, uint32_t seed) {
 
 void Brain::event(Ev e, const char* arg, uint32_t now) {
     Impl& s = *p;
+    bool resume = s.resume;   // this line is the work another session still does
+    s.resume = false;
     s.last_event = now;
     s.activity(now);
     if (e != EV_END) s.session = true;
@@ -628,6 +631,11 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         s.react(POOL(END), now);
         break;
     case EV_PROMPT:
+        if (resume) {   // keep the small party and the turn clock
+            if (!s.prompt_at) s.prompt_at = now;
+            s.go_mode(THINK_M, now);
+            break;
+        }
         s.prompt_at = now;
         s.edits_this_turn = 0;
         s.fails_in_row = 0;
@@ -652,7 +660,7 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         if (s.mode != TOOL_M) {
             s.mode = TOOL_M;
             s.pending_tool = nullptr;
-            if (s.oneshot && s.cur.a && !strcmp(s.cur.a->name, "wake_up")) {
+            if (s.oneshot && s.cur.a && (resume || !strcmp(s.cur.a->name, "wake_up"))) {
                 s.base_pool = pool;
                 s.base_n = n;
                 s.base_since = now;
@@ -694,6 +702,12 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         if (s.rand() % 2) s.react(POOL(PERM_IN), now);
         break;
     case EV_DONE: {
+        if (!strcmp(arg, "small")) {   // one session done, others still work
+            s.done++;
+            s.react(POOL(DONE_QUICK), now);
+            s.resume = true;
+            break;
+        }
         uint32_t took = s.prompt_at ? now - s.prompt_at : 0;
         s.done++;
         s.subagents = 0;
