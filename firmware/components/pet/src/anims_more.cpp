@@ -200,7 +200,45 @@ static void a_rubber_duck(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ------------------------------------------------------------------- stretch
+
+static void a_stretch(Canvas& c, uint32_t t, const Ctx& x) {
+    float lean = (x.seed & 8) ? 1 : -1;
+    bool sway = x.seed & 16;
+    // squash down, then a long stretch up, wobble, release
+    const Key dy[] = {{300, 0}, {800, 5}, {1150, -9}, {2700, -10}, {2900, 4}, {3100, -1}, {3300, 0}};
+    const Key w[] = {{300, 12}, {800, 15}, {1150, 7}, {2700, 6}, {2900, 16}, {3100, 11}, {3300, 12}};
+    const Key hh[] = {{300, 22}, {800, 16}, {1150, 36}, {2700, 39}, {2900, 15}, {3100, 23}, {3300, 22}};
+    Eye e;
+    e.dy = KEYS(dy, t);
+    e.w = KEYS(w, t);
+    e.h = KEYS(hh, t);
+    bool top = t >= 1250 && t < 2700;
+    if (top) {
+        // trembling at the top, and a slow lean to one side
+        e.dx = ((t / 45) % 2 ? 0.6f : -0.6f);
+        if (sway) e.dx += 8 * lean * sinf(PI * seg(t, 1400, 2600));
+    }
+    if (t >= 3300 && t < 4100) {   // that felt good
+        Eye hp;
+        hp.shape = HAPPY;
+        hp.dy = 2;
+        face(c, hp);
+    } else if (t >= 4100 && t < 4200) {
+        face(c, blink_eye(Eye(), 0.5f + 0.5f * seg(t, 4100, 4200)));
+    } else {
+        face(c, e);
+    }
+    // a pop when it lets go
+    if (t >= 2750 && t < 3050) {
+        int r = 3 + iround(4 * seg(t, 2750, 3050));
+        sparkle(c, 14, 10, r > 5 ? 5 : r);
+        sparkle(c, 113, 10, r > 5 ? 5 : r);
+    }
+}
+
 static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
 static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
+static const Anim A_STRETCH = {"stretch", a_stretch, 4400, CALM};
 
-ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK);
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH);
