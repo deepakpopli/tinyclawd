@@ -396,28 +396,32 @@ static void a_typing(Canvas& c, uint32_t t, const Ctx& x) {
 }
 
 // -------------------------------------------------------------------- terminal
+// a full screen terminal: title bar, real commands typing out, output scrolling,
+// and a big check or x when a command finishes
 
 struct Cmd {
     const char* cmd;
     const char* out[3];
     int nout;
-    bool happy;
+    bool ok;    // false = it failed, shows the x
+    bool bar;   // a build: a progress bar before the output
 };
 
 static const Cmd CMDS[] = {
-    {"npm test", {"> jest", "PASS 12 tests", "done in 1.4s"}, 3, true},
-    {"ls", {"src  docs  test", "README.md"}, 2, false},
-    {"make", {"cc main.c", "cc pet.c", "ld tinyclawd"}, 3, true},
-    {"git status", {"on branch main", "2 files changed"}, 2, false},
-    {"cargo build", {"Compiling pet", "Finished"}, 2, true},
-    {"pytest -q", {"........", "all passed"}, 2, true},
-    {"git diff", {"+ eyes.y += 1", "- eyes.y -= 1"}, 2, false},
-    {"idf.py build", {"Linking...", "Project build ok"}, 2, true},
-    {"grep -rn TODO", {"pet.c:12 TODO", "face.c:40 TODO"}, 2, false},
-    {"uptime", {"up 3 days"}, 1, false},
+    {"npm test", {"> jest", "PASS 12 tests", "done in 1.4s"}, 3, true, false},
+    {"ls", {"src  docs  test", "README.md"}, 2, true, false},
+    {"make", {"cc main.c", "cc pet.c", "ld tinyclawd"}, 3, true, true},
+    {"git status", {"on branch main", "2 files changed"}, 2, true, false},
+    {"cargo build", {"Compiling pet", "Finished"}, 2, true, true},
+    {"pytest -q", {"..F.....", "1 failed"}, 2, false, false},
+    {"git diff", {"+ eyes.y += 1", "- eyes.y -= 1"}, 2, true, false},
+    {"idf.py build", {"Linking...", "build ok"}, 2, true, true},
+    {"npm run lint", {"pet.ts:12", "error: no-var"}, 2, false, false},
+    {"grep -rn TODO", {"pet.c:12 TODO", "face.c:40 TODO"}, 2, true, false},
 };
 static const int NCMD = sizeof(CMDS) / sizeof(CMDS[0]);
-static const uint32_t TM_CH = 75, TM_WAIT = 350, TM_OUT = 260, TM_IDLE = 900;
+static const uint32_t TM_CH = 90, TM_WAIT = 400, TM_BAR = 1400, TM_OUT = 300, TM_MARK = 700, TM_IDLE = 500;
+static const int TM_ROWS = 5;
 
 static int block_cmd(uint32_t b, uint32_t seed) {
     int k = hash32(b * 613 + seed) % NCMD;
@@ -425,16 +429,28 @@ static int block_cmd(uint32_t b, uint32_t seed) {
     return k;
 }
 
+static uint32_t wait_ms(const Cmd& m) { return m.bar ? TM_BAR : TM_WAIT; }
+
 static uint32_t block_ms(int k) {
-    return strlen(CMDS[k].cmd) * TM_CH + TM_WAIT + CMDS[k].nout * TM_OUT + TM_IDLE;
+    const Cmd& m = CMDS[k];
+    return strlen(m.cmd) * TM_CH + wait_ms(m) + m.nout * TM_OUT + TM_MARK + TM_IDLE;
+}
+
+static void big_check(Canvas& c, int x, int y) {
+    float p[] = {(float)x + 5, (float)y + 14, (float)x + 11, (float)y + 20, (float)x + 23, (float)y + 6};
+    c.polyline(p, 3, 4, false);
+}
+
+static void big_x(Canvas& c, int x, int y) {
+    c.line(x + 7, y + 7, x + 20, y + 20, 4, false);
+    c.line(x + 7, y + 20, x + 20, y + 7, 4, false);
 }
 
 static void a_terminal(Canvas& c, uint32_t t, const Ctx& x) {
-    bool left = x.seed & 1;
-    int bx0 = left ? 2 : 50, bx1 = bx0 + 75;
-    c.rect(bx0, 2, bx1, 61);
-    c.hline(bx0, bx1, 9);
-    for (int k = 0; k < 3; k++) c.fill_rect(bx0 + 3 + k * 4, 4, bx0 + 4 + k * 4, 5);
+    // title bar
+    c.fill_rect(0, 0, 127, 9);
+    for (int k = 0; k < 3; k++) c.fill_rect(3 + k * 6, 3, 5 + k * 6, 5, false);
+    c.text_center(64, 1, "bash", font_5x7, false);
 
     uint32_t b = 0, start = 0;
     int k = block_cmd(0, x.seed);
@@ -445,63 +461,67 @@ static void a_terminal(Canvas& c, uint32_t t, const Ctx& x) {
     uint32_t in = t - start;
     const Cmd& cm = CMDS[k];
     uint32_t typed = strlen(cm.cmd) * TM_CH;
-    // collect visible lines bottom up (max 7)
-    const char* lines[7];
-    int chars[7];
-    bool prompt[7];
+    uint32_t ran = typed + wait_ms(cm);
+    uint32_t done_at = ran + cm.nout * TM_OUT;
+
+    // lines bottom up: 0 is the newest
+    const char* lines[TM_ROWS];
+    int chars[TM_ROWS];
+    bool prompt[TM_ROWS];
     int n = 0;
     auto push = [&](const char* s, int ch, bool p) {
-        if (n < 7) { lines[n] = s; chars[n] = ch; prompt[n] = p; n++; }
+        if (n < TM_ROWS) { lines[n] = s; chars[n] = ch; prompt[n] = p; n++; }
     };
-    int outs = in < typed + TM_WAIT ? 0 : 1 + (in - typed - TM_WAIT) / TM_OUT;
+    int outs = in < ran ? 0 : 1 + (in - ran) / TM_OUT;
     if (outs > cm.nout) outs = cm.nout;
-    bool done = in >= typed + TM_WAIT + cm.nout * TM_OUT;
+    bool done = in >= done_at;
+    bool barring = cm.bar && in >= typed && in < ran;
     if (done) push("", 0, true);   // the next prompt
     for (int o = outs - 1; o >= 0; o--) push(cm.out[o], 99, false);
-    int ch = in / TM_CH;
-    push(cm.cmd, ch, true);
-    for (int bb = (int)b - 1; bb >= 0 && n < 7; bb--) {
+    if (barring) push("", 0, false);   // room for the bar
+    push(cm.cmd, in / TM_CH, true);
+    for (int bb = (int)b - 1; bb >= 0 && n < TM_ROWS; bb--) {
         const Cmd& p = CMDS[block_cmd(bb, x.seed)];
-        push("", 0, true);
-        n--;   // the old prompt line is shown with its command, not empty
         for (int o = p.nout - 1; o >= 0; o--) push(p.out[o], 99, false);
         push(p.cmd, 99, true);
     }
-    int cur_y = 0, cur_x = 0;
+
+    int cur_x = -1, cur_y = 0;
     for (int i = 0; i < n; i++) {
-        int y = 54 - i * 7;
-        int xx = bx0 + 3;
-        if (prompt[i]) xx = c.text(xx, y, "$ ", font_4x6);
-        char buf[20];
-        int m = chars[i];
-        int sl = strlen(lines[i]);
+        int y = 13 + (n - 1 - i) * 10;
+        int xx = 2;
+        if (prompt[i]) {
+            c.text(xx, y, "$", font_6x10);   // bold: drawn twice
+            c.text(xx + 1, y, "$", font_6x10);
+            xx += 10;
+        }
+        char buf[22];
+        int m = chars[i], sl = strlen(lines[i]);
         if (m > sl) m = sl;
-        if (m > 17) m = 17;
+        if (m > 20) m = 20;
         memcpy(buf, lines[i], m);
         buf[m] = 0;
-        int ex = c.text(xx, y, buf, font_4x6);
-        if (i == 0) { cur_x = ex; cur_y = y; }
+        int ex = c.text(xx, y, buf, font_6x10);
+        if (i == 0 && prompt[i]) { cur_x = ex; cur_y = y; }
+        if (barring && i == 0) {   // build progress
+            float f = seg(in, typed, ran);
+            c.rect(xx, y + 1, xx + 80, y + 7);
+            c.fill_rect(xx + 2, y + 3, xx + 2 + iround(76 * f), y + 5);
+        }
     }
-    bool busy = !done && in >= typed;
-    if (!busy && (in < typed || (t / 300) % 2 == 0)) c.fill_rect(cur_x, cur_y, cur_x + 2, cur_y + 5);
+    // fat block cursor: solid while typing, blinks while idle, gone while running
+    bool running = !done && in >= typed;
+    if (cur_x >= 0 && !running && (in < typed || (t / 400) % 2 == 0))
+        c.fill_rect(cur_x + 1, cur_y, cur_x + 6, cur_y + 9);
 
-    // eyes on the other side, watching
-    float ex0 = left ? 94 : 12, ex1 = ex0 + 22;
-    Eye e;
-    e.w = 9;
-    e.h = 16;
-    e.dx = left ? -3 : 3;
-    e.dy = (cur_y - 32) / 6.0f;
-    uint32_t h = hash32(b * 5 + x.seed);
-    if (cm.happy && done && in < typed + TM_WAIT + cm.nout * TM_OUT + 600) {
-        e.shape = HAPPY;
-        e.w = 7;
-        e.dy -= 2;
-    } else if (busy) {
-        e.h = 18;   // waiting for the output, a bit more alert
+    // the result, big, for a moment
+    if (in >= done_at && in < done_at + TM_MARK) {
+        int bx = 92, by = 20;
+        c.fill_rect(bx - 2, by - 2, bx + 29, by + 29, false);
+        c.fill_rect(bx, by, bx + 27, by + 27);
+        if (cm.ok) big_check(c, bx, by);
+        else big_x(c, bx, by);
     }
-    e = maybe_blink(e, blink_k(in, 200 + h % 900));
-    eyes_at(c, ex0, ex1, 32, e);
 }
 
 // ------------------------------------------------------------------------- web
