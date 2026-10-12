@@ -382,10 +382,108 @@ static void a_letters_fly(Canvas& c, uint32_t t, const Ctx& x) {
     face(c, l, r);
 }
 
+// keyboard_peek: a big keyboard in front, Clawd peeks over the edge
+
+static const int KP_EDGE = 40;         // top edge of the keyboard
+static const uint32_t KP_IN = 450;     // eyes sink, keyboard rises
+static const int KP_KEYS = 17;         // 8 big keys with labels, 9 cut off below
+
+static void kp_key(int k, int oy, int& x, int& y) {
+    if (k < 8) {
+        x = 1 + k * 16;
+        y = KP_EDGE + 4 + oy;
+    } else {
+        x = -7 + (k - 8) * 16;
+        y = KP_EDGE + 18 + oy;
+    }
+}
+
+static void kp_keyboard(Canvas& c, int oy, int down) {
+    static const char LABELS[] = "asdfjkl;";
+    c.fill_rect(0, KP_EDGE + oy, 127, 63, false);
+    c.fill_rect(0, KP_EDGE + oy, 127, KP_EDGE + 1 + oy);
+    for (int k = 0; k < KP_KEYS; k++) {
+        int x, y;
+        kp_key(k, oy, x, y);
+        int p = k == down ? 1 : 0;
+        if (p) c.fill_rect(x, y + 1, x + 13, y + 12);
+        else c.rect(x, y, x + 13, y + 11);
+        if (k < 8) {
+            char s[2] = {LABELS[k], 0};
+            c.text(x + 5, y + 3 + p, s, font_4x6, !p);
+        }
+    }
+}
+
+static float kp_key_x(int k) {
+    int x, y;
+    kp_key(k, 0, x, y);
+    return x + 7;
+}
+
+// a claw holding on to the edge, two tips hanging over the front
+static void kp_claw(Canvas& c, int cx, int oy) {
+    int y = KP_EDGE + oy;
+    c.fill_rect(cx - 3, y - 4, cx + 3, y - 1);
+    c.px(cx, y - 4, false);
+    c.vline(cx - 2, y + 2, y + 3);
+    c.vline(cx + 2, y + 2, y + 3);
+}
+
+static void a_keyboard_peek(Canvas& c, uint32_t t, const Ctx& x) {
+    int rate = key_rate(x);
+    float k = ease(seg(t, 0, KP_IN));
+    uint32_t every = 1000 / rate;
+    uint32_t in = t > KP_IN ? t - KP_IN : 0;
+    uint32_t n = in / every;
+    // mostly the big labelled keys, sometimes one on the row below
+    uint32_t h = hash32(n * 2654435761u + x.seed);
+    int key = h % 4 ? (h >> 4) % 8 : 8 + (h >> 4) % 9;
+    int down = (t >= KP_IN && in % every < 120) ? key : -1;
+
+    // peek-a-boo rounds: pop up somewhere, watch, duck, come up somewhere else
+    uint32_t round_ms = 2700 + x.seed % 600;
+    uint32_t r = in / round_ms, rt = in % round_ms * 2700 / round_ms;
+    float spot = r ? (hashf(r * 7919 + x.seed) - 0.5f) * 44 : 0;   // -22..22 px
+    const Key rise[] = {{0, 30}, {160, 0}, {260, 5}, {2300, 5}, {2420, 30}, {2700, 30}};
+    float dy = KEYS(rise, rt);
+    if (t < KP_IN || (r == 0 && rt < 260)) dy = 5 * k;   // the first round starts already peeking
+
+    // a key goes down near him: a little startled hop, eyes glance at it
+    float dx = 0;
+    if (down >= 0) {
+        float kx = kp_key_x(down);
+        dx = clampf((kx - 64 - spot) / 10, -3, 3);
+        if (kx > 30 + spot && kx < 98 + spot) dy -= 3;
+    }
+    // now and then a curious stretch up to see better
+    uint32_t look = (r * 1237 + x.seed) % 1300 + 500;
+    if (rt > look && rt < look + 600)
+        dy -= 5 * ease(seg(rt, look, look + 150)) * (1 - ease(seg(rt, look + 450, look + 600)));
+
+    Eye e = eye(spot + dx, dy, EYE_W + 1, EYE_H);
+    if (rate >= 11) {   // so fast: eyes go wide
+        e.w += 2;
+        e.h += 2;
+    }
+    uint32_t period = 2300 + x.seed % 700;
+    uint32_t bt = in % period;
+    if (t >= KP_IN && bt > period - BLINK_MS) e = blink_eye(e, (bt - (period - BLINK_MS)) / (float)BLINK_MS);
+    face(c, e);
+    int oy = iround(26 * (1 - k));
+    kp_keyboard(c, oy, down);
+    if (dy < 16 && k > 0.8f) {   // he holds on while he is up
+        kp_claw(c, iround(LEFT_X - 18 + spot), oy);
+        kp_claw(c, iround(RIGHT_X + 18 + spot), oy);
+    }
+}
+
 static const Anim A_YOU_TYPING = {"you_typing", a_you_typing, 4000, LOOP | CALM_IN};
 static const Anim A_TYPING_READY = {"typing_ready", a_typing_ready, 1200, CALM_OUT};
 static const Anim A_TYPING_WAKE = {"typing_wake", a_typing_wake, 700, CALM_OUT};
 static const Anim A_TYPING_ALONG = {"typing_along", a_typing_along, 4000, LOOP | SCENE};
 static const Anim A_LETTERS_FLY = {"letters_fly", a_letters_fly, 4800, LOOP | CALM_IN};
+static const Anim A_KEYBOARD_PEEK = {"keyboard_peek", a_keyboard_peek, 5400, LOOP | CALM_IN};
 
-ANIM_LIST(anims_keys, &A_YOU_TYPING, &A_TYPING_READY, &A_TYPING_WAKE, &A_TYPING_ALONG, &A_LETTERS_FLY);
+ANIM_LIST(anims_keys, &A_YOU_TYPING, &A_TYPING_READY, &A_TYPING_WAKE, &A_TYPING_ALONG, &A_LETTERS_FLY,
+          &A_KEYBOARD_PEEK);
