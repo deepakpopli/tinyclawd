@@ -58,43 +58,28 @@ static void a_limit_hit(Canvas& c, uint32_t t, const Ctx& x) {
 
 // --------------------------------------------------------------------- usage
 
-static void bar(Canvas& c, int y, const char* label, int pct, float k) {
-    char s[16];
-    if (pct < 0) snprintf(s, sizeof(s), "%s  --", label);
-    else snprintf(s, sizeof(s), "%s  %d%%", label, iround(pct * k));
-    c.text(44, y, s, font_5x7);
-    c.rect(44, y + 10, 123, y + 16);
-    if (pct < 0) {
-        for (int xx = 47; xx < 121; xx += 4) c.px(xx, y + 13);
-        return;
+// one row: label left, percent right, a full width bar under it
+static void usage_row(Canvas& c, int y, const char* label, int pct, float k) {
+    char s[8];
+    c.text(0, y, label, font_6x10);
+    if (pct < 0) snprintf(s, sizeof(s), "--");
+    else snprintf(s, sizeof(s), "%d%%", iround((pct > 100 ? 100 : pct) * k));
+    c.text(128 - c.text_width(s, font_6x10), y, s, font_6x10);
+    c.rect(0, y + 11, 127, y + 19);
+    if (pct > 0) {
+        int w = iround(124 * (pct > 100 ? 1 : pct / 100.0f) * k);
+        if (w > 0) c.fill_rect(2, y + 13, 1 + w, y + 17);
     }
-    int w = iround(75 * clamp01(pct / 100.0f) * k);
-    if (w > 0) c.fill_rect(46, y + 12, 46 + w - 1, y + 14);
 }
 
+// only the numbers, the screen is small
 static void a_usage(Canvas& c, uint32_t t, const Ctx& x) {
-    float k1 = ease_out(seg(t, 150, 1250));
-    float k2 = ease_out(seg(t, 350, 1450));
-    bar(c, 1, "5h", x.pct5h, k1);
-    bar(c, 22, "wk", x.pctwk, k2);
+    usage_row(c, 0, "5 hour", x.pct5h, ease_out(seg(t, 100, 900)));
+    usage_row(c, 24, "week", x.pctwk, ease_out(seg(t, 250, 1050)));
     char r[12], s[24];
     fmt_reset(r, sizeof(r), x.reset_min);
-    snprintf(s, sizeof(s), x.reset_min >= 0 ? "resets in %s" : "resets %s", r);
-    c.text(44, 50, s, font_5x7);
-    // small eyes on the left read the bars, top then bottom then you
-    const Key gaze[] = {{0, 0}, {300, -5}, {1300, -5}, {1600, 3}, {2600, 3}, {2900, 0}};
-    Eye e;
-    e.w = 7;
-    e.h = 14;
-    e.dy = KEYS(gaze, t % 6000);
-    e.dx = (t % 6000) < 2900 ? 2 : 0;
-    uint32_t slot = t / 3000, h = hash32(slot + x.seed);
-    float bk = blink_k(t % 3000, 800 + h % 1800);
-    if (bk >= 0) e = blink_eye(e, bk);
-    Eye r2 = e;
-    r2.mirror = true;
-    draw_eye(c, 12, 30, e);
-    draw_eye(c, 28, 30, r2);
+    snprintf(s, sizeof(s), "resets in %s", r);
+    if (x.reset_min >= 0) c.text_center(64, 55, s, font_5x7);
 }
 
 // ------------------------------------------------------------------- context
