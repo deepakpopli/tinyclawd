@@ -23,7 +23,7 @@ static uint32_t rnd() {
     return rng >> 8;
 }
 
-static float gravity() { return fminf(0.00022f + streak * 0.000012f, 0.0006f); }
+static float gravity() { return fminf(0.00022f + streak * 0.000006f, 0.0006f); }
 
 static void keepy_start(uint32_t now, uint32_t seed, int b) {
     rng = seed ? seed : 1;
@@ -146,7 +146,7 @@ static bool keepy_bot(uint32_t now) {
     if (!bot_next) {
         // where in the window he will tap this time
         uint32_t h = hash32(kicked_at * 7 + streak + rng);
-        float late = streak >= 8 && (h % 100) < (uint32_t)(4 + streak / 4) ? 16 : 0;
+        float late = streak >= 12 && (h % 100) < (uint32_t)(3 + streak / 5) ? 16 : 0;
         bot_next = 1 + (uint32_t)(WIN_TOP + 2 + (h >> 8) % 7 + late);
     }
     if (by >= bot_next - 1) {
