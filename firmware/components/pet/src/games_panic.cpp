@@ -26,6 +26,8 @@ const char* const BAD[] = {
 const int NSAFE = sizeof(SAFE) / sizeof(SAFE[0]);
 const int NBAD = sizeof(BAD) / sizeof(BAD[0]);
 
+const int LIVES = 5;
+
 enum Phase { ASK, RESULT, OVER };
 
 Phase phase;
@@ -50,14 +52,14 @@ void go(Phase p, uint32_t now) {
 
 void ask(uint32_t now) {
     go(ASK, now);
-    bad = rnd() % 100 < 40;
+    bad = rnd() % 100 < (points < 6 ? 25u : 35u);   // mostly safe ones at first
     int n;
     do n = (int)(rnd() % (bad ? NBAD : NSAFE)) + (bad ? 100 : 0);
     while (n == last_cmd);
     last_cmd = n;
     cmd = bad ? BAD[n - 100] : SAFE[n];
-    int t = 3200 - points * 90;
-    timer = t < 1300 ? 1300 : t;
+    int t = 4500 - points * 70;
+    timer = t < 1800 ? 1800 : t;
     // bot: allows safe ones after a human delay, sometimes too slow, rarely misreads
     bot_at = 0;
     if (!bad) bot_at = now + 400 + rnd() % 1400;
@@ -67,7 +69,7 @@ void ask(uint32_t now) {
 void start(uint32_t now, uint32_t seed, int b) {
     rng = seed ? seed : 1;
     best = b;
-    lives = 3;
+    lives = LIVES;
     points = 0;
     last_cmd = -1;
     bot_until = 0;
@@ -98,7 +100,7 @@ const uint8_t HEART[] = {0x6c, 0xfe, 0xfe, 0x7c, 0x38, 0x10};
 const uint8_t HEART_EMPTY[] = {0x6c, 0x92, 0x82, 0x44, 0x28, 0x10};
 
 void hud(Canvas& c) {
-    for (int i = 0; i < 3; i++) c.blit(2 + i * 9, 1, 7, 6, i < lives ? HEART : HEART_EMPTY);
+    for (int i = 0; i < LIVES; i++) c.blit(2 + i * 9, 1, 7, 6, i < lives ? HEART : HEART_EMPTY);
     char s[16];
     snprintf(s, sizeof(s), "%d", points);
     c.text(126 - c.text_width(s), 0, s);
