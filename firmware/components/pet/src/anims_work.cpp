@@ -688,19 +688,26 @@ static void a_todo(Canvas& c, uint32_t t, const Ctx& x) {
 }
 
 // ------------------------------------------------------------------------ plug
+// a plug goes into a battery, a bolt shows up and the bars fill: charging
 
 struct PlugCycle {
-    bool miss;
-    uint32_t hold, len;
+    bool miss;      // bumps the socket first and tries again
+    uint32_t len;
 };
+
+static const uint32_t PL_IN = 700, PL_MISS = 800, PL_SPARK = 300, PL_BAR = 450, PL_FULL = 1300, PL_OUT = 500;
 
 static PlugCycle plug_cycle(uint32_t i, uint32_t seed) {
     uint32_t h = hash32(i * 1931 + seed);
     PlugCycle p;
     p.miss = i > 0 && h % 3 == 0;
-    p.hold = 1400 + (h >> 4) % 1600;
-    p.len = 900 + (p.miss ? 800 : 0) + 350 + p.hold + 600;
+    p.len = PL_IN + (p.miss ? PL_MISS : 0) + PL_SPARK + 4 * PL_BAR + PL_FULL + PL_OUT;
     return p;
+}
+
+static void bolt(Canvas& c, float x, float y, bool on) {
+    float p[] = {x + 3, y - 12, x - 6, y + 2, x, y + 2, x - 3, y + 12, x + 6, y - 2, x, y - 2};
+    c.fill_poly(p, 6, on);
 }
 
 static void a_plug(Canvas& c, uint32_t t, const Ctx& x) {
@@ -711,69 +718,60 @@ static void a_plug(Canvas& c, uint32_t t, const Ctx& x) {
         p = plug_cycle(++i, x.seed);
     }
     uint32_t in = t - start;
-    const float OUT = 30, TOUCH = 89, IN = 95;   // plug front x
-    float px = OUT, py = 0;
-    uint32_t a = 900, miss = p.miss ? 800 : 0;
-    if (in < a) {
-        px = lerp(OUT, TOUCH - 2, ease(seg(in, 0, a)));
-    } else if (in < a + miss) {   // bumps the socket, backs off, lines up, tries again
-        const Key mx[] = {{0, TOUCH - 2}, {120, TOUCH - 1}, {300, TOUCH - 8}, {650, TOUCH - 8}, {800, TOUCH - 2}};
-        const Key my[] = {{120, 4}, {300, 3}, {520, 0}};
-        px = KEYS(mx, in - a);
-        py = KEYS(my, in - a);
-    } else {
-        uint32_t q = in - a - miss;
-        if (q < 350) px = lerp(TOUCH - 2, IN, ease_in(seg(q, 0, 350)));
-        else if (q < 350 + p.hold) px = IN;
-        else px = lerp(IN, OUT, ease(seg(q, 350 + p.hold, 350 + p.hold + 600)));
+    uint32_t miss = p.miss ? PL_MISS : 0;
+    uint32_t on_at = PL_IN + miss;                      // plugged in from here
+    uint32_t out_at = p.len - PL_OUT;                   // pulled out from here
+
+    // plug front x: slides in from the right, maybe misses once
+    const float OUT = 124, IN = 94;
+    float px = IN, py = 0;
+    if (in < PL_IN) px = lerp(OUT, IN + 2, ease(seg(in, 0, PL_IN)));
+    else if (in < on_at) {
+        const Key mx[] = {{0, IN + 2}, {120, IN + 1}, {300, IN + 8}, {650, IN + 8}, {800, IN + 2}};
+        const Key my[] = {{120, -4}, {300, -3}, {520, 0}};
+        px = KEYS(mx, in - PL_IN);
+        py = KEYS(my, in - PL_IN);
+    } else if (in < on_at + 100) px = lerp(IN + 2, IN, seg(in, on_at, on_at + 100));
+    else if (in >= out_at) px = lerp(IN, OUT + 6, ease(seg(in, out_at, p.len)));
+    bool plugged = in >= on_at + 100 && in < out_at;
+
+    // battery
+    c.rect(12, 14, 86, 50);
+    c.rect(13, 15, 85, 49);
+    c.fill_rect(87, 25, 91, 39);
+    int bars = 0;
+    if (plugged && in >= on_at + PL_SPARK) bars = 1 + (in - on_at - PL_SPARK) / PL_BAR;
+    if (bars > 4) bars = 4;
+    if (in >= out_at) bars = 4;
+    for (int k = 0; k < bars; k++) c.fill_rect(17 + k * 17, 18, 30 + k * 17, 46);
+    uint32_t full_at = on_at + PL_SPARK + 3 * PL_BAR + PL_BAR;
+    if (plugged && in >= full_at && in < full_at + 900) {   // full: sparkles pop at the corners
+        bool alt = ((in - full_at) / 150) % 2;
+        sparkle(c, alt ? 8 : 6, alt ? 8 : 56, 3);
+        sparkle(c, alt ? 92 : 94, alt ? 54 : 10, 3);
     }
-    bool plugged = px >= IN - 0.5f;
-    uint32_t since = 0;
-    if (plugged) since = in - a - miss - 350;
-    int y0 = 50 + iround(py);
-    // cable from the left edge
-    float bx = px - 6 - 12;   // back of the plug body
-    c.line(0, 58, bx * 0.5f, 60, 2);
-    c.line(bx * 0.5f, 60, bx, y0 + 4, 2);
-    // plug: body + two prongs
-    c.fill_rect(iround(bx), y0, iround(px - 7), y0 + 9);
-    c.fill_rect(iround(px - 6), y0 + 2, iround(px), y0 + 2);
-    c.fill_rect(iround(px - 6), y0 + 7, iround(px), y0 + 7);
-    // socket: plate in front, box behind
-    c.fill_rect(96, 46, 98, 63);
-    c.rect(99, 48, 112, 61);
-    c.line(112, 54, 127, 54);
-    if (plugged) {
-        if (since < 320) {   // sparks
-            float s = since / 320.0f;
-            for (int k = 0; k < 7; k++) {
-                float an = PI + (k - 3) * 0.42f;
-                float r0 = 3 + 9 * s, r1 = r0 + 4;
-                c.line(94 + r0 * cosf(an), 55 + r0 * sinf(an), 94 + r1 * cosf(an), 55 + r1 * sinf(an));
-            }
-        } else {   // data flowing along the cable
-            for (int k = 0; k < 3; k++) {
-                float q = fmodf(since / 700.0f + k / 3.0f, 1);
-                float dx = lerp(bx, 0, q);
-                float dy = dx > bx * 0.5f ? lerp(y0 + 4, 60, (bx - dx) / (bx * 0.5f + 0.01f)) : lerp(60, 58, (bx * 0.5f - dx) / (bx * 0.5f + 0.01f));
-                c.fill_rect(iround(dx), iround(dy) - 2, iround(dx) + 1, iround(dy) - 1);
-            }
+    if (plugged || in >= out_at) {   // the bolt, with a dark edge so it shows on the bars
+        bolt(c, 48, 32, false);
+        bolt(c, 50, 32, false);
+        bolt(c, 49, 31, false);
+        bolt(c, 49, 33, false);
+        bolt(c, 49, 32, true);
+    }
+
+    // plug and cable from the right
+    int y0 = 32 + iround(py);
+    c.fill_rect(iround(px), y0 - 3, iround(px) + 2, y0 - 3);
+    c.fill_rect(iround(px), y0 + 3, iround(px) + 2, y0 + 3);
+    c.fill_rect(iround(px) + 3, y0 - 6, iround(px) + 12, y0 + 6);
+    c.line(px + 13, y0, 127, 56, 2);
+    if (plugged && in < on_at + 100 + PL_SPARK) {   // sparks at the socket
+        float sp = seg(in, on_at + 100, on_at + 100 + PL_SPARK);
+        for (int k = 0; k < 5; k++) {
+            float r0 = 4 + 6 * sp;
+            float dx = UC[(k * 2 + 12) % 16], dy = US[(k * 2 + 12) % 16];
+            c.line(92 + r0 * dx, 32 + r0 * dy, 92 + (r0 + 3) * dx, 32 + (r0 + 3) * dy);
         }
     }
-    Eye e;
-    e.w = 11;
-    e.h = 16;
-    e.dy = -12;
-    e.dx = clampf((px - 70) / 4, -10, 9);
-    if (plugged && since < 450) {   // flinch at the sparks, then happy
-        e = blink_eye(e, 0.25f + 0.25f * sinf(PI * since / 450.0f));
-    } else if (plugged && since < 1200) {
-        e.shape = HAPPY;
-        e.w = 9;
-        e.dy -= 1;
-    }
-    if (p.miss && in >= a && in < a + 300) e.dx -= 2, e.h = 18;
-    face(c, e);
 }
 
 // ---------------------------------------------------------------------- squish
