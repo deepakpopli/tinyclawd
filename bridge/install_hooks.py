@@ -10,19 +10,46 @@ import time
 from pathlib import Path
 
 SETTINGS = Path.home() / ".claude/settings.json"
-CMD = "/usr/bin/python3 %s hook" % (Path(__file__).resolve().parent / "tinyclawd.py")
+PY = "/usr/bin/python3 %s" % (Path(__file__).resolve().parent / "tinyclawd.py")
+CMD = PY + " hook"
+SCREEN = PY + " screen"   # runs before a slash command, can stop it (so /clawd costs no claude turn)
+COMMAND = Path.home() / ".claude/commands/clawd.md"
+COMMAND_TEXT = """---
+description: show my claude usage on tiny clawd (try /clawd context)
+---
+<!-- tinyclawd: the hook shows this on the pet and stops the prompt, claude never sees it -->
+show my usage on tiny clawd
+"""
 
 # event -> matcher (None = no matcher)
 EVENTS = {
-    "SessionStart": None, "SessionEnd": None, "UserPromptSubmit": None, "UserPromptExpansion": None,
+    "SessionStart": None, "SessionEnd": None, "UserPromptSubmit": None,
     "PreToolUse": "*", "PostToolUse": "*", "PostToolUseFailure": "*", "PermissionRequest": "*",
     "Notification": None, "Stop": None, "StopFailure": None,
     "SubagentStart": None, "SubagentStop": None, "PreCompact": None,
 }
 
 
+# hooks that must run before claude sees the prompt (not async)
+SYNC = {"UserPromptExpansion": SCREEN}
+
+
 def ours(group):
-    return any("tinyclawd.py hook" in h.get("command", "") for h in group.get("hooks", []))
+    return any("tinyclawd.py " in h.get("command", "") for h in group.get("hooks", []))
+
+
+def slash_command(remove):
+    """the /clawd command file, only ever touches it if it's ours"""
+    if remove:
+        if COMMAND.exists() and "tinyclawd" in COMMAND.read_text():
+            COMMAND.unlink()
+            return "removed /clawd"
+        return ""
+    if COMMAND.exists():
+        return "" if "tinyclawd" in COMMAND.read_text() else "a /clawd command already exists, left it alone"
+    COMMAND.parent.mkdir(parents=True, exist_ok=True)
+    COMMAND.write_text(COMMAND_TEXT)
+    return "added /clawd"
 
 
 def main():
@@ -33,7 +60,8 @@ def main():
         shutil.copy(SETTINGS, backup)
     hooks = s.setdefault("hooks", {})
     changed = 0
-    for ev, matcher in EVENTS.items():
+    todo = [(ev, m, CMD, True) for ev, m in EVENTS.items()] + [(ev, None, c, False) for ev, c in SYNC.items()]
+    for ev, matcher, cmd, run_async in todo:
         groups = hooks.get(ev, [])
         mine = [g for g in groups if ours(g)]
         if remove:
@@ -45,7 +73,10 @@ def main():
             continue
         if mine:
             continue
-        g = {"hooks": [{"type": "command", "command": CMD, "async": True, "timeout": 5}]}
+        h = {"type": "command", "command": cmd, "timeout": 5}
+        if run_async:
+            h["async"] = True
+        g = {"hooks": [h]}
         if matcher:
             g = {"matcher": matcher, **g}
         hooks[ev] = groups + [g]
@@ -54,6 +85,9 @@ def main():
         del s["hooks"]
     SETTINGS.write_text(json.dumps(s, indent=2) + "\n")
     print("%s %d hooks, backup in %s" % ("removed" if remove else "added", changed, backup.name))
+    msg = slash_command(remove)
+    if msg:
+        print(msg)
 
 
 if __name__ == "__main__":
