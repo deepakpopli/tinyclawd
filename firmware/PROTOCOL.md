@@ -32,6 +32,25 @@ on its own.
 
 unknown lines get `err unknown`, the pet keeps going.
 
+### hw lines (bring up and tuning)
+
+| line | meaning |
+|---|---|
+| `hw` | answers `ok offset=2 flip=0 mirror=0 contrast=207 i2c=400 double=280 long=700 test=0 screen=ok` |
+| `hw offset <0-4>` | first ram column of the panel |
+| `hw flip <0/1>` | turn the picture 180 degrees |
+| `hw mirror <0/1>` | swap left and right |
+| `hw contrast <0-255>` | brightness |
+| `hw i2c <100-1000>` | i2c clock in kHz |
+| `hw double <100-1000>` / `hw long <300-3000>` | touch timings in ms |
+| `hw test <0-3>` | 0 pet, 1 border + corners + arrow, 2 all on, 3 checker (worst case flush) |
+| `hw touchraw <0/1>` | print `raw 1` / `raw 0` on every touch pin change |
+| `hw stats` | `ok fps=40.0 draw=310/900 flush=4100/22800 us avg/max pages=1.6`, since the last `hw stats` |
+| `hw scan` | `ok found 1 0x3C`, i2c addresses that answer |
+| `hw save` / `hw defaults` | keep the settings in flash / go back to the built-in ones (not saved) |
+
+the setting lines answer with the full `hw` line, so you see what changed. a bad value gets `err want 0..4`.
+
 ## pet -> laptop
 
 | line | meaning |
@@ -40,6 +59,7 @@ unknown lines get `err unknown`, the pet keeps going.
 | `err <why>` | answer to a bad line |
 | `touch tap` / `touch double` / `touch long` | the head was touched |
 | `boot tinyclawd 1` | printed once at start |
+| `raw 1` / `raw 0` | touch pin changed (only after `hw touchraw 1`) |
 
 ## example
 
