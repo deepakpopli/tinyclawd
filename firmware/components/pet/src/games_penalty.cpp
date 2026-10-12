@@ -43,18 +43,20 @@ float clampf(float v, float a, float b) { return v < a ? a : v > b ? b : v; }
 
 int zone(float x) { return x < -0.33f ? -1 : x > 0.33f ? 1 : 0; }
 
-float aim_at(uint32_t now) { return 1.15f * sinf((now - phase_t) * 0.0035f); }
+float aim_at(uint32_t now) { return 1.1f * sinf((now - phase_t) * 0.0021f); }
 float power_at(uint32_t now) {
-    float k = fmodf((now - phase_t) / 1100.0f, 2.0f);
+    float k = fmodf((now - phase_t) / 1800.0f, 2.0f);
     return k < 1 ? k : 2 - k;
 }
-float sway_at(uint32_t now) { return 0.8f * sinf((now - phase_t) * 6.2832f / 1600); }
-int sway_dir(uint32_t now) { return cosf((now - phase_t) * 6.2832f / 1600) >= 0 ? 1 : -1; }
+const float SWAY_MS = 2400;
+float sway_at(uint32_t now) { return 0.8f * sinf((now - phase_t) * 6.2832f / SWAY_MS); }
+int sway_dir(uint32_t now) { return cosf((now - phase_t) * 6.2832f / SWAY_MS) >= 0 ? 1 : -1; }
 
 void start_keep(uint32_t now) {
     go(KEEP, now);
     sdir = (int)(rnd() % 3) - 1;
-    shot_t = now + 900 + rnd() % 1000;
+    // a long run up, the kicker looks where he will shoot (see draw_keep)
+    shot_t = now + 2000 + rnd() % 800;
     dive_dir = 0;
     dive_t = 0;
     say = nullptr;
@@ -87,10 +89,11 @@ void input(Btn b, uint32_t now) {
         break;
     case POWER: {
         power = power_at(now);
-        over_bar = power > 0.88f;
-        wide = fabsf(aim) > 1.05f;
-        // keeper guesses, a bit more often the right way
-        kdir = frand() < 0.4f ? zone(aim) : (int)(rnd() % 3) - 1;
+        over_bar = power > 0.93f;
+        wide = fabsf(aim) > 1.07f;
+        // keeper is not very good, he only guesses right one time in five
+        kdir = zone(aim);
+        if (frand() >= 0.2f) kdir = kdir == 0 ? (rnd() % 2 ? 1 : -1) : (rnd() % 2 ? 0 : -kdir);
         scored = !over_bar && !wide && kdir != zone(aim);
         if (scored) you++;
         say = over_bar ? "OVER!" : wide ? "WIDE!" : scored ? "GOAL!" : "SAVED";
@@ -98,8 +101,10 @@ void input(Btn b, uint32_t now) {
         break;
     }
     case KEEP:
-        if (!dive_dir && now < shot_t + 500) {
+        if (!dive_dir && now < shot_t + 550) {
             dive_dir = sway_dir(now);
+            // the sway just turned? a late tap still goes the old way
+            if (dive_dir != sdir && sdir && now - phase_t > 300 && sway_dir(now - 300) == sdir) dive_dir = sdir;
             dive_t = now;
             sway = sway_at(now);
         }
@@ -175,7 +180,7 @@ void draw_shoot(Canvas& c, uint32_t now) {
             float p = power_at(now);
             c.rect(118, 14, 124, 54);
             c.fill_rect(119, (int)(53 - p * 38), 123, 53);
-            c.hline(115, 117, (int)(53 - 0.88f * 38));
+            c.hline(115, 117, (int)(53 - 0.93f * 38));
         }
         hud(c, phase == AIM ? "aim" : "power");
         return;
@@ -213,6 +218,13 @@ void draw_keep(Canvas& c, uint32_t now) {
     } else {
         keeper(c, sway * 24, 0, 0);
     }
+    // the warning: a blinking target where the shot will go
+    if (phase == KEEP && !dive_dir && now + 1600 >= shot_t && now < shot_t + 300 && now % 300 < 200) {
+        int tx = 64 + sdir * 30;
+        c.fill_rect(tx - 5, 33, tx + 5, 43, false);
+        c.rect(tx - 4, 34, tx + 4, 42);
+        c.fill_rect(tx - 1, 37, tx + 1, 39);
+    }
     if (now >= shot_t) {
         float k = clampf((now - shot_t) / 600.0f, 0, 1);
         float tx = 64 + sdir * 30, ty = 38;
@@ -225,7 +237,7 @@ void draw_keep(Canvas& c, uint32_t now) {
         ball(c, bx, by, 6 - 4 * k);
     }
     if (phase == KEEP_DONE && now - phase_t > 100 && say) banner(c, say);
-    hud(c, phase == KEEP ? "dive!" : nullptr);
+    hud(c, phase == KEEP ? (sdir == 0 && now + 1600 >= shot_t ? "stay!" : "dive!") : nullptr);
 }
 
 void draw_over(Canvas& c, uint32_t now) {
@@ -256,7 +268,7 @@ bool draw(Canvas& c, uint32_t now) {
         draw_keep(c, now);
         if (now >= shot_t + 600) {
             float kx = dive_dir ? dive_dir * 30.0f : sway_at(now) * 24;
-            scored = fabsf(kx - sdir * 30) >= 14;
+            scored = fabsf(kx - sdir * 30) >= (dive_dir ? 14 : 20);
             if (!dive_dir) sway = sway_at(now);
             if (scored) cpu++;
             else saves++;
@@ -290,9 +302,9 @@ bool bot(uint32_t now) {
     bool press = false;
     if (phase == AIM) press = fabsf(aim_at(now) - bot_aim) < 0.08f;
     else if (phase == POWER) press = fabsf(power_at(now) - bot_power) < 0.05f;
-    // reads the shot most of the time, waits for the sway to point that way
-    else if (phase == KEEP && !dive_dir && now + 300 > shot_t)
-        press = sdir == 0 ? false : (sway_dir(now) == sdir && (rnd() % 100) < 30) || now > shot_t + 350;
+    // sees the target, waits for the sway to point that way
+    else if (phase == KEEP && !dive_dir && now + 1300 > shot_t)
+        press = sdir == 0 ? false : (sway_dir(now) == sdir && (rnd() % 100) < 10) || now > shot_t + 350;
     if (press) bot_until = now + 80;
     return press;
 }
