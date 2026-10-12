@@ -274,7 +274,227 @@ static void a_test_tubes(Canvas& c, uint32_t t, const Ctx& x) {
         sweat(c, 50, 10 + 8 * seg(in, TT_RUN * (bad + 1) - 250, TT_RUN * (bad + 1) + 900));
 }
 
+// -------------------------------------------------------------- checklist run
+// a test run: names with dots growing, a tick at the end. one fails with an x,
+// Clawd sweats, it runs again and passes. then the summary and a hop
+
+static void tick(Canvas& c, int x, int y) {
+    float p[] = {(float)x, (float)y + 3, (float)x + 2, (float)y + 5, (float)x + 6, (float)y - 1};
+    c.polyline(p, 3, 2);
+}
+
+static void cross(Canvas& c, int x, int y) {
+    c.line(x, y, x + 5, y + 5, 2);
+    c.line(x, y + 5, x + 5, y, 2);
+}
+
+static const uint32_t CL_ROW = 700, CL_N = 8, CL_RETRY = 1000, CL_SUM = 1600, CL_OUT = 500;
+static const uint32_t CL_CYC = CL_ROW * CL_N + CL_RETRY + CL_SUM + CL_OUT;   // 8700
+static const int CL_PITCH = 9, CL_VIS = 6, CL_DOTS = 70;
+static const char* const CL_NAMES[] = {"parse", "render", "blink", "touch", "wifi", "usb", "fonts", "menu",
+                                       "games", "sleep", "eyes", "anims", "proto", "brain", "clock", "keys"};
+
+static void a_checklist_run(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t cyc = t / CL_CYC, in = t % CL_CYC;
+    uint32_t h = hash32(cyc * 2111 + x.seed);
+    int bad = 1 + h % (CL_N - 2);
+    // start time of row i: the bad one takes CL_RETRY longer
+    uint32_t start[CL_N + 1];
+    for (int i = 0; i <= (int)CL_N; i++) start[i] = i * CL_ROW + (i > bad ? CL_RETRY : 0);
+    uint32_t sum_at = start[CL_N], out_at = sum_at + CL_SUM;
+    int cur = 0;
+    while (cur < (int)CL_N && in >= start[cur + 1]) cur++;
+    int shown = cur + 1 > (int)CL_N ? CL_N : cur + 1;
+
+    // scroll so the newest row stays on screen, eased when a new one shows up
+    float scroll = 0;
+    int extra = shown - CL_VIS;
+    if (extra > 0) {
+        scroll = (extra - 1 + ease(seg(in, start[shown - 1], start[shown - 1] + 200))) * CL_PITCH;
+    }
+    if (in >= out_at) scroll += 70 * ease_in(seg(in, out_at, CL_CYC));
+
+    for (int i = 0; i < shown; i++) {
+        int y = 2 + i * CL_PITCH - iround(scroll);
+        if (y < -8 || y > 63) continue;
+        const char* name = CL_NAMES[((h >> 3) + i * (1 + 2 * ((h >> 8) % 4))) % 16];   // odd step, no repeats
+        int nx = c.text(2, y, name, font_4x6);
+        uint32_t u = in - start[i];
+        // dots grow along, then the mark
+        float k = seg(u, 0, CL_ROW - 150);
+        bool failed = i == bad && u >= CL_ROW - 150 && u < CL_ROW + CL_RETRY - 150;
+        if (i == bad && u >= CL_ROW + 400) k = seg(u, CL_ROW + 400, CL_ROW + CL_RETRY - 150);   // second go
+        int dx1 = nx + 2 + iround((CL_DOTS - nx - 2) * k);
+        for (int xx = nx + 2; xx < dx1; xx += 2) c.px(xx, y + 4);
+        if (failed) {
+            if (u < CL_ROW + 400 || ((u / 100) % 2)) cross(c, 74, y);
+        } else if (u >= CL_ROW - 150) {
+            tick(c, 73, y + 1);
+        }
+    }
+    // the summary bar at the bottom
+    if (in >= sum_at && in < out_at + 200) {
+        c.fill_rect(0, 54, 86, 63);
+        char s[16];
+        snprintf(s, sizeof(s), "%d passed", (int)CL_N);
+        c.text(4, 56, s, font_4x6, false);
+    }
+
+    // Clawd on the right with the count over his head
+    char n[24];
+    int passed = 0;
+    for (int i = 0; i < shown; i++)
+        if (in - start[i] >= CL_ROW - 150 && !(i == bad && in - start[i] < CL_ROW + CL_RETRY - 150)) passed++;
+    snprintf(n, sizeof(n), "%d/%d", passed, (int)CL_N);
+    c.text_center(109, 6, n, font_5x7);
+    Pose p = pose(EYES_LEFT);
+    int cy = 38;
+    uint32_t fail_at = start[bad] + CL_ROW - 150;
+    if (in >= fail_at && in < fail_at + 450) {
+        p.eyes = EYES_CLOSED;
+        sweat(c, 122, 22 + 8 * seg(in, fail_at, fail_at + 450));
+    } else if (in >= fail_at + 450 && in < start[bad + 1]) {
+        p.arms = ARMS_ONE_UP;   // fixing it
+        cy += ((in / 120) % 2);
+    }
+    if (in >= sum_at && in < out_at) {
+        p = pose(EYES_CLOSED, ARMS_UP);
+        if (in < sum_at + 900) cy -= iround(hop(in - sum_at, 5));
+        if (((in - sum_at) / 150) % 2) sparkle(c, 96, 22, 2);
+        else sparkle(c, 123, 24, 2);
+    }
+    clawd(c, 91, cy, p);
+}
+
+// ------------------------------------------------------------------ git graph
+// a git log graph scrolling up: branches split off, get commits, merge back.
+// the newest commit pops in at the bottom, Clawd cheers the merges
+
+static const uint32_t GG_ROW = 800, GG_P = 18;
+static const int GG_PITCH = 9, GG_LANE = 10, GG_X0 = 6, GG_BOT = 56;
+
+struct GRow {
+    uint8_t before, after;   // lanes alive (bit per lane) going in and out of the row
+    uint8_t lane;            // where the dot is
+    uint8_t kind;            // 0 commit, 1 branch off, 2 merge
+    uint8_t from;            // merge: lane it came from
+};
+
+static void gg_rows(uint32_t seed, GRow* r) {
+    uint8_t m = 1;
+    int age[3] = {0, 0, 0};   // commits on each branch so far
+    for (int i = 0; i < (int)GG_P; i++) {
+        uint32_t h = hash32(i * 733 + seed);
+        GRow g;
+        g.before = m;
+        g.kind = 0;
+        g.lane = 0;
+        g.from = 0;
+        int open = (m & 2 ? 1 : 0) + (m & 4 ? 1 : 0);
+        int ripe = (m & 4) && age[2] >= 2 ? 2 : ((m & 2) && age[1] >= 2 ? 1 : 0);
+        bool late = i >= (int)GG_P - 3;   // close everything so it loops clean
+        if (late && open) {
+            g.kind = 2;
+            g.from = m & 4 ? 2 : 1;
+        } else if (!late && i > 0 && open < 2 && h % 3 == 0) {
+            g.kind = 1;
+            g.lane = m & 2 ? 2 : 1;
+            age[g.lane] = 1;
+        } else if (!late && ripe && h % 3 == 1) {
+            g.kind = 2;
+            g.from = ripe;
+        } else {
+            // most commits land on a branch when there is one
+            int lanes[3], n = 0;
+            for (int l = 1; l < 3; l++)
+                if ((m >> l) & 1) lanes[n++] = l;
+            if (n == 0 || (h >> 8) % 4 == 0) lanes[n++] = 0;
+            g.lane = lanes[(h >> 12) % n];
+            age[g.lane]++;
+        }
+        if (g.kind == 1) m |= 1 << g.lane;
+        if (g.kind == 2) m &= ~(1 << g.from);
+        g.after = m;
+        r[i] = g;
+    }
+}
+
+static void a_git_graph(Canvas& c, uint32_t t, const Ctx& x) {
+    GRow rows[GG_P];
+    gg_rows(x.seed, rows);
+    uint32_t n = t / GG_ROW, u = t % GG_ROW;   // n = newest row
+    float slide = 1 - ease(seg(u, 0, 220));    // everything moves up one row as it arrives
+
+    for (int back = 0; back < 8; back++) {
+        int idx = (((int)n - back) % (int)GG_P + GG_P) % GG_P;
+        const GRow& g = rows[idx];
+        int y = GG_BOT - back * GG_PITCH + iround(slide * GG_PITCH);
+        int yp = y - GG_PITCH;   // the row above
+        if (y < -GG_PITCH) break;
+        // lines from the row above into this one
+        for (int l = 0; l < 3; l++) {
+            int lx = GG_X0 + l * GG_LANE;
+            if ((g.before >> l) & 1) {
+                if (g.kind == 2 && l == g.from) c.line(lx, yp, GG_X0, y);
+                else c.vline(lx, yp, y);
+            }
+        }
+        if (g.kind == 1) c.line(GG_X0, yp, GG_X0 + g.lane * GG_LANE, y);
+        // the dot
+        int dx = GG_X0 + (g.kind == 2 ? 0 : g.lane * GG_LANE);
+        bool fresh = back == 0;
+        if (g.kind == 2) {
+            int r = fresh && u < 150 ? 4 : 3;
+            c.fill_circle(dx, y, r);
+            c.fill_circle(dx, y, r - 1.5f, false);
+        } else {
+            c.fill_circle(dx, y, fresh && u < 150 ? 3 : 2);
+        }
+        // hash and a message, the new one types in
+        char hs[8];
+        uint32_t hh = hash32(idx * 97 + x.seed);
+        for (int i = 0; i < 7; i++) hs[i] = "0123456789abcdef"[(hh >> (i * 4)) & 15];
+        hs[7] = 0;
+        int chars = fresh ? (int)clampf((u - 150) / 30.0f, 0, 7) : 7;
+        if (fresh && u < 150) chars = 0;
+        hs[chars] = 0;
+        int tx = c.text(36, y - 3, hs, font_4x6);
+        if (chars == 7) {
+            int len = 6 + hash32(hh) % 14;
+            if (fresh) len = iround(len * seg(u, 360, 560));
+            if (len > 0) c.hline(tx + 3, tx + 3 + len, y);
+        }
+        if (fresh && g.kind == 2 && u >= 100 && u < 450) {   // merge pops
+            int d = 5 + iround(5 * ease_out(seg(u, 100, 450)));
+            c.px(dx + d, y);
+            c.px(dx, y - d);
+            c.px(dx, y + d);
+            c.px(dx + d - 2, y - d + 2);
+            c.px(dx + d - 2, y + d - 2);
+        }
+    }
+    c.fill_rect(88, 0, 127, 63, false);
+
+    // Clawd watches the bottom, branches make him look, merges make him hop
+    const GRow& g = rows[n % GG_P];
+    Pose p = pose(EYES_LEFT);
+    int cy = 38;
+    if (g.kind == 2 && u < 900) {
+        p = pose(EYES_CLOSED, ARMS_UP);
+        cy -= iround(hop(u, 4));
+    } else if (g.kind == 1 && u < 500) {
+        p.arms = ARMS_ONE_UP;
+    } else if (hash32(n + x.seed) % 4 == 0 && u >= 400 && u < 400 + BLINK_MS) {
+        p.eyes = EYES_CLOSED;
+    }
+    clawd(c, 91, cy, p);
+    const char* tag = g.kind == 2 ? "merge" : (g.kind == 1 ? "branch" : "commit");
+    c.text_center(109, 10, tag, font_4x6);
+}
+
 static const Anim A_CRANE = {"crane", a_crane, CR_CYC, LOOP};
 static const Anim A_TUBES = {"test_tubes", a_test_tubes, 2 * TT_CYC, LOOP};
+static const Anim A_CHECKS = {"checklist_run", a_checklist_run, 2 * CL_CYC, LOOP};
+static const Anim A_GRAPH = {"git_graph", a_git_graph, GG_ROW * GG_P, LOOP};
 
-ANIM_LIST(anims_jobs, &A_CRANE, &A_TUBES);
+ANIM_LIST(anims_jobs, &A_CRANE, &A_TUBES, &A_CHECKS, &A_GRAPH);
