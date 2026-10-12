@@ -32,7 +32,7 @@ fan-made project, not affiliated with Anthropic.
 
 ## animations
 
-87 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
+96 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
 uses the same block art as the Claude Code banner. these gifs come straight from the firmware
 running in the desktop sim.
 
@@ -137,7 +137,7 @@ python3 gif.py --scale 2 out/*.frames  # smaller gifs
 ## status
 
 - [x] body, stand and print files
-- [x] firmware, running on the real board: 87 animations, music mode, 7 games
+- [x] firmware, running on the real board: 96 animations, music mode, 7 games
 - [x] laptop bridge: hooks, status line usage, music, several sessions
 - [ ] focus timer, clock, quiet mode
 - [ ] Clawd in the browser
