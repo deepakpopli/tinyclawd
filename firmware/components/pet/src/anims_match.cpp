@@ -192,55 +192,50 @@ static void a_var_check(Canvas& c, uint32_t t, const Ctx& x) {
 // ------------------------------------------------------------ substitution
 
 static void a_substitution(Canvas& c, uint32_t t, const Ctx& x) {
-    uint32_t h = hash32(x.seed + 4242);
-    bool numbers = h & 1;                   // a real LED board with shirt numbers
-    int out = 2 + (h >> 4) % 22, in = 2 + (h >> 12) % 22;
-    if (in == out) in = out % 23 + 2;
-    const uint32_t UP = 300, DOWN = 2400, END = 2700;
+    // a new subagent comes on: the board shows his number, he runs on and jumps
+    bool from_left = hash32(x.seed + 4242) & 1;
+    const uint32_t UP = 300, RUN = 300, ARRIVE = 1500, JUMP = 1900, DOWN = 2400, END = 2700;
 
+    // the board, held up, with an up arrow and the new player's number
     float y = 0;
     if (t < UP) y = 60 * (1 - ease(seg(t, 0, UP)));
     else if (t >= DOWN) y = 60 * ease_in(seg(t, DOWN, END));
     int oy = iround(y);
+    int bx0 = from_left ? 70 : 6, bx1 = bx0 + 52;
     if (oy < 60) {
-        c.fill_rect(24, 4 + oy, 104, 44 + oy, false);
-        c.rect(24, 4 + oy, 104, 44 + oy);
-        c.fill_rect(62, 44 + oy, 66, 52 + oy);
+        c.fill_rect(bx0, 4 + oy, bx1, 34 + oy);
+        c.fill_rect(bx0 + 2, 6 + oy, bx1 - 2, 32 + oy, false);
+        c.fill_rect((bx0 + bx1) / 2 - 1, 35 + oy, (bx0 + bx1) / 2 + 1, 63);
         bool blink = (t / 180) % 2 == 0;
-        if (numbers) {
-            char s[4];
-            c.text(30, 10 + oy, "OUT", font_5x7);
-            c.text(30, 29 + oy, "IN", font_5x7);
-            snprintf(s, sizeof(s), "%d", out);
-            c.text_center(80, 6 + oy, s, font_bold16);
-            snprintf(s, sizeof(s), "%d", in);
-            c.text_center(80, 25 + oy, s, font_bold16);
-            if (blink) {
-                float d[] = {55, 11.f + oy, 61, 11.f + oy, 58, 15.f + oy};
-                float u[] = {55, 34.f + oy, 61, 34.f + oy, 58, 30.f + oy};
-                c.fill_poly(d, 3);
-                c.fill_poly(u, 3);
-            }
-        } else {
-            c.text(34, 10 + oy, "OUT", font_5x7);
-            c.text(58, 10 + oy, "SONNET", font_5x7);
-            c.text(34, 28 + oy, "IN", font_5x7);
-            c.text(58, 28 + oy, "OPUS", font_5x7);
-            if (blink) {
-                float d[] = {26, 11.f + oy, 32, 11.f + oy, 29, 15.f + oy};
-                float u[] = {26, 33.f + oy, 32, 33.f + oy, 29, 29.f + oy};
-                c.fill_poly(d, 3);
-                c.fill_poly(u, 3);
-            }
+        if (blink) {
+            float u[] = {bx0 + 6.f, 15.f + oy, bx0 + 14.f, 15.f + oy, bx0 + 10.f, 9.f + oy};
+            c.fill_poly(u, 3);
         }
+        c.text(bx0 + 5, 19 + oy, "IN", font_5x7);
+        char s[6];
+        int n = x.subagents > 0 ? x.subagents : 1;
+        if (n > 99) n = 99;
+        snprintf(s, sizeof(s), "%d", n);
+        c.text_center(bx0 + 34, 8 + oy, s, font_bold24);
     }
-    // the fourth official peeking from both sides
-    Eye e = eye(0, 0, 6, 10);
-    uint32_t b = t % 1300;
-    if (b >= 900 && b < 900 + BLINK_MS) e = blink_eye(e, (b - 900) / (float)BLINK_MS);
-    draw_eye(c, 14, 54, e);
-    e.mirror = true;
-    draw_eye(c, 114, 54, e);
+
+    // the new player runs on from the side
+    int home = from_left ? 20 : 78;
+    int edge = from_left ? -40 : 130;
+    float px = home;
+    if (t < RUN) px = edge;
+    else if (t < ARRIVE) px = lerp(edge, home, ease_out(seg(t, RUN, ARRIVE)));
+    int step = (t / 110) % 2;
+    if (t < ARRIVE) {
+        clawd(c, iround(px), 38 - step, pose(EYES_OPEN, ARMS_DOWN, step ? FEET_LEFT : FEET_RIGHT));
+    } else if (t < JUMP + 300) {
+        const Key j[] = {{ARRIVE, 0}, {ARRIVE + 150, -8}, {JUMP, -8}, {JUMP + 200, 0}};
+        int jy = iround(KEYS(j, t));
+        clawd(c, iround(px), 38 + jy, pose(EYES_OPEN, ARMS_UP));
+        if (t >= ARRIVE + 100) c.text_center(iround(px) + 18, 20 + jy, "+1", font_bold16);
+    } else {
+        clawd(c, iround(px), 38, pose(t < DOWN ? EYES_WINK : EYES_OPEN, ARMS_ONE_UP));
+    }
 }
 
 // ----------------------------------------------------------- stoppage time
