@@ -492,9 +492,234 @@ static void a_git_graph(Canvas& c, uint32_t t, const Ctx& x) {
     c.text_center(109, 10, tag, font_4x6);
 }
 
+// -------------------------------------------------------------------- package
+// little boxes drop into a big one, the flaps close, Clawd tapes it,
+// a label gets stamped on and it slides away
+
+static const uint32_t PK_IN = 500, PK_ITEM = 600, PK_ITEMS = 4, PK_CLOSE = 400, PK_TAPE = 700;
+static const uint32_t PK_STAMP = 500, PK_YAY = 700, PK_OUT = 600;
+static const uint32_t PK_CYC = PK_IN + PK_ITEM * PK_ITEMS + PK_CLOSE + PK_TAPE + PK_STAMP + PK_YAY + PK_OUT;   // 5800
+static const int PK_X0 = 54, PK_X1 = 100, PK_TOP = 38;
+static const char* const PK_LABELS[] = {"npm", "pip", "apt", "cargo", "brew", "uv"};
+
+// things that go in the box: a small box, a code tile, a ball
+static void pk_small(Canvas& c, int x, int y, int kind) {
+    if (kind == 0) {
+        c.rect(x, y, x + 9, y + 8);
+        c.hline(x, x + 9, y + 2);
+        c.vline(x + 4, y, y + 2);
+    } else if (kind == 1) {
+        c.fill_rect(x, y, x + 11, y + 7);
+        c.text(x + 1, y + 1, "{}", font_4x6, false);
+    } else {
+        c.fill_circle(x + 4, y + 4, 4);
+        c.fill_circle(x + 4, y + 4, 2, false);
+    }
+}
+
+static void a_package(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t cyc = t / PK_CYC, in = t % PK_CYC;
+    uint32_t h = hash32(cyc * 1409 + x.seed);
+    uint32_t items_at = PK_IN, close_at = items_at + PK_ITEM * PK_ITEMS, tape_at = close_at + PK_CLOSE;
+    uint32_t stamp_at = tape_at + PK_TAPE, yay_at = stamp_at + PK_STAMP, out_at = yay_at + PK_YAY;
+
+    // the big box drops in, and slides out at the end
+    int ox = 0, oy = 0;
+    if (in < PK_IN) oy = iround(-50 * (1 - ease_in(seg(in, 0, 350))));
+    if (in >= out_at) ox = iround(80 * ease_in(seg(in, out_at, PK_CYC)));
+    int bump = 0;
+
+    // little boxes falling in
+    for (int i = 0; i < (int)PK_ITEMS; i++) {
+        uint32_t at = items_at + i * PK_ITEM;
+        if (in < at || in >= at + 500) continue;
+        uint32_t q = in - at;
+        int kind = hash32(h + i) % 3;
+        int bx = PK_X0 + 8 + (hash32(h + i * 3) % 24);
+        int by = iround(lerp(-10, PK_TOP + 6, ease_in(seg(q, 0, 380))));
+        if (q < 380) pk_small(c, bx, by, kind);
+        else if (q < 460) bump = 1;
+    }
+
+    // flaps: hinge at the top corners, swing from open (out and up) to shut
+    float shut = ease(seg(in, close_at, close_at + PK_CLOSE));
+    if (in >= out_at) shut = 1;
+    float a = lerp(-2.2f, 0, shut);   // left flap angle, the right one is mirrored
+    float fl = (PK_X1 - PK_X0) / 2.0f;
+    float ca = cosf(a), sa = sinf(a);
+    int top = PK_TOP + oy + bump;
+    c.line(PK_X0 + ox, top, PK_X0 + ox - fl * ca * -1, top + fl * sa, 2);
+    c.line(PK_X1 + ox, top, PK_X1 + ox - fl * ca, top + fl * sa, 2);
+
+    // box body
+    int bot = 62 + oy;
+    c.fill_rect(PK_X0 + ox, top + 1, PK_X1 + ox, bot, false);
+    c.rect(PK_X0 + ox, top, PK_X1 + ox, bot);
+    c.rect(PK_X0 + ox + 1, top + 1, PK_X1 + ox - 1, bot - 1);
+    int mid = (PK_X0 + PK_X1) / 2 + ox;
+
+    // tape: along the top from left to right, then down the front a bit
+    float tk = seg(in, tape_at, tape_at + PK_TAPE - 150);
+    if (in >= tape_at) {
+        int tx = iround(lerp(PK_X0 - 2, PK_X1 + 2, tk)) + ox;
+        c.fill_rect(PK_X0 + ox - 2, top - 1, tx, top + 2);
+        c.hline(PK_X0 + ox - 2, tx, top + 1, false);
+        if (in < stamp_at) {   // the tape roll on a stick Clawd holds
+            c.line(45, PK_TOP, tx, top - 3);
+            c.fill_circle(tx, top - 3, 4);
+            c.fill_circle(tx, top - 3, 1.5f, false);
+        }
+    }
+    // the label gets stamped on
+    if (in >= stamp_at) {
+        const char* label = PK_LABELS[h % 6];
+        uint32_t q = in - stamp_at;
+        if (q < 260) {   // the stamp: comes down, presses, goes up
+            int sy = top + 8 - iround(30 * (1 - ease_in(seg(q, 0, 150))));
+            if (q >= 190) sy = top + 8 - iround(30 * ease_in(seg(q, 190, 260)));
+            if (q >= 150) {
+                c.fill_rect(mid - 15, top + 8, mid + 15, top + 18);
+                c.text_center(mid, top + 10, label, font_5x7, false);
+            }
+            c.fill_rect(mid - 15, sy - 4, mid + 15, sy, false);
+            c.fill_rect(mid - 14, sy - 3, mid + 14, sy);
+            c.fill_rect(mid - 2, sy - 12, mid + 2, sy - 4);
+            c.fill_rect(mid - 5, sy - 16, mid + 5, sy - 12);
+        } else {
+            c.fill_rect(mid - 15, top + 8, mid + 15, top + 18);
+            c.text_center(mid, top + 10, label, font_5x7, false);
+        }
+    } else {   // "this way up" arrows so it reads as a box
+        c.vline(mid - 4, top + 10, top + 16);
+        c.vline(mid + 4, top + 10, top + 16);
+        c.line(mid - 6, top + 12, mid - 4, top + 10);
+        c.line(mid - 2, top + 12, mid - 4, top + 10);
+        c.line(mid + 2, top + 12, mid + 4, top + 10);
+        c.line(mid + 6, top + 12, mid + 4, top + 10);
+    }
+    c.hline(0, 127, 63);
+
+    // Clawd: watches things fall in, pulls the tape, cheers
+    Pose p = pose(EYES_RIGHT);
+    int cy = 39;
+    if (in >= items_at && in < close_at) {
+        uint32_t q = (in - items_at) % PK_ITEM;
+        if (q >= 380 && q < 380 + BLINK_MS && (hash32(h + (in - items_at) / PK_ITEM) & 1)) p.eyes = EYES_CLOSED;
+    }
+    if (in >= tape_at && in < stamp_at) {
+        p.arms = ARMS_ONE_UP;
+        cy += (in / 110) % 2;
+    }
+    if (in >= yay_at && in < out_at) {
+        p = pose(EYES_CLOSED, ARMS_UP);
+        cy -= iround(hop(in - yay_at, 5));
+    }
+    if (in >= out_at) p.arms = ARMS_UP;   // waves it goodbye
+    clawd(c, 10, cy, p);
+}
+
+// ------------------------------------------------------------------- download
+// bits rain from a cloud into a folder, a bar fills up on the side.
+// sometimes it stalls for a bit. at 100% the folder gets a tick
+
+static const uint32_t DL_RUN = 5000, DL_DONE = 1400, DL_RESET = 500;
+static const uint32_t DL_CYC = DL_RUN + DL_DONE + DL_RESET;   // 6900
+static const int DL_CX = 66, DL_FY = 45;
+
+static void dl_cloud(Canvas& c) {
+    c.fill_circle(58, 9, 4);
+    c.fill_circle(66, 6, 4);
+    c.fill_circle(74, 9, 4);
+    c.fill_rect(54, 9, 78, 13);
+    c.hline(56, 76, 11, false);   // a little shine line
+}
+
+static void a_download(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t cyc = t / DL_CYC, in = t % DL_CYC;
+    uint32_t h = hash32(cyc * 919 + x.seed);
+    // uneven progress, with a stall in the middle on some runs
+    float a = 15 + (h & 15), b = a + 20 + ((h >> 4) & 15), d = b + 15 + ((h >> 8) & 15);
+    bool stall = (h >> 12) % 2;
+    Key k[] = {{0, 0}, {1200, a}, {2300, b}, {3200, stall ? b : d}, {3800, d}, {DL_RUN, 100}};
+    float p = in < DL_RUN ? KEYS(k, in) : 100;
+    if (in >= DL_RUN + DL_DONE) p = 100 * (1 - ease(seg(in, DL_RUN + DL_DONE, DL_CYC)));
+    bool stalled = stall && in >= 2300 && in < 3200;
+    bool done = in >= DL_RUN && in < DL_RUN + DL_DONE;
+    bool running = in < DL_RUN && !stalled;
+
+    dl_cloud(c);
+
+    // bits falling in three lanes: little squares and dashes
+    if (in < DL_RUN + 300) {
+        for (int i = 0; i < 6; i++) {
+            uint32_t per = 560 + (i % 3) * 80;
+            uint32_t tt = t + (i / 3) * (per / 2) + (i % 3) * 170;
+            uint32_t drop = tt / per;
+            float f = (tt % per) / (float)per;
+            uint32_t born = in - (uint32_t)(f * per);   // when this bit left the cloud
+            if (born > in) continue;
+            if (born >= DL_RUN || (stall && born >= 2300 && born < 3200)) continue;
+            int lx = DL_CX - 9 + (i % 3) * 9;
+            int ly = iround(lerp(15, DL_FY + 2, ease_in(f)));
+            if (hash32(drop * 13 + i + h) % 2) c.fill_rect(lx - 1, ly - 1, lx + 1, ly + 1);
+            else c.fill_rect(lx, ly - 4, lx + 1, ly);
+        }
+    }
+
+    // folder: tab, back, front with an arrow (a tick when done)
+    int bump = running && (t / 110) % 4 == 0 ? 1 : 0;
+    int fy = DL_FY + bump;
+    c.fill_rect(DL_CX - 20, fy - 3, DL_CX - 8, fy);
+    c.fill_rect(DL_CX - 20, fy, DL_CX + 20, 62);
+    c.fill_rect(DL_CX - 18, fy + 3, DL_CX + 18, 60, false);
+    if (done) {
+        float tk[] = {DL_CX - 6.0f, fy + 9.0f, DL_CX - 1.0f, fy + 14.0f, DL_CX + 7.0f, fy + 5.0f};
+        c.polyline(tk, 3, 2);
+    } else {
+        int ay = fy + 5 + (running ? iround(2 * seg(t % 600, 0, 600)) : 0);
+        c.fill_rect(DL_CX - 1, ay, DL_CX + 1, ay + 4);
+        float ar[] = {DL_CX - 5.0f, ay + 5.0f, DL_CX + 5.0f, ay + 5.0f, (float)DL_CX, ay + 10.0f};
+        c.fill_poly(ar, 3);
+    }
+    c.hline(0, 127, 63);
+
+    // the bar on the right, fills from the bottom
+    const int BX0 = 104, BX1 = 114, BY0 = 4, BY1 = 50;
+    c.rect(BX0, BY0, BX1, BY1);
+    int fill = iround((BY1 - BY0 - 3) * p / 100);
+    for (int yy = BY1 - 2; yy > BY1 - 2 - fill; yy--) {
+        if (done || (yy + t / 80) % 4 != 0) c.hline(BX0 + 2, BX1 - 2, yy);
+    }
+    char s[8];
+    snprintf(s, sizeof(s), "%d%%", iround(p));
+    c.text_center(109, 55, s, font_4x6);
+
+    // Clawd watches the bits, glares at the bar when it stalls, cheers at the end
+    Pose ps = pose(EYES_RIGHT);
+    int cy = 39;
+    if (stalled) {
+        ps.eyes = (in / 500) % 2 ? EYES_RIGHT : EYES_OPEN;
+        if (in >= 2700 && in < 3000) ps.arms = ARMS_ONE_UP;   // taps the cable
+    }
+    if (done) {
+        uint32_t q = in - DL_RUN;
+        ps = pose(EYES_CLOSED, ARMS_UP);
+        if (q < 900) cy -= iround(hop(q, 5));
+        bool alt = (q / 150) % 2;
+        sparkle(c, DL_CX - 26, alt ? 40 : 42, 2);
+        sparkle(c, DL_CX + 26, alt ? 38 : 36, 3);
+    } else if (!stalled && in < DL_RUN && (h >> 14) % 2 && blink_k(in, 1700) >= 0) {
+        ps.eyes = EYES_CLOSED;
+    }
+    clawd(c, 4, cy, ps);
+    if (stalled) c.text(40, 26, "...", font_5x7);
+}
+
 static const Anim A_CRANE = {"crane", a_crane, CR_CYC, LOOP};
 static const Anim A_TUBES = {"test_tubes", a_test_tubes, 2 * TT_CYC, LOOP};
 static const Anim A_CHECKS = {"checklist_run", a_checklist_run, 2 * CL_CYC, LOOP};
 static const Anim A_GRAPH = {"git_graph", a_git_graph, GG_ROW * GG_P, LOOP};
+static const Anim A_PACKAGE = {"package", a_package, 2 * PK_CYC, LOOP};
+static const Anim A_DOWNLOAD = {"download", a_download, 2 * DL_CYC, LOOP};
 
-ANIM_LIST(anims_jobs, &A_CRANE, &A_TUBES, &A_CHECKS, &A_GRAPH);
+ANIM_LIST(anims_jobs, &A_CRANE, &A_TUBES, &A_CHECKS, &A_GRAPH, &A_PACKAGE, &A_DOWNLOAD);
