@@ -1,0 +1,16 @@
+# music: a song wakes the sleeping pet, it grooves, claude works in the middle, music stops
+0 tune fast
+0 time 15:00
+# nobody around, asleep after 3 min (tune fast)
+192000 music 1 Daft Punk - One More Time (Radio Edit)
+# the laptop says the same song again: nothing happens
++8000 music 1 Daft Punk - One More Time (Radio Edit)
++12000 music 1 Bonobo - Kerala
++10000 ev prompt
++3000 ev tool Read
++3000 ev tool Bash
++4000 ev done
+# still music after claude is done, a long while of grooving
++30000 music 1
++40000 music 0
++12000 now
