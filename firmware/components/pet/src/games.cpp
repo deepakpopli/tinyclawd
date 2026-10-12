@@ -11,9 +11,10 @@ extern const Game game_penalty;
 extern const Game game_panic;
 extern const Game game_flappy;
 extern const Game game_catch;
+extern const Game game_whack;
 
 static const Game* all(int i) {
-    const Game* list[] = {&game_run, &game_keepy, &game_penalty, &game_panic, &game_flappy, &game_catch};
+    const Game* list[] = {&game_run, &game_keepy, &game_penalty, &game_panic, &game_flappy, &game_catch, &game_whack};
     int n = 0;
     for (const Game* g : list) {
         if (!g) continue;
