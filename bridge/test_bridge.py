@@ -153,6 +153,16 @@ class HookMapping(unittest.TestCase):
         self.assertEqual(out, ["play usage"])
         self.assertFalse(any(x.busy for x in st.sessions.values()))
 
+    def test_clawd_command_is_stopped(self):
+        line, stop = tc.screen_reply(hook("UserPromptExpansion", command_name="clawd", command_args=""))
+        self.assertEqual(line, "play usage")
+        self.assertEqual(stop["decision"], "block")
+        self.assertTrue(stop["hookSpecificOutput"]["suppressOriginalPrompt"])
+        line, _ = tc.screen_reply(hook("UserPromptExpansion", command_name="clawd", command_args="context"))
+        self.assertEqual(line, "play context")
+        self.assertIsNone(tc.screen_reply(hook("UserPromptExpansion", command_name="review")))
+        self.assertIsNone(tc.screen_reply(hook("UserPromptSubmit", prompt="fix it")))
+
     def test_hook_cli_is_silent(self):
         env = dict(os.environ, TINYCLAWD_SOCK="/tmp/tinyclawd-test-nothing-here.sock")
         for data in (json.dumps(hook("Stop")), "not json", ""):

@@ -102,6 +102,7 @@ PERM_NOTES = {
 ASKING_TOOLS = {"AskUserQuestion", "ExitPlanMode"}
 # slash commands that open a screen on the pet instead of a claude turn
 SCREEN_CMDS = {"usage": "usage", "cost": "usage", "status": "usage", "context": "context"}
+PET_CMD = "clawd"   # our own slash command: /clawd, /clawd context
 
 
 INSTALL_RE = re.compile(r"\b(pip3?|uv pip|uv|apt(-get)?|brew|conda|npm|pnpm|yarn|bun) (install|add|i)\b[^;&|]*")
@@ -290,6 +291,32 @@ def hook_message(d):
         "tool": clean(tool_look(d), 24) if d.get("tool_name") else "",
         "slash": clean(slash(d), 24) if slash(d) else "",
     })
+
+
+def screen_reply(d):
+    """/clawd [usage|context] -> (protocol line, hook json that stops the prompt), else None"""
+    if slash(d) != PET_CMD:
+        return None
+    arg = str(d.get("command_args") or "").strip().lower()
+    what = "context" if arg.startswith("context") or arg.startswith("ctx") else "usage"
+    stop = {"decision": "block", "reason": "%s is on tiny clawd" % what,
+            "hookSpecificOutput": {"hookEventName": d.get("hook_event_name") or "UserPromptExpansion",
+                                   "suppressOriginalPrompt": True}}
+    return "play " + what, stop
+
+
+def cmd_screen(args):
+    # runs before a slash command reaches claude. prints json only for /clawd
+    try:
+        raw = sys.stdin.read()
+        d = json.loads(raw) if raw.strip() else {}
+        r = screen_reply(d) if isinstance(d, dict) else None
+        if r:
+            send_to_daemon(r[0], timeout=0.2, path=args.sock)
+            print(json.dumps(r[1]), flush=True)
+    except BaseException:
+        pass
+    os._exit(0)
 
 
 def cmd_hook(args):
@@ -1375,6 +1402,7 @@ def main(argv=None):
     d.set_defaults(fn=cmd_daemon)
 
     sub.add_parser("hook", help="claude code hook, json on stdin").set_defaults(fn=cmd_hook)
+    sub.add_parser("screen", help="slash command hook for /clawd").set_defaults(fn=cmd_screen)
     sub.add_parser("usage", help="status line json on stdin").set_defaults(fn=cmd_usage)
 
     s = sub.add_parser("send", help="send one raw protocol line")
