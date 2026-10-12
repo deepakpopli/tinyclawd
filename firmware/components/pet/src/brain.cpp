@@ -48,6 +48,7 @@ static const Pick AWAKE[] = {
     {"content", 2, 90}, {"yawn", 1, 120}, {"startled", 1, 180}, {"seq:concert", 1, 300},
     {"seq:training", 1, 300}, {"keepy_uppy", 1, 180}, {"dribble", 1, 180}, {"penalty_save", 1, 240},
     {"usage", 2, 600},   // only once usage data came in (extra_ok)
+    {"coffee", 1, 180}, {"stretch", 2, 300}, {"juggle", 2, 240}, {"paper_plane", 1, 180},
 };
 static const Pick BORED[] = {
     {"bored", 6, 45}, {"yawn", 4, 60}, {"keepy_uppy", 4, 120}, {"dribble", 3, 120},
@@ -58,9 +59,10 @@ static const Pick BORED[] = {
     {"turn_around", 2, 60}, {"spin", 1, 60}, {"blink", 3, 0},
     {"seq:match", 3, 240}, {"seq:training", 2, 240}, {"seq:concert", 2, 300},
     {"seq:nap", 1, 600}, {"usage", 2, 600},
+    {"stretch", 2, 300}, {"juggle", 2, 240}, {"stargaze", 2, 300},
 };
 static const Pick DROWSY[] = {
-    {"yawn", 5, 30}, {"bored", 3, 30}, {"blink", 2, 0}, {"side_eye", 1, 60},
+    {"yawn", 5, 30}, {"bored", 3, 30}, {"blink", 2, 0}, {"side_eye", 1, 60}, {"stargaze", 3, 300},
 };
 static const Pick ASLEEP[] = {
     {"dream", 5, 60}, {"asleep", 3, 0},
@@ -77,7 +79,7 @@ static const Pick DONE_QUICK[] = {
 };
 static const Pick DONE_MID[] = {
     {"done", 4, 0}, {"goal", 3, 90}, {"header", 2, 60}, {"party", 1, 90}, {"spin", 1, 60},
-    {"wave", 1, 90},
+    {"wave", 1, 90}, {"paper_plane", 2, 180},
 };
 static const Pick DONE_LONG[] = {
     {"goal", 4, 60}, {"trophy", 3, 120}, {"bicycle_kick", 3, 120}, {"free_kick", 2, 120},
@@ -85,9 +87,9 @@ static const Pick DONE_LONG[] = {
 };
 
 static const Pick START[] = {{"wave", 3, 0}, {"kickoff", 3, 0}, {"wink", 1, 0}};
-static const Pick COMMIT[] = {{"party", 3, 0}, {"knee_slide", 2, 0}, {"trophy", 1, 0}};
-static const Pick TEST_PASS[] = {{"goal", 3, 0}, {"header", 2, 0}, {"bicycle_kick", 1, 0}};
-static const Pick TOOL_FAIL[] = {{"surprised", 3, 20}, {"startled", 2, 20}, {"side_eye", 1, 30}};
+static const Pick COMMIT[] = {{"party", 3, 0}, {"knee_slide", 2, 0}, {"trophy", 1, 0}, {"git_branch", 4, 0}};
+static const Pick TEST_PASS[] = {{"goal", 3, 0}, {"header", 2, 0}, {"bicycle_kick", 1, 0}, {"bug_squash", 2, 0}};
+static const Pick TOOL_FAIL[] = {{"surprised", 3, 20}, {"startled", 2, 20}, {"side_eye", 1, 30}, {"rubber_duck", 3, 120}};
 static const Pick INTERRUPT[] = {{"penalty_save", 3, 0}, {"surprised", 2, 0}};
 static const Pick END[] = {{"full_time", 3, 0}, {"wave", 1, 0}};
 static const Pick PERM_IN[] = {{"surprised", 2, 0}, {"startled", 1, 0}};
