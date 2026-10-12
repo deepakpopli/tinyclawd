@@ -577,54 +577,74 @@ static void a_terminal(Canvas& c, uint32_t t, const Ctx& x) {
 }
 
 // ------------------------------------------------------------------------- web
+// a globe spins on the right, he watches it from the left and data flies in
+
+// unit circle, 16 points, so the globe needs no sin/cos per point
+static const float UC[16] = {1, 0.924f, 0.707f, 0.383f, 0, -0.383f, -0.707f, -0.924f,
+                             -1, -0.924f, -0.707f, -0.383f, 0, 0.383f, 0.707f, 0.924f};
+static const float US[16] = {0, 0.383f, 0.707f, 0.924f, 1, 0.924f, 0.707f, 0.383f,
+                             0, -0.383f, -0.707f, -0.924f, -1, -0.924f, -0.707f, -0.383f};
+
+// an ellipse as a 16 point loop, cheap enough for every frame
+static void loop16(Canvas& c, float cx, float cy, float rx, float ry, int width = 1) {
+    for (int k = 0; k < 16; k++) {
+        int j = (k + 1) % 16;
+        c.line(cx + rx * UC[k], cy + ry * US[k], cx + rx * UC[j], cy + ry * US[j], width);
+    }
+}
 
 static void globe(Canvas& c, float gx, float gy, float r, float rot) {
-    c.fill_circle(gx, gy, r + 1, false);   // in front of whatever is behind
-    c.ellipse(gx - r, gy - r, gx + r, gy + r);
+    loop16(c, gx, gy, r, r, 2);
     c.hline(iround(gx - r), iround(gx + r), iround(gy));
-    float hw = sqrtf(r * r - (r * 0.5f) * (r * 0.5f));
-    c.hline(iround(gx - hw), iround(gx + hw), iround(gy - r * 0.5f));
-    c.hline(iround(gx - hw), iround(gx + hw), iround(gy + r * 0.5f));
-    for (int k = 0; k < 3; k++) {
-        float a = rot + k * PI / 3;
-        float w = r * cosf(a);
-        if (fabsf(w) < 1) c.vline(iround(gx), iround(gy - r), iround(gy + r));
-        else c.ellipse(gx - fabsf(w), gy - r, gx + fabsf(w), gy + r);
+    c.hline(iround(gx - r * 0.85f), iround(gx + r * 0.85f), iround(gy - r * 0.5f));
+    c.hline(iround(gx - r * 0.85f), iround(gx + r * 0.85f), iround(gy + r * 0.5f));
+    // meridians turning: a meridian is half an ellipse, only the front ones show
+    for (int m = 0; m < 4; m++) {
+        float a = rot + m * PI / 4;
+        a = fmodf(a, PI) - PI / 2;   // keep it on the front, -90..90 degrees
+        float rx = r * sinf(a);
+        if (fabsf(rx) < 1) {
+            c.vline(iround(gx), iround(gy - r), iround(gy + r));
+            continue;
+        }
+        for (int k = 12; k < 20; k++) {   // bottom pole round to the top pole
+            int i = k % 16, j = (k + 1) % 16;
+            c.line(gx + rx * UC[i], gy + r * US[i], gx + rx * UC[j], gy + r * US[j]);
+        }
     }
 }
 
 static void a_web(Canvas& c, uint32_t t, const Ctx& x) {
-    float ph = (x.seed % 628) / 100.0f;
-    float gx = 64 + 46 * sinf(t / 2300.0f + ph);
-    float gy = 30 + 17 * sinf(t / 1700.0f + 1 + ph);
-    float rot = t / 480.0f;
-    // the eyes follow it, sometimes they look around on their own
+    const float GX = 105, GY = 31, GR = 13;
+    float bob = (t / 700) % 2 ? 1 : 0;
+    globe(c, GX, GY + bob, GR, t / 900.0f);
+    uint32_t pq = t % 3700;   // a ping now and then
+    if (pq < 400) {
+        float r = GR + 3 + 8 * pq / 400.0f;
+        for (int k = 0; k < 16; k++) c.px(iround(GX + r * UC[k]), iround(GY + bob + r * US[k]));
+    }
+
+    // eyes on the left watching the globe, now and then a look at you
     uint32_t slot = t / 2600, in = t % 2600;
     uint32_t h = hash32(slot * 59 + x.seed);
     Eye e;
-    e.w = 10;
-    e.h = 18;
-    e.dx = clampf((gx - 64) / 4, -11, 11);
-    e.dy = clampf((gy - 32) / 4, -5, 5);
-    if ((h & 3) == 0 && in > 600 && in < 1800) {
-        float u = sinf(PI * seg(in, 600, 1800));
-        e.dx = lerp(e.dx, ((h >> 3) & 1 ? 12 : -12), u);
-        e.dy = lerp(e.dy, -4, u);
+    e.w = 12;
+    e.h = 19;
+    e.dx = 4;
+    e.dy = -1;
+    if ((h & 3) == 0 && in > 600 && in < 1700) {
+        float u = sinf(PI * seg(in, 600, 1700));
+        e.dx = lerp(e.dx, -2, u);
+        e.dy = lerp(e.dy, -3, u);
     }
-    face(c, maybe_blink(e, (h & 3) == 1 ? blink_k(in, 1100) : -1));
-    // data coming in from the globe
+    eyes_at(c, 30, 62, 32, maybe_blink(e, (h & 3) == 1 ? blink_k(in, 1100) : -1));
+
+    // data coming in: little packets from the globe to the eyes
     for (int k = 0; k < 3; k++) {
-        float p = fmodf(t / 900.0f + k / 3.0f, 1);
-        float tx = k == 1 ? RIGHT_X : LEFT_X;
-        c.fill_rect(iround(lerp(gx, tx, p)), iround(lerp(gy, EYE_Y, p)), iround(lerp(gx, tx, p)) + 1,
-                    iround(lerp(gy, EYE_Y, p)) + 1);
-    }
-    globe(c, gx, gy, 11, rot);
-    // a ping now and then
-    uint32_t pq = t % 3700;
-    if (pq < 500) {
-        float r = 13 + 14 * pq / 500.0f;
-        for (int a = 0; a < 16; a++) c.px(iround(gx + r * cosf(a * PI / 8)), iround(gy + r * sinf(a * PI / 8)));
+        float p = fmodf(t / 1000.0f + k / 3.0f, 1);
+        float px = lerp(GX - GR - 3, 72, p);
+        float py = GY + (k - 1) * 6 * (1 - p);
+        c.fill_rect(iround(px), iround(py), iround(px) + 1, iround(py) + 1);
     }
 }
 
