@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "esp_random.h"
 #include "esp_timer.h"
@@ -30,6 +31,17 @@ static Canvas s_canvas;
 
 static uint32_t now_ms() { return (uint32_t)(esp_timer_get_time() / 1000); }
 
+// "hw shot": the last frame as 32 lines of hex, "shot <n> <32 bytes>", for screenshots
+static void send_shot() {
+    char out[80];
+    const uint8_t* b = &s_canvas.buf[0][0];
+    for (int i = 0; i < 32; i++) {
+        int w = snprintf(out, sizeof(out), "shot %02d ", i);
+        for (int k = 0; k < 32; k++) w += snprintf(out + w, sizeof(out) - w, "%02x", b[i * 32 + k]);
+        usblink::send(out, 50);
+    }
+}
+
 static void render_task(void*) {
     s_brain.begin(now_ms(), esp_random());
     usblink::send("boot tinyclawd 1");
@@ -45,6 +57,11 @@ static void render_task(void*) {
 
         while (xQueueReceive(s_lines, &line, 0) == pdTRUE) {
             reply[0] = 0;
+            if (!strcmp(line.s, "hw shot")) {
+                send_shot();
+                usblink::send("ok shot");
+                continue;
+            }
             if (!hw::line(line.s, reply, sizeof(reply)))
                 proto_line(s_brain, line.s, now, reply, sizeof(reply));
             if (reply[0]) usblink::send(reply);

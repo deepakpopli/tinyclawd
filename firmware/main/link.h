@@ -13,6 +13,6 @@ struct Line {
 };
 
 void start(QueueHandle_t lines);   // queue of usblink::Line
-void send(const char* s);          // writes s + "\n", drops it if no one is reading
+void send(const char* s, int wait_ms = 2);   // writes s + "\n", drops it if no one is reading
 
 }

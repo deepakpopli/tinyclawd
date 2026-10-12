@@ -60,12 +60,12 @@ void usblink::start(QueueHandle_t lines) {
     xTaskCreate(link_task, "link", 3072, nullptr, 4, nullptr);
 }
 
-void usblink::send(const char* s) {
+void usblink::send(const char* s, int wait_ms) {
     if (!s_ok) return;
     char out[MAX_LINE + 2];
     int n = strnlen(s, MAX_LINE);
     memcpy(out, s, n);
     out[n++] = '\n';
     // short timeout: if the host is not reading the tx buffer fills up and we just drop
-    usb_serial_jtag_write_bytes(out, n, pdMS_TO_TICKS(2));
+    usb_serial_jtag_write_bytes(out, n, pdMS_TO_TICKS(wait_ms));
 }
