@@ -194,7 +194,7 @@ def hook_message(d):
         "lines": map_hook(d),
         "proj": project(d.get("cwd")),
         "tool": clean(d["tool_name"], 24) if d.get("tool_name") else "",
-        "slash": clean(slash(d), 24),
+        "slash": clean(slash(d), 24) if slash(d) else "",
     })
 
 
