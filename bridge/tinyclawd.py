@@ -721,6 +721,29 @@ def cmd_replay(args):
     return 0
 
 
+def cmd_console(args):
+    """type protocol lines by hand and see every line the pet prints (bring up, tuning)"""
+    if daemon_running(args.sock):
+        log("the daemon owns the port, stop it first")
+        return 1
+    try:
+        import serial  # noqa: F401
+    except ImportError:
+        log("pyserial missing: pip install --user pyserial")
+        return 1
+    link = Link(args.port, on_line=lambda l: l and print("<", l, flush=True))
+    threading.Thread(target=link.run, daemon=True).start()
+    print("type a line and press enter, ctrl-d to quit. try: hw, hw test 1, hw stats")
+    try:
+        for line in sys.stdin:
+            if line.strip() and not link.send(line):
+                log("not connected yet")
+    except KeyboardInterrupt:
+        pass
+    link.stop = True
+    return 0
+
+
 def cmd_send(args):
     line = " ".join(args.line)
     if not send_to_daemon(line, path=args.sock):
@@ -745,6 +768,10 @@ def main(argv=None):
     s = sub.add_parser("send", help="send one raw protocol line")
     s.add_argument("line", nargs="+")
     s.set_defaults(fn=cmd_send)
+
+    c = sub.add_parser("console", help="type lines to the pet, print its answers")
+    c.add_argument("--port")
+    c.set_defaults(fn=cmd_console)
 
     r = sub.add_parser("replay", help="play a timed session file")
     r.add_argument("file", nargs="?")
