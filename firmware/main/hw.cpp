@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "driver/temperature_sensor.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -121,6 +122,22 @@ static void show(char* reply, int len, bool restarting = false) {
              sh1106::ok() ? "ok" : (restarting ? "restarting" : "missing"));
 }
 
+// chip temperature from the C3's own sensor, set up the first time it's asked for
+static bool chip_temp(float* out) {
+    static temperature_sensor_handle_t h = nullptr;
+    if (!h) {
+        temperature_sensor_config_t cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.range_min = -10;
+        cfg.range_max = 80;
+        if (temperature_sensor_install(&cfg, &h) != ESP_OK || temperature_sensor_enable(h) != ESP_OK) {
+            h = nullptr;
+            return false;
+        }
+    }
+    return temperature_sensor_get_celsius(h, out) == ESP_OK;
+}
+
 static void stats(char* reply, int len) {
     int64_t now = esp_timer_get_time();
     uint32_t f = s_stats.frames ? s_stats.frames : 1;
@@ -175,6 +192,10 @@ bool hw::line(char* line, char* reply, int len) {
         show(reply, len);
     } else if (!strcmp(key, "stats")) {
         stats(reply, len);
+    } else if (!strcmp(key, "temp")) {
+        float t;
+        if (chip_temp(&t)) snprintf(reply, len, "ok temp=%.1fC", t);
+        else snprintf(reply, len, "err no sensor");
     } else if (!strcmp(key, "save")) {
         snprintf(reply, len, save() ? "ok saved" : "err save failed");
     } else if (!strcmp(key, "defaults")) {
