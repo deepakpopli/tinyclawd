@@ -286,17 +286,38 @@ static void a_bored(Canvas& c, uint32_t t, const Ctx& x) {
 // ------------------------------------------------------------------ side eye
 
 static void a_side_eye(Canvas& c, uint32_t t, const Ctx& x) {
+    // slide to the side, one eye squints, freeze... hmm. a dart back, then let it go
     float s = (x.seed & 16) ? 1 : -1;
-    const Key lid[] = {{0, 0}, {300, 0}, {550, 0.4f}, {1500, 0.4f}, {1650, 0.55f},
-                       {1900, 0.4f}, {3050, 0.4f}, {3300, 0}};
-    const Key dx[] = {{0, 0}, {350, 0}, {800, 13 * s}, {2550, 13 * s}, {3000, 0}};
-    Eye e;
-    e.lid = KEYS(lid, t);
-    e.dx = KEYS(dx, t);
-    e.dy = 0.4f * e.lid * 2.5f * (t < 3300);
-    // a quick suspicious double check to the other side sometimes
-    if ((x.seed & 32) && t >= 2050 && t < 2450) e.dx -= 7 * s * sinf(PI * seg(t, 2050, 2450));
-    face_blink(c, t, 3350, e);
+    const Key dx[] = {{0, 0}, {300, 0}, {650, 13 * s}, {2950, 13 * s}, {3300, 0}};
+    const Key sq[] = {{0, 0}, {350, 0}, {650, 1}, {1500, 1}, {1700, 1.3f}, {2950, 1.3f}, {3300, 0}};
+    float k = KEYS(sq, t);
+    Eye near_e, far_e;   // the eye on the side he looks at stays open-ish, the other squints
+    near_e.lid = 0.3f * k;
+    far_e.h = EYE_H - 6 * k;   // squinting one: shorter, top edge slanted down
+    far_e.dy = (EYE_H - far_e.h) / 2;
+    if (k > 0.4f) far_e.shape = ANGRY;
+    near_e.dx = far_e.dx = KEYS(dx, t);
+    // the suspicious double check: a quick dart to the other side and back
+    if ((x.seed & 32) && t >= 2200 && t < 2600) {
+        float d = 8 * s * sinf(PI * seg(t, 2200, 2600));
+        near_e.dx -= d;
+        far_e.dx -= d;
+    }
+    Eye l = s > 0 ? far_e : near_e, r = s > 0 ? near_e : far_e;
+    r.mirror = true;
+    if (t >= 3350 && t < 3350 + BLINK_MS) {
+        l = blink_eye(Eye(), (t - 3350) / (float)BLINK_MS);
+        r = l;
+        r.mirror = true;
+    }
+    face(c, l, r);
+    if (t >= 1700 && t < 2950) {
+        int n = 1 + (t - 1700) / 250;   // hmm grows a letter at a time
+        if (n > 4) n = 4;
+        char h[5] = "hmmm";
+        h[n] = 0;
+        c.text(s > 0 ? 6 : 84, 6, h, font_6x10);
+    }
 }
 
 // --------------------------------------------------------------------- dance
