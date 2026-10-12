@@ -788,4 +788,7 @@ void Brain::render(Canvas& c, uint32_t now) {
     menu::ring(c, now);
 }
 
-const char* Brain::current() const { return p->cur.a ? p->cur.a->name : "none"; }
+const char* Brain::current() const {
+    if (menu::active()) return menu::where();
+    return p->cur.a ? p->cur.a->name : "none";
+}

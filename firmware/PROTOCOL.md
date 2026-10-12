@@ -28,7 +28,7 @@ on its own.
 | `touch tap` / `touch double` / `touch long` | fake a touch (testing) |
 | `touch down` / `touch up` | fake the pad edges, hold to open the menu (testing) |
 | `play <anim>` | play one animation now (testing) |
-| `now` | pet answers `ok <anim playing>` |
+| `now` | pet answers `ok <anim playing>`, or where the menu is: `ok menu usage`, `ok games keepy`, `ok game run` |
 | `tune fast` / `tune normal` | short idle timings (bored after 30 s, asleep after 3 min) for testing |
 
 unknown lines get `err unknown`, the pet keeps going.
