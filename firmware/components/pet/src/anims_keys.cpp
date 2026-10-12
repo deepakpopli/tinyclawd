@@ -131,8 +131,108 @@ static void a_typing_wake(Canvas& c, uint32_t t, const Ctx&) {
     face(c, e);
 }
 
+// shared by the typing loops below: x.typing as 1..15 keys per second
+static int key_rate(const Ctx& x) {
+    return x.typing < 1 ? 1 : (x.typing > 15 ? 15 : x.typing);
+}
+
+// typing_along: Clawd has his own tiny keyboard and types with you
+
+static const int TA_X = 37, TA_Y = 10;   // mini Clawd at scale 1.5 (54 x 36)
+static const int TA_KEYS = 22;           // 10 on the back row, 12 on the front row
+
+static void ta_key(int k, int& x, int& y) {
+    if (k < 10) {
+        x = 29 + k * 7;
+        y = 40;
+    } else {
+        x = 22 + (k - 10) * 7;
+        y = 45;
+    }
+}
+
+// press m: left claw on even presses, right claw on odd, each on its own side
+static int ta_key_of(uint32_t m, uint32_t seed) {
+    uint32_t h = hash32(m * 2654435761u + seed) >> 8;
+    if (m & 1) return (h & 1) ? 7 + h % 3 : 18 + (h >> 2) % 4;
+    return (h & 1) ? h % 3 : 10 + (h >> 2) % 4;
+}
+
+static void ta_keyboard(Canvas& c, int down) {
+    const float pts[] = {26, 37, 101, 37, 111, 50, 16, 50};
+    c.fill_poly(pts, 4, false);
+    const float edge[] = {26, 37, 101, 37, 111, 50, 16, 50, 26, 37};
+    c.polyline(edge, 5);
+    for (int k = 0; k < TA_KEYS; k++) {
+        int x, y;
+        ta_key(k, x, y);
+        if (k == down) c.fill_rect(x, y + 1, x + 4, y + 3);
+        else c.rect(x, y, x + 4, y + 2);
+    }
+    c.hline(4, 123, 52);   // the desk
+}
+
+// a little claw, pincer up, cx = middle, y = bottom. a dark rim so it stands out
+static void ta_claw(Canvas& c, int cx, int y) {
+    c.fill_rect(cx - 4, y - 5, cx + 3, y + 1, false);
+    c.fill_rect(cx - 3, y - 4, cx + 2, y);
+    c.vline(cx, y - 4, y - 3, false);
+}
+
+static void a_typing_along(Canvas& c, uint32_t t, const Ctx& x) {
+    int rate = key_rate(x);
+    uint32_t every = 1000 / rate;
+    uint32_t n = t / every + 2;   // +2 so n - 2 is never negative
+    uint32_t in = t % every;
+    uint32_t hold = every / 2 < 120 ? every / 2 : 120;
+    bool down = in < hold;
+
+    // proud bob: a dip on every key and a slow sway
+    int y = TA_Y + (down ? 1 : 0) - (int)breathe(t, 1700);
+    uint32_t period = 3100 + x.seed % 900;
+    Eyes eyes = (t % period) > period - 140 ? EYES_CLOSED : EYES_OPEN;
+    clawd(c, TA_X, y, pose(eyes, ARMS_DOWN, FEET_NONE), 1.5f);
+    ta_keyboard(c, down ? ta_key_of(n, x.seed) : -1);
+
+    // each claw: down on its key, then hops over to its next one
+    for (int side = 0; side < 2; side++) {
+        uint32_t m = ((n & 1) == (uint32_t)side) ? n : n - 1;
+        uint32_t tt = t - (m - 2) * every;
+        int kx, ky, nx, ny;
+        ta_key(ta_key_of(m, x.seed), kx, ky);
+        ta_key(ta_key_of(m + 2, x.seed), nx, ny);
+        float cx = kx + 2, cy = ky;
+        if (tt >= hold) {
+            float p = clamp01((tt - hold) / (float)(2 * every - hold));
+            float e = ease(p);
+            cx = lerp(kx + 2, nx + 2, e);
+            cy = lerp(ky, ny, e) - 3 - 4 * p * (1 - p) * 4;
+        }
+        int sx = side ? TA_X + 51 : TA_X + 4, sy = y + 15;
+        c.line(sx, sy, cx, cy - 4, 2);
+        ta_claw(c, iround(cx), iround(cy));
+    }
+
+    // every 16 keys a proud little sparkle
+    uint32_t since = (n % 16) * every + in;
+    if (since < 350) {
+        int r = 1 + since / 90;
+        sparkle(c, 24, 20, r);
+        sparkle(c, 106, 24, r);
+    }
+    if (rate >= 11) {   // really fast: he is working hard to keep up
+        sweat(c, 96, 1 + (t / 200) % 2);
+        int off = (t / 50) % 3;
+        c.hline(8 - off, 12 - off, 41);
+        c.hline(6 - off, 10 - off, 46);
+        c.hline(115 + off, 119 + off, 41);
+        c.hline(117 + off, 121 + off, 46);
+    }
+}
+
 static const Anim A_YOU_TYPING = {"you_typing", a_you_typing, 4000, LOOP | CALM_IN};
 static const Anim A_TYPING_READY = {"typing_ready", a_typing_ready, 1200, CALM_OUT};
 static const Anim A_TYPING_WAKE = {"typing_wake", a_typing_wake, 700, CALM_OUT};
+static const Anim A_TYPING_ALONG = {"typing_along", a_typing_along, 4000, LOOP | SCENE};
 
-ANIM_LIST(anims_keys, &A_YOU_TYPING, &A_TYPING_READY, &A_TYPING_WAKE);
+ANIM_LIST(anims_keys, &A_YOU_TYPING, &A_TYPING_READY, &A_TYPING_WAKE, &A_TYPING_ALONG);
