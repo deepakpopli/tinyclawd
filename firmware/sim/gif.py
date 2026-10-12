@@ -3,6 +3,7 @@
 
   python3 gif.py out/blink.frames [more...]     -> out/blink.gif
   python3 gif.py --png 40 out/blink.frames      -> one frame as png (frame index)
+  python3 gif.py --scale 2 out/blink.frames     -> smaller gif (default 4)
 """
 import sys
 from pathlib import Path
@@ -86,7 +87,11 @@ def save_gif(path):
 
 
 def main():
+    global SCALE
     args = sys.argv[1:]
+    if args and args[0] == "--scale":
+        SCALE = int(args[1])
+        args = args[2:]
     if args and args[0] == "--png":
         idx = int(args[1])
         for p in args[2:]:
