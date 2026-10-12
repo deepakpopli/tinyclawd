@@ -42,6 +42,7 @@ hooks, run it yourself or use the service.
 python3 tinyclawd.py daemon                 # finds the pet (espressif usb id, then /dev/ttyACM*)
 python3 tinyclawd.py daemon --port /dev/ttyACM1
 python3 tinyclawd.py daemon --stdout        # no board, prints what it would send
+python3 tinyclawd.py daemon --no-keys       # do not watch the keyboard
 python3 tinyclawd.py send ev perm           # one raw line through the daemon
 python3 tinyclawd.py console                # type lines straight to the pet, see its answers
 python3 tinyclawd.py replay                 # plays ../firmware/sim/scripts/demo.txt
@@ -65,6 +66,27 @@ so stop the daemon first. session files are one line per entry, `<ms> <line>` fr
 - asks `playerctl` every 2 s if something plays (spotify, youtube in a browser...), sends
   `music 1 artist - title` when it starts or the track changes and `music 0` after 5 s of quiet.
   no playerctl, no music mode
+- watches how fast you type, so the pet can look at the keyboard while you write a prompt.
+  see below
+
+## typing
+
+the daemon runs `xinput test-xi2 --root` (x11, no root needed) and counts key presses. only the
+count. which key you pressed is never read, stored, logged or sent, the key code lines from xinput
+are thrown away as they come in. the pet only gets `typing <n>`, n = keys per second (1 to 15),
+and `typing 0` after 3 s without keys. at most 2 lines a second, plus the same line every 5 s
+while you keep typing.
+
+turn it off:
+
+```bash
+TINYCLAWD_NO_KEYS=1 python3 tinyclawd.py daemon
+python3 tinyclawd.py daemon --no-keys
+```
+
+for the service, add `Environment=TINYCLAWD_NO_KEYS=1` under `[Service]` (or `--no-keys` to the
+`ExecStart` line). on wayland, without xinput or without `DISPLAY` it is off on its own, the
+daemon logs why once.
 
 ## hook mapping
 
