@@ -140,9 +140,8 @@ void ring(Canvas& c, uint32_t now) {
     float k = (held - RING_SHOW_MS) / (float)(OPEN_MS - RING_SHOW_MS);
     if (k > 1) k = 1;
     // a dark band so the ring reads over any frame
-    c.ellipse(1, 1, 126, 62, 5, false);
-    c.ellipse(2, 2, 125, 61, 1);
-    c.arc(2, 2, 125, 61, -90, -90 + 360 * k, 3);
+    c.ellipse(1, 1, 126, 62, 6, false);
+    c.arc(2, 2, 125, 61, -90, -90 + 360 * k, 4);
 }
 
 // ------------------------------------------------------------------ icons
@@ -174,6 +173,15 @@ static void icon_play(Canvas& c, int cx, int cy) {
     c.fill_poly(tri, 3);
 }
 
+// the big fonts only have capitals
+static void big_text(Canvas& c, int y, const char* s, const Font& f) {
+    char up[24];
+    int i = 0;
+    for (; s[i] && i < 23; i++) up[i] = s[i] >= 'a' && s[i] <= 'z' ? s[i] - 32 : s[i];
+    up[i] = 0;
+    c.text_center(64, y, up, f);
+}
+
 static void dots(Canvas& c, int n, int at) {
     int x = 64 - (n - 1) * 4;
     for (int i = 0; i < n; i++, x += 8) {
@@ -193,20 +201,20 @@ void draw(Canvas& c, uint32_t now) {
         if (e.id == I_GAMES) icon_games(c, 64, 17);
         else if (e.id == I_USAGE) icon_usage(c, 64, 17);
         else icon_back(c, 64, 17);
-        c.text_center(64, 32, e.name, font_bold16);
+        big_text(c, 34, e.name, font_bold16);
         dots(c, N_ITEMS, sel);
         return;
     }
     // games list
     int n = game_count();
     if (n == 0) {
-        c.text_center(64, 18, "no games", font_bold12);
+        big_text(c, 18, "no games", font_bold12);
         c.text_center(64, 36, "double tap: back", font_5x7);
         return;
     }
     const Game* g = game_at(sel);
     icon_play(c, 64, 14);
-    c.text_center(64, 30, g->name, font_bold12);
+    big_text(c, 31, g->name, font_bold12);
     if (sel < MAX_GAMES && best[sel] > 0) {
         char line[20];
         snprintf(line, sizeof(line), "best %d", best[sel]);
