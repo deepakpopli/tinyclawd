@@ -66,6 +66,11 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         snprintf(reply, len, "ok");
         return true;
     }
+    if (!strcmp(line, "sessions")) {
+        b.sessions(atoi(rest));
+        snprintf(reply, len, "ok");
+        return true;
+    }
     if (!strcmp(line, "time")) {
         int h = -1, m = 0;
         if (sscanf(rest, "%d:%d", &h, &m) >= 1 && h >= 0 && h < 24) {

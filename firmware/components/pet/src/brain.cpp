@@ -208,6 +208,7 @@ struct Brain::Impl {
     bool music = false;            // the laptop is playing music
     char track[49] = "";
     char who[17] = "";             // project waiting for you
+    int sessions = 0;              // busy sessions, dots when 2+
     bool resume = false;           // last line was "ev done small", others still work
     Canvas a, b;   // scratch for transitions
 
@@ -590,6 +591,14 @@ struct Brain::Impl {
         draw_play(out, cur, now);
     }
 
+    // a dot per busy session in the top right corner while working
+    void session_dots(Canvas& c) {
+        if (sessions < 2 || (mode != THINK_M && mode != TOOL_M)) return;
+        int n = sessions > 4 ? 4 : sessions;
+        c.fill_rect(127 - n * 5, 0, 127, 5, false);
+        for (int i = 0; i < n; i++) c.fill_rect(124 - i * 5, 1, 126 - i * 5, 3);
+    }
+
     void render_and_remember(Canvas& out, uint32_t now) {
         render(out, now);
         shown = cur;
@@ -839,6 +848,8 @@ void Brain::clock(int hour, int minute, uint32_t now) {
     p->hour_at = now - minute * 60000u;
 }
 
+void Brain::sessions(int n) { p->sessions = n < 0 ? 0 : n; }
+
 void Brain::tune(bool fast) { p->fast = fast; }
 
 void Brain::play(const char* name, uint32_t now) {
@@ -850,7 +861,10 @@ void Brain::render(Canvas& c, uint32_t now) {
     if (menu::update(now) == menu::USAGE) play("usage", now);
     p->update(now);
     if (menu::active()) menu::draw(c, now);
-    else p->render_and_remember(c, now);
+    else {
+        p->render_and_remember(c, now);
+        p->session_dots(c);
+    }
     menu::ring(c, now);
 }
 
