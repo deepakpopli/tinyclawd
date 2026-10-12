@@ -68,6 +68,7 @@ so stop the daemon first. session files are one line per entry, `<ms> <line>` fr
   no playerctl, no music mode
 - watches how fast you type, so the pet can look at the keyboard while you write a prompt.
   see below
+- while music mode is on it also drives the equalizer, see below
 
 ## typing
 
@@ -87,6 +88,22 @@ python3 tinyclawd.py daemon --no-keys
 for the service, add `Environment=TINYCLAWD_NO_KEYS=1` under `[Service]` (or `--no-keys` to the
 `ExecStart` line). on wayland, without xinput or without `DISPLAY` it is off on its own, the
 daemon logs why once.
+
+## equalizer
+
+while something plays, the daemon listens to what the laptop plays (the default output's monitor,
+through `parec`, 8 kHz mono), splits it into 8 bands every 80 ms and sends `eq 13579753`, bass
+first, at most 12 times a second and only when the levels changed. a slow auto gain makes quiet
+and loud songs both fill the bars.
+
+privacy: the sound is analysed on the laptop and thrown away right after. it is never recorded,
+never saved and never sent. only the 8 level digits go to the pet, nothing goes to the internet.
+the capture only runs while the music watcher says something plays, and stops with `music 0`.
+
+- uses numpy for the fft if `/usr/bin/python3` has it, else a simple loudness + brightness guess
+- no `parec` (pulseaudio-utils): no equalizer, logged once, the pet makes up its own bars
+- turn it off: `TINYCLAWD_NO_EQ=1` in the daemon's environment (for the service:
+  `Environment=TINYCLAWD_NO_EQ=1` under `[Service]`)
 
 ## hook mapping
 
