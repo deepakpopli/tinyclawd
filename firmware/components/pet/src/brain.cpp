@@ -31,6 +31,7 @@ static const uint32_t WAIT_ROTATE_MS = 9000;
 static const uint32_t STALE_MS = 10 * 60000;   // no events for this long while busy = we missed a hook
 static const uint32_t SESSION_MS = 15 * 60000;
 static const uint32_t TAP_WINDOW = 4000;
+static const uint32_t TYPING_STALE_MS = 12000;   // the laptop resends every 5 s while you type
 
 // -------------------------------------------------------------------- pools
 
@@ -144,6 +145,7 @@ static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
 static const Pick GROOVE[] = {{"music", 1, 0}};
 static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
+static const Pick YOU_TYPING[] = {{"you_typing", 1, 0}};
 
 // little stories, played back to back. a|b = pick one
 static const char* const SEQS[][2] = {
@@ -210,6 +212,8 @@ struct Brain::Impl {
     char who[17] = "";             // project waiting for you
     int sessions = 0;              // busy sessions, dots when 2+
     bool resume = false;           // last line was "ev done small", others still work
+    int typing = 0;                // you type on the laptop, keys per second
+    uint32_t typing_at = 0;        // last typing line
     Canvas a, b;   // scratch for transitions
 
     uint32_t rand() {
@@ -287,6 +291,7 @@ struct Brain::Impl {
         c.tool = tool;
         c.track = track;
         c.who = who;
+        c.typing = typing;
     }
 
     void mark(const Anim* an, uint32_t now) {
@@ -310,6 +315,7 @@ struct Brain::Impl {
         bool on_idle = on.a && !strcmp(on.a->name, "idle") && idle_at_rest(now - on.start, on.ctx.seed);
         if ((calm_end || on_idle) && (an->flags & CALM_IN)) t = CUT;
         else if (on.a && sleepish(on.a) && sleepish(an)) t = CUT;
+        else if (on.a && !strcmp(on.a->name, "you_typing") && !strcmp(an->name, "typing_ready")) t = CUT;
         else if ((on.a && (on.a->flags & SCENE)) || (an->flags & SCENE)) t = DISSOLVE;
         if (!on.a) t = CUT;
         if (t != CUT) {
@@ -326,7 +332,8 @@ struct Brain::Impl {
 
     // closed-eye animations flow into each other without a blink
     static bool sleepish(const Anim* an) {
-        static const char* const names[] = {"sleepy", "asleep", "dream", "wake_up", "grumpy_wake"};
+        static const char* const names[] = {"sleepy", "asleep", "dream", "wake_up", "grumpy_wake",
+                                            "typing_wake"};
         for (const char* n : names)
             if (!strcmp(an->name, n)) return true;
         return false;
@@ -395,8 +402,10 @@ struct Brain::Impl {
         if (!oneshot) show(base, now, false);
     }
 
-    // the idle base: the plain face, or bobbing along while music plays
-    void idle_base(uint32_t now, bool force = false) { set_base(music ? GROOVE : IDLE, 1, now, force); }
+    // the idle base: watching you type, bobbing along while music plays, or the plain face
+    void idle_base(uint32_t now, bool force = false) {
+        set_base(typing ? YOU_TYPING : (music ? GROOVE : IDLE), 1, now, force);
+    }
 
     void go_mode(Mode m, uint32_t now) {
         mode = m;
@@ -420,9 +429,11 @@ struct Brain::Impl {
         return music ? 2 * g : g;   // the music loop is fun to watch on its own
     }
 
+    bool dozing() { return mode == SLEEP_M || (cur.a && (!strcmp(cur.a->name, "sleepy") || !strcmp(cur.a->name, "dream"))); }
+
     void wake(uint32_t now) {
         // asleep or dozing: open the eyes first
-        if (mode == SLEEP_M || (cur.a && (!strcmp(cur.a->name, "sleepy") || !strcmp(cur.a->name, "dream")))) {
+        if (dozing()) {
             mode = IDLE_M;
             base_pool = nullptr;
             idle_base(now);
@@ -463,6 +474,53 @@ struct Brain::Impl {
         next_micro = now + gap();
     }
 
+    // ------------------------------------------------------------ typing
+
+    void set_typing(int rate, uint32_t now) {
+        rate = rate < 0 ? 0 : (rate > 15 ? 15 : rate);
+        int was = typing;
+        typing = rate;
+        typing_at = now;
+        cur.ctx.typing = rate;   // the keyboard speeds up right away
+        if (!rate) {
+            if (was) typing_stopped(now);
+            return;
+        }
+        activity(now);
+        if (!was) typing_started(now);
+    }
+
+    void typing_started(uint32_t now) {
+        if (dozing()) {
+            // woken by typing: soft, no grumpy face
+            mode = IDLE_M;
+            base_pool = nullptr;
+            oneshot = false;
+            qn = 0;
+            idle_base(now);
+            show(find_anim("typing_wake"), now, true);
+            return;
+        }
+        if (mode != IDLE_M) return;   // claude is busy, typing does not change that
+        // stop an idle micro behaviour, but let event reactions and wake ups finish
+        bool reaction = cur.a && now - cur.start < 3000 && cur.start - last_event < 300;
+        bool waking = cur.a && (!strcmp(cur.a->name, "wake_up") || !strcmp(cur.a->name, "grumpy_wake") ||
+                                !strcmp(cur.a->name, "typing_wake"));
+        if (oneshot && !reaction && !waking) {
+            oneshot = false;
+            qn = 0;
+        }
+        idle_base(now, true);
+    }
+
+    void typing_stopped(uint32_t now) {
+        if (mode != IDLE_M) return;
+        bool watching = cur.a && !strcmp(cur.a->name, "you_typing");
+        idle_base(now, true);
+        if (watching) show(find_anim("typing_ready"), now, true);   // "ready?"
+        next_micro = now + gap();
+    }
+
     // ------------------------------------------------------------- tick
 
     void update(uint32_t now) {
@@ -470,6 +528,7 @@ struct Brain::Impl {
         if ((mode == THINK_M || mode == TOOL_M) && now - last_event > STALE_MS) go_mode(IDLE_M, now);
         if (mode == WAIT_M && now - last_event > 3 * STALE_MS) go_mode(IDLE_M, now);
         if (session && now - last_event > SESSION_MS) session = false;
+        if (typing && now - typing_at > TYPING_STALE_MS) set_typing(0, now);   // the laptop went away
 
         // night is a bit sleepier
         int h = hour_now(now);
@@ -513,6 +572,11 @@ struct Brain::Impl {
     }
 
     void idle_tick(uint32_t now) {
+        if (typing) {   // you are right here typing: no micro behaviours, no sleep
+            last_activity = now;
+            next_micro = now + gap();
+            return;
+        }
         uint32_t quiet = music ? 0 : now - last_activity;   // music is company
         // usage limit reached: show it now and then
         if (pct5h >= 100 && now >= next_micro && rand() % 3 == 0) {
@@ -838,10 +902,12 @@ void Brain::music(bool on, const char* title, uint32_t now) {
         return;
     }
     s.wake(now);
-    if (s.mode != IDLE_M) return;   // claude is busy, the title can wait
+    if (s.mode != IDLE_M || s.typing) return;   // claude is busy or you type, the title can wait
     s.react(POOL(NOW_PLAYING), now);
     s.idle_base(now);
 }
+
+void Brain::typing(int rate, uint32_t now) { p->set_typing(rate, now); }
 
 void Brain::clock(int hour, int minute, uint32_t now) {
     p->hour = hour;

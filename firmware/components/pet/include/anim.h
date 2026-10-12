@@ -19,6 +19,7 @@ struct Ctx {
     const char* tool = "";  // last tool name
     const char* track = ""; // song playing on the laptop ("artist - title"), "" if none
     const char* who = "";   // project waiting for you ("tinyclawd", "2 waiting"), "" if unknown
+    int typing = 0;         // how fast you type on the laptop, keys per second, 0 = not typing
 };
 
 // an animation is a pure function of time: draw(canvas, ms since start, ctx)
