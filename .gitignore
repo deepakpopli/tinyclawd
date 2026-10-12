@@ -19,3 +19,6 @@ firmware/dependencies.lock
 firmware/sim/build/
 firmware/sim/sim
 firmware/sim/out/
+
+# merged binaries for github releases
+firmware/release/
