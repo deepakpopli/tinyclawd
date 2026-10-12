@@ -114,13 +114,20 @@ void Canvas::arc(float x0, float y0, float x1, float y1, float a0, float a1, int
     float rx = (x1 - x0) / 2, ry = (y1 - y0) / 2;
     if (a1 < a0) a1 += 360;
     int steps = 8 + (int)((a1 - a0) / 360.0f * (rx + ry) * 4);
+    // rotate one small step at a time instead of sin/cos per point,
+    // the C3 has no fpu and a big ellipse used to cost milliseconds
+    float da = (a1 - a0) / steps * (float)M_PI / 180.0f;
+    float sc = cosf(da), ss = sinf(da);
+    float ca = cosf(a0 * (float)M_PI / 180.0f), sa = sinf(a0 * (float)M_PI / 180.0f);
     float px_ = 0, py_ = 0;
     for (int i = 0; i <= steps; i++) {
-        float a = (a0 + (a1 - a0) * i / steps) * (float)M_PI / 180.0f;
-        float x = cx + rx * cosf(a), y = cy + ry * sinf(a);
+        float x = cx + rx * ca, y = cy + ry * sa;
         if (i) line(px_, py_, x, y, 1, on);
         px_ = x;
         py_ = y;
+        float t = ca * sc - sa * ss;
+        sa = sa * sc + ca * ss;
+        ca = t;
     }
     for (int w = 1; w < width; w++) arc(x0 + w, y0 + w, x1 - w, y1 - w, a0, a1, 1, on);
 }
