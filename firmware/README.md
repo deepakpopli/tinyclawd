@@ -46,13 +46,25 @@ ones in `PROTOCOL.md`, anything starting with `E (` or `W (` is a log.
 flash layout (`partitions.csv`): nvs, otadata, phy_init and two 1.8 MB app slots, so OTA can be
 added later without repartitioning. wifi and ota are not in v1.
 
-## check on the real board
+## first time on the real board
 
-- screen: picture is not shifted (offset 2), not mirrored, no noise. if it is, check `COL_OFFSET`
-  and the 0xA1 / 0xC8 lines in `sh1106.cpp`.
-- I2C speed: 400 kHz now (`I2C_HZ` in `sh1106.cpp`). a full frame takes ~23 ms at 400k, most
-  frames only send a few pages. try 800 kHz if animations look slow, go back if you see glitches.
-- brightness: contrast is 0xCF at boot, `sh1106::set_contrast()` changes it.
-- touch feel: `DOUBLE_MS` (280), `LONG_MS` (700) and `DEBOUNCE_MS` (30) in `touch.cpp`. a single
-  tap only fires after the double tap window, so it feels a bit late on purpose.
-- link: `echo "hello 1" > /dev/ttyACM0` or the bridge, the pet answers `ok tinyclawd 1`.
+flash once, then tune everything over usb, no rebuilds. close `idf.py monitor` first, then:
+
+```bash
+python3 ../bridge/tinyclawd.py console      # type lines, see what the pet answers
+```
+
+1. `hw` shows the current settings. `screen=missing`? try `hw scan`, the screen should be at 0x3C.
+2. `hw test 1`: the 1 px border must sit right on the edge on all four sides and the arrow must
+   point up. border cut on one side: `hw offset 0` .. `hw offset 4`. upside down: `hw flip 1`.
+   TL and TR swapped: `hw mirror 1`.
+3. `hw test 2`: every pixel on, look for dead ones. pick a brightness with `hw contrast 0..255`.
+4. `hw test 3`: a checker that changes every page, the worst case for I2C. wait 5 s, then
+   `hw stats`. flush is the time one frame takes to send. over ~20 ms at 400k, try `hw i2c 800`
+   and watch for noise. `hw test 0` goes back to the pet, `hw stats` again for normal frames.
+5. touch: `hw touchraw 1` prints `raw 1` / `raw 0` on every edge. tap, double tap, long press and
+   check you get `touch tap` / `touch double` / `touch long`. too slow or too strict:
+   `hw double 200..400`, `hw long 500..1000`. `hw touchraw 0` when done.
+6. `hw save` keeps it all for the next boot. `hw defaults` goes back to the built-in values.
+
+the built-in defaults are offset 2, no flip, contrast 0xCF, 400 kHz, double 280 ms, long 700 ms.
