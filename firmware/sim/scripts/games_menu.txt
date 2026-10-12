@@ -1,0 +1,13 @@
+# open the menu, open games, tap through every game logo
+0 time 14:00
+1000 touch down
+2700 touch up
+4000 touch down
+5700 touch up
+7000 touch tap
+8500 touch tap
+10000 touch tap
+11500 touch tap
+13000 touch tap
+14500 touch tap
+16000 touch tap
