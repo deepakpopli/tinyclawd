@@ -5,6 +5,7 @@
 // (celebrations, touch reactions, idle micro behaviours). one-shots come
 // from weighted pools with cooldowns and never repeat back to back.
 #include "brain.h"
+#include "menu.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -586,6 +587,7 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
     s.activity(now);
     if (e != EV_END) s.session = true;
     s.wake(now);
+    if (e == EV_PERM) menu::close();   // needs you beats the menu
 
     switch (e) {
     case EV_START:
@@ -720,6 +722,9 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
 void Brain::touch(Touch t, uint32_t now) {
     Impl& s = *p;
     s.activity(now);
+    menu::Act a = menu::touch(t, now);
+    if (a == menu::USED) return;
+    if (a == menu::LOVE) t = TOUCH_LONG;
     if (s.mode == SLEEP_M) {
         // woken up by a poke: grumpy
         s.mode = IDLE_M;
@@ -776,8 +781,11 @@ void Brain::play(const char* name, uint32_t now) {
 }
 
 void Brain::render(Canvas& c, uint32_t now) {
+    if (menu::update(now) == menu::USAGE) play("usage", now);
     p->update(now);
-    p->render_and_remember(c, now);
+    if (menu::active()) menu::draw(c, now);
+    else p->render_and_remember(c, now);
+    menu::ring(c, now);
 }
 
 const char* Brain::current() const { return p->cur.a ? p->cur.a->name : "none"; }
