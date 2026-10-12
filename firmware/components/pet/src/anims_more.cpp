@@ -634,6 +634,83 @@ static void a_paper_plane(Canvas& c, uint32_t t, const Ctx& x) {
     clawd(c, s.box(CX, SPRITE_W), y, p);
 }
 
+// ------------------------------------------------------------------ stargaze
+
+static const char* const MOON[] = {"..####...", ".###.....", "###......", "###......", "###......",
+                                   "###......", ".###.....", "..####..."};
+
+struct Shoot {
+    uint32_t at;
+    float x0, y0, vx, vy;
+};
+
+static Shoot shoot_of(uint32_t seed, int k) {
+    uint32_t h = hash32(seed * 3 + k * 101);
+    Shoot s;
+    s.at = k == 0 ? 1200 + h % 900 : 4300 + h % 500;
+    bool right = (h >> 10) & 1;
+    s.x0 = right ? 20 + (h >> 12) % 30 : 108 - (h >> 12) % 30;
+    s.y0 = 2 + (h >> 18) % 8;
+    s.vx = (right ? 1 : -1) * 0.11f;
+    s.vy = 0.045f;
+    return s;
+}
+
+static void a_stargaze(Canvas& c, uint32_t t, const Ctx& x) {
+    bool moon_left = x.seed & 256;
+    const int GY = 59, CX = 46, CY = 43;
+    art(c, moon_left ? 8 : 112, 4, MOON, 8);
+    // stars, a few twinkle
+    for (uint32_t k = 0; k < 18; k++) {
+        uint32_t h = hash32(k * 131 + x.seed);
+        int sx = h % 128, sy = (h >> 8) % 38;
+        if ((moon_left ? sx < 22 : sx > 104) && sy < 16) continue;
+        if (sx > CX - 4 && sx < CX + 40 && sy > 34) continue;
+        if (hash32(k + (t + (h >> 20)) / 350 * 7) % 9 == 0) sparkle(c, sx, sy, 1);
+        else c.px(sx, sy);
+    }
+    // a little hill
+    c.hline(0, 127, GY);
+    c.hline(30, 90, GY - 1);
+    c.hline(40, 80, GY - 2);
+    // shooting stars
+    bool two = x.seed & 512;
+    float look = 64;
+    bool seen = false;
+    for (int k = 0; k < (two ? 2 : 1); k++) {
+        Shoot s = shoot_of(x.seed, k);
+        if (t < s.at || t >= s.at + 800) continue;
+        float d = t - s.at;
+        float hx = s.x0 + s.vx * d, hy = s.y0 + s.vy * d;
+        float tl = fminf(d, 120) / 120.0f;
+        c.line(hx, hy, hx - s.vx * 90 * tl, hy - s.vy * 90 * tl);
+        for (int i = 1; i <= 3; i++) c.px(iround(hx - s.vx * (90 + i * 30) * tl), iround(hy - s.vy * (90 + i * 30) * tl));
+        c.fill_rect(iround(hx), iround(hy), iround(hx) + 1, iround(hy) + 1);
+        look = hx;
+        seen = true;
+    }
+    // clawd sitting, glancing around, wishing after the first star
+    Shoot s0 = shoot_of(x.seed, 0);
+    Pose p = pose(EYES_OPEN, ARMS_DOWN, FEET_NONE);
+    uint32_t slot = t / 1100, hs = hash32(slot + x.seed * 5);
+    if (!seen && hs % 3 == 0) p.eyes = (hs >> 4) & 1 ? EYES_LEFT : EYES_RIGHT;
+    if (!seen && (t % 1100) < 120 && hs % 4 == 1) p.eyes = EYES_CLOSED;
+    if (seen) p.eyes = look < CX + 10 ? EYES_LEFT : (look > CX + 26 ? EYES_RIGHT : EYES_OPEN);
+    uint32_t wish = s0.at + 900;
+    if (t >= wish && t < wish + 1500) {
+        p.eyes = EYES_CLOSED;
+        if (t >= wish + 300) heart(c, CX + 18, CY - 6 - 14 * seg(t, wish + 300, wish + 1500), 0.5f);
+    }
+    if (two) {
+        Shoot s1 = shoot_of(x.seed, 1);
+        if (t >= s1.at + 300 && t < s1.at + 1300) {
+            p.arms = ARMS_UP;
+            if (t >= s1.at + 400 && t < s1.at + 1000) c.text(CX + 38, CY - 10, "!", font_bold12);
+        }
+    }
+    clawd(c, CX, CY, p);
+}
+
 static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
 static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
 static const Anim A_STRETCH = {"stretch", a_stretch, 4400, CALM};
@@ -641,5 +718,6 @@ static const Anim A_JUGGLE = {"juggle", a_juggle, 7000, SCENE};
 static const Anim A_BUG = {"bug_squash", a_bug_squash, 5800, SCENE};
 static const Anim A_GIT = {"git_branch", a_git_branch, 5200, SCENE};
 static const Anim A_PLANE = {"paper_plane", a_paper_plane, 5000, SCENE};
+static const Anim A_STARS = {"stargaze", a_stargaze, 7000, SCENE};
 
-ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG, &A_GIT, &A_PLANE);
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG, &A_GIT, &A_PLANE, &A_STARS);
