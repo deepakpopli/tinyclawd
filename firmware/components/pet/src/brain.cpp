@@ -26,7 +26,7 @@ static const Timing NIGHT = {60000, 3 * 60000, 5 * 60000, 6000, 14000};
 static const Timing FAST = {30000, 150000, 180000, 2500, 5000};   // "tune fast", for testing
 
 static const uint32_t TOOL_MIN_MS = 2500;      // a tool animation stays at least this long
-static const uint32_t TOOL_ROTATE_MS = 12000;  // long tool runs switch variant
+static const uint32_t TOOL_ROTATE_MS = 8000;   // long tool runs switch variant
 static const uint32_t WAIT_ROTATE_MS = 9000;
 static const uint32_t STALE_MS = 10 * 60000;   // no events for this long while busy = we missed a hook
 static const uint32_t SESSION_MS = 15 * 60000;
@@ -121,21 +121,27 @@ struct ToolMap {
     const Pick* pool;
     int n;
 };
-static const Pick T_BASH[] = {{"terminal", 5, 0}, {"compile", 4, 0}, {"working", 2, 0}};
+static const Pick T_BASH[] = {{"terminal", 4, 0}, {"compile", 3, 0}, {"working", 2, 0}, {"build_blocks", 2, 0}};
 static const Pick T_READ[] = {{"reading", 5, 0}, {"page_flip", 4, 0}, {"searching", 1, 0}};
 static const Pick T_SEARCH[] = {{"searching", 5, 0}, {"radar", 4, 0}, {"reading", 1, 0}};
 static const Pick T_EDIT[] = {{"typing", 5, 0}, {"build_blocks", 3, 0}, {"working", 1, 0}};
-static const Pick T_EDIT_MANY[] = {{"typing", 3, 0}, {"build_blocks", 2, 0}, {"dribble", 2, 0}};
+static const Pick T_EDIT_MANY[] = {{"typing", 3, 0}, {"build_blocks", 2, 0}, {"dribble", 2, 0}, {"working", 1, 0}};
 static const Pick T_WEB[] = {{"web", 5, 0}, {"satellite", 4, 0}, {"look_around", 1, 0}};
-static const Pick T_TODO[] = {{"todo", 1, 0}};
+static const Pick T_BUILD[] = {{"compile", 4, 0}, {"crane", 4, 0}, {"working", 2, 0}, {"build_blocks", 3, 0}};
+static const Pick T_TEST[] = {{"test_tubes", 5, 0}, {"checklist_run", 4, 0}, {"compile", 2, 0}};
+static const Pick T_GIT[] = {{"git_graph", 5, 0}, {"git_branch", 4, 0}};
+static const Pick T_INSTALL[] = {{"package", 4, 0}, {"download", 4, 0}, {"plug", 2, 0}};
+static const Pick T_TODO[] = {{"todo", 4, 0}, {"checklist_run", 2, 0}};
 static const Pick T_MCP[] = {{"plug", 1, 0}};
 static const Pick T_OTHER[] = {{"working", 1, 0}};
+// Build, Test, Git and Install are bash commands, the bridge names them by what they do
 static const ToolMap TOOLS[] = {
     {"Bash", POOL(T_BASH)}, {"BashOutput", POOL(T_BASH)}, {"Read", POOL(T_READ)},
     {"NotebookRead", POOL(T_READ)}, {"Grep", POOL(T_SEARCH)}, {"Glob", POOL(T_SEARCH)},
     {"LS", POOL(T_SEARCH)}, {"Edit", POOL(T_EDIT)}, {"MultiEdit", POOL(T_EDIT)},
     {"Write", POOL(T_EDIT)}, {"NotebookEdit", POOL(T_EDIT)}, {"WebFetch", POOL(T_WEB)},
     {"WebSearch", POOL(T_WEB)}, {"TodoWrite", POOL(T_TODO)}, {"mcp__", POOL(T_MCP)},
+    {"Build", POOL(T_BUILD)}, {"Test", POOL(T_TEST)}, {"Git", POOL(T_GIT)}, {"Install", POOL(T_INSTALL)},
 };
 
 static const Pick THINK[] = {
@@ -163,7 +169,7 @@ static const char* const SEQS[][2] = {
 enum Mode : uint8_t { IDLE_M, THINK_M, TOOL_M, WAIT_M, SLEEP_M };
 enum Trans : uint8_t { CUT, LIDS, DISSOLVE };
 
-static const int MAX_ANIMS = 128;
+static const int MAX_ANIMS = 192;
 static const int QLEN = 6;
 
 struct Play {
