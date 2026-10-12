@@ -52,6 +52,7 @@ static void render_task(void*) {
 
         while (xQueueReceive(s_touches, &t, 0) == pdTRUE) {
             s_brain.touch((Touch)t, now);
+            if (t == TOUCH_DOWN || t == TOUCH_UP) continue;   // keep the link quiet
             snprintf(msg, sizeof(msg), "touch %s", touch::name((Touch)t));
             usblink::send(msg);
         }
@@ -73,7 +74,7 @@ static void render_task(void*) {
 
 extern "C" void app_main(void) {
     s_lines = xQueueCreate(8, sizeof(usblink::Line));
-    s_touches = xQueueCreate(8, sizeof(uint8_t));
+    s_touches = xQueueCreate(16, sizeof(uint8_t));
 
     usblink::start(s_lines);
     hw::load();       // saved screen + touch settings

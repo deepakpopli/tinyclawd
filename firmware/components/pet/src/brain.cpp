@@ -740,6 +740,8 @@ void Brain::touch(Touch t, uint32_t now) {
         break;
     case TOUCH_DOUBLE: s.oneshot_from(POOL(DOUBLE), now); break;
     case TOUCH_LONG: s.oneshot_from(POOL(LONG), now); break;
+    case TOUCH_DOWN:
+    case TOUCH_UP: break;
     }
 }
 

@@ -44,6 +44,7 @@ static void touch_task(void*) {
 
         if (raw != down && now - changed >= DEBOUNCE_MS) {
             down = raw;
+            emit(down ? TOUCH_DOWN : TOUCH_UP);
             if (down) {
                 pressed_at = now;
                 long_sent = false;
@@ -97,6 +98,8 @@ const char* touch::name(Touch t) {
     case TOUCH_TAP: return "tap";
     case TOUCH_DOUBLE: return "double";
     case TOUCH_LONG: return "long";
+    case TOUCH_DOWN: return "down";
+    case TOUCH_UP: return "up";
     }
     return "?";
 }

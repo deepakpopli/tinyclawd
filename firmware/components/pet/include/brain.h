@@ -20,7 +20,8 @@ enum Ev : uint8_t {
     EV_COMPACT,    // context got compacted
 };
 
-enum Touch : uint8_t { TOUCH_TAP, TOUCH_DOUBLE, TOUCH_LONG };
+// down / up are the raw pad edges, the brain times holds from them
+enum Touch : uint8_t { TOUCH_TAP, TOUCH_DOUBLE, TOUCH_LONG, TOUCH_DOWN, TOUCH_UP };
 
 // picks what to play and draws it. not thread safe: call everything from one task.
 class Brain {

@@ -80,6 +80,8 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         Touch t = TOUCH_TAP;
         if (!strcmp(rest, "double")) t = TOUCH_DOUBLE;
         else if (!strcmp(rest, "long")) t = TOUCH_LONG;
+        else if (!strcmp(rest, "down")) t = TOUCH_DOWN;
+        else if (!strcmp(rest, "up")) t = TOUCH_UP;
         b.touch(t, now);
         snprintf(reply, len, "ok");
         return true;
