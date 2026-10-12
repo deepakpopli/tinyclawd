@@ -192,6 +192,7 @@ static void dots(Canvas& c, int n, int at) {
 
 void draw(Canvas& c, uint32_t now) {
     if (state == PLAY && game) {
+        c.clear();   // games draw on a blank canvas, like in the sim
         if (!game->draw(c, now)) end_game();
         else return;
     }
