@@ -43,6 +43,7 @@ python3 tinyclawd.py daemon                 # finds the pet (espressif usb id, t
 python3 tinyclawd.py daemon --port /dev/ttyACM1
 python3 tinyclawd.py daemon --stdout        # no board, prints what it would send
 python3 tinyclawd.py send ev perm           # one raw line through the daemon
+python3 tinyclawd.py console                # type lines straight to the pet, see its answers
 python3 tinyclawd.py replay                 # plays ../firmware/sim/scripts/demo.txt
 python3 tinyclawd.py replay my.txt --speed 2 --loop --to serial
 ```
