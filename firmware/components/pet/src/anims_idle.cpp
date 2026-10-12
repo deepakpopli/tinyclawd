@@ -246,20 +246,40 @@ static void a_dream(Canvas& c, uint32_t t, const Ctx& x) {
 // --------------------------------------------------------------------- bored
 
 static void a_bored(Canvas& c, uint32_t t, const Ctx& x) {
+    // chin on the desk: the face sinks, eyes go droopy, a long sigh, a claw taps
     float s = (x.seed & 8) ? 1 : -1;
-    const Key lid[] = {{0, 0}, {300, 0}, {700, 0.45f}, {2700, 0.45f}, {3200, 0.62f},
-                       {3900, 0.45f}, {4700, 0.45f}, {5000, 0}};
-    const Key dx[] = {{0, 0}, {900, 0}, {1800, 12 * s}, {4200, 12 * s}, {4800, 0}};
-    const Key dy[] = {{0, 0}, {2700, 0}, {3200, 3}, {3900, 0}};
+    const Key sink[] = {{0, 0}, {300, 0}, {1100, 1}, {4600, 1}, {5100, 0}};
+    const Key side[] = {{0, 0}, {1300, 0}, {1900, 1}, {4400, 1}, {4900, 0}};
+    const Key sigh[] = {{0, 0}, {2300, 0}, {2700, 1}, {3300, 0}};
+    float m = KEYS(sink, t), g = KEYS(side, t), sg = KEYS(sigh, t);
     Eye e;
-    e.lid = KEYS(lid, t);
-    e.dx = KEYS(dx, t);
-    e.dy = KEYS(dy, t) + (t < 2700 ? breathe(t, 2000) : 0);
-    face_blink(c, t, 5050, e);
-    if (t >= 1900 && t < 4200) {
-        int n = t < 2200 ? 1 : (t < 2500 ? 2 : 3);
-        int x0 = s > 0 ? 106 : 12;
-        for (int i = 0; i < n; i++) c.fill_rect(x0 + i * 4, 12, x0 + i * 4 + 1, 13);
+    e.lid = 0.5f * m + 0.15f * sg;
+    e.w = EYE_W + 2 * m;
+    e.dy = 14 * m + 2 * sg;
+    e.dx = 10 * s * g;
+    face_blink(c, t, 5150, e);
+    if (m > 0.6f) c.hline(0, 127, 63);   // the desk
+
+    // the sigh: a puff drifts out from under the eyes and fades
+    if (t >= 2500 && t < 3700) {
+        float k = seg(t, 2500, 3700);
+        float px = 64 + 10 * s - s * 14 * k, py = 44 - 28 * k;
+        float r = 3.5f * (1 - k) + 0.5f;
+        c.fill_circle(px, py, r);
+        c.fill_circle(px - s * 5, py + 2, r * 0.7f);
+        if (k < 0.6f) c.fill_circle(px - s * 9, py + 4, r * 0.5f);
+    }
+    // a claw tapping on the desk on the other side
+    if (t >= 3100 && t < 4500) {
+        int cx = s > 0 ? 6 : 104;
+        int up = ((t - 3100) / 160) % 2 ? 4 : 0;
+        int y = 53 - up;
+        c.fill_rect(cx, y, cx + 17, y + 8);
+        c.fill_rect(cx + 7, y - 1, cx + 10, y + 3, false);   // the pincer gap
+        if (!up) {   // tap marks
+            c.line(cx - 4, 58, cx - 2, 60);
+            c.line(cx + 21, 58, cx + 19, 60);
+        }
     }
 }
 
