@@ -34,6 +34,9 @@ POOLS = {
     "IDLE": ("idle", "resting face"), "AWAKE": ("idle", "idle, awake"), "BORED": ("idle", "idle, bored"),
     "DROWSY": ("sleep", "getting sleepy"), "SLEEPING": ("sleep", "asleep"), "ASLEEP": ("sleep", "asleep"),
 }
+# played straight from the code, not from a pool
+DIRECT = {"grumpy_wake": ("touch", "tap while asleep"), "wake_up": ("sleep", "waking up"),
+          "sleepy": ("sleep", "falling asleep"), "usage": ("touch", "double tap")}
 GROUPS = ["working", "events", "needs you", "usage", "touch", "idle", "sleep", "music", "other", "games"]
 
 
@@ -50,6 +53,8 @@ def uses():
     for seq, steps in re.findall(r'\{"(\w+)", "([^"]+)"\}', src):
         for name in re.split(r"[ |]", steps):
             out.setdefault(name, []).append(("idle", "story: " + seq))
+    for name, where in DIRECT.items():
+        out.setdefault(name, []).append(where)
     return out
 
 
