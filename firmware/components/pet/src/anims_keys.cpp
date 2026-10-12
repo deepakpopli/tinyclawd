@@ -230,9 +230,162 @@ static void a_typing_along(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// letters_fly: each key you press flies up into a thought bubble
+
+static const uint32_t LF_IN = 400;     // eyes move aside, keyboard and bubble come in
+static const uint32_t LF_FLY = 520;    // one letter's flight
+static const int LF_KEYS = 12;
+static const int LF_COLS = 7, LF_ROWS = 3, LF_CAP = LF_COLS * LF_ROWS;
+static const int LF_BX = 81, LF_BY = 5;   // first letter slot in the bubble
+
+static int lf_key_of(uint32_t m, uint32_t seed) {
+    return hash32(m * 2246822519u + seed) % LF_KEYS;
+}
+
+// what you seem to be typing, a new mix every bubble
+static const char* const LF_WORDS[] = {"fix", "the", "bug", "add", "a", "test", "make", "it", "work",
+                                       "pls", "hi", "clawd", "code", "now", "ok", "ship", "tiny", "why"};
+static const int LF_NWORDS = sizeof(LF_WORDS) / sizeof(LF_WORDS[0]);
+
+// the letter press m types, 0 = a space. words never break over two lines
+static char lf_char(uint32_t m, uint32_t seed) {
+    uint32_t first = m - m % LF_CAP;
+    int want = m % LF_CAP, pos = 0;
+    for (uint32_t w = 0;; w++) {
+        const char* s = LF_WORDS[hash32(first * 31 + w * 7919 + seed) % LF_NWORDS];
+        int len = strlen(s);
+        int col = pos % LF_COLS;
+        if (col + len > LF_COLS) pos += LF_COLS - col;
+        if (want < pos) return 0;
+        if (want < pos + len) return s[want - pos];
+        pos += len + 1;
+        if (want < pos) return 0;
+    }
+}
+
+static void lf_slot(uint32_t m, int& x, int& y) {
+    int i = m % LF_CAP;
+    x = LF_BX + (i % LF_COLS) * 6;
+    y = LF_BY + (i / LF_COLS) * 9;
+}
+
+// round box with a 1 px border, the inside cleared
+static void lf_bubble(Canvas& c, int x0, int y0, int x1, int y1) {
+    c.fill_rect(x0 + 2, y0, x1 - 2, y1);
+    c.fill_rect(x0, y0 + 2, x1, y1 - 2);
+    c.px(x0 + 1, y0 + 1);
+    c.px(x1 - 1, y0 + 1);
+    c.px(x0 + 1, y1 - 1);
+    c.px(x1 - 1, y1 - 1);
+    c.fill_rect(x0 + 2, y0 + 1, x1 - 2, y1 - 1, false);
+    c.fill_rect(x0 + 1, y0 + 2, x1 - 1, y1 - 2, false);
+}
+
+static void a_letters_fly(Canvas& c, uint32_t t, const Ctx& x) {
+    int rate = key_rate(x);
+    float k = ease(seg(t, 0, LF_IN));
+    uint32_t every = 1000 / rate;
+    bool started = t >= LF_IN;
+    uint32_t in = started ? t - LF_IN : 0;
+    uint32_t n = in / every;   // last press so far
+    int landed = in >= LF_FLY ? (int)((in - LF_FLY) / every) : -1;   // last letter in the bubble
+
+    // the bubble with its trail of dots
+    int pop = iround(4 * (1 - k));
+    if (k > 0.3f) {
+        lf_bubble(c, 78 + pop, 2 + pop, 124 - pop, 31 - pop);
+        c.fill_circle(73, 38, 1.5f);
+        c.fill_circle(77, 34, 2);
+    }
+    if (landed >= 0) {
+        uint32_t first = landed - landed % LF_CAP;   // the bubble empties when full
+        for (uint32_t m = first; m <= (uint32_t)landed; m++) {
+            char ch = lf_char(m, x.seed);
+            if (!ch) continue;
+            int sx, sy;
+            lf_slot(m, sx, sy);
+            char s[2] = {ch, 0};
+            c.text(sx, sy, s);
+        }
+        // just emptied: a sparkle where the words went
+        uint32_t since = in - LF_FLY - first * every;
+        if (first > 0 && since < 300) sparkle(c, 101, 17, 2 + since / 60);
+    }
+    // a cursor waits in the next slot
+    if (started && (t / 300) % 2) {
+        int sx, sy;
+        lf_slot(landed + 1, sx, sy);
+        c.hline(sx, sx + 4, sy + 7);
+    }
+
+    // the keyboard: one row of keys along the bottom
+    int ky = 55 + iround(10 * (1 - k));
+    int down = (started && in % every < 110) ? lf_key_of(n, x.seed) : -1;
+    c.hline(0, 127, ky);
+    for (int i = 0; i < LF_KEYS; i++) {
+        int kx = 5 + i * 10;
+        if (i == down) c.fill_rect(kx, ky + 4, kx + 7, ky + 8);
+        else c.rect(kx, ky + 3, kx + 7, ky + 7);
+    }
+
+    // flying letters, an arc up from the key to the slot. the eyes follow them
+    float gx = 0, gy = 0;
+    int flying = 0;
+    uint32_t oldest = landed + 1;
+    for (uint32_t m = oldest; started && m <= n; m++) {
+        float p = (in - m * every) / (float)LF_FLY;
+        if (p >= 1) continue;
+        float sx0 = 9 + lf_key_of(m, x.seed) * 10, sy0 = ky - 6;
+        int ex, ey;
+        lf_slot(m, ex, ey);
+        // quadratic curve: shoot up first, then swing right into the bubble
+        float e = ease_out(p), u = 1 - e;
+        float px = u * u * sx0 + 2 * u * e * sx0 + e * e * ex;
+        float py = u * u * sy0 + 2 * u * e * (ey - 6) + e * e * ey;
+        gx += px;
+        gy += py;
+        flying++;
+        char ch = lf_char(m, x.seed);
+        int ix = iround(px), iy = iround(py);
+        if (p < 0.7f) c.fill_rect(ix - 1, iy - 1, ix + 5, iy + 7, false);   // a dark rim until it is in
+        if (ch) {
+            char s[2] = {ch, 0};
+            c.text(ix, iy, s);
+        } else {
+            c.fill_rect(ix + 1, iy + 3, ix + 3, iy + 4);   // a space: a little block
+        }
+    }
+
+    // eyes: smaller and off to the left, watching the letters
+    if (flying) {
+        gx /= flying;
+        gy /= flying;
+    } else {
+        int sx, sy;
+        lf_slot(landed < 0 ? 0 : landed, sx, sy);
+        gx = sx;
+        gy = sy;
+    }
+    float lx = started ? clampf((gx - 50) / 9, -3, 4) : 0;
+    float ly = started ? clampf((gy - 30) / 5, -4, 4) : 0;
+    Eye l = eye(-18 * k + lx, -2 * k + ly, EYE_W - 2 * k, EYE_H - 6 * k);
+    if (rate >= 11 && started) {   // wow, so many letters
+        l.w += 2;
+        l.h += 2;
+    }
+    uint32_t period = 2900 + x.seed % 1100;
+    if (started && in % period > period - BLINK_MS)
+        l = blink_eye(l, (in % period - (period - BLINK_MS)) / (float)BLINK_MS);
+    Eye r = l;
+    r.mirror = true;
+    r.dx = l.dx - 8 * k;   // the right eye sits a bit closer
+    face(c, l, r);
+}
+
 static const Anim A_YOU_TYPING = {"you_typing", a_you_typing, 4000, LOOP | CALM_IN};
 static const Anim A_TYPING_READY = {"typing_ready", a_typing_ready, 1200, CALM_OUT};
 static const Anim A_TYPING_WAKE = {"typing_wake", a_typing_wake, 700, CALM_OUT};
 static const Anim A_TYPING_ALONG = {"typing_along", a_typing_along, 4000, LOOP | SCENE};
+static const Anim A_LETTERS_FLY = {"letters_fly", a_letters_fly, 4800, LOOP | CALM_IN};
 
-ANIM_LIST(anims_keys, &A_YOU_TYPING, &A_TYPING_READY, &A_TYPING_WAKE, &A_TYPING_ALONG);
+ANIM_LIST(anims_keys, &A_YOU_TYPING, &A_TYPING_READY, &A_TYPING_WAKE, &A_TYPING_ALONG, &A_LETTERS_FLY);
