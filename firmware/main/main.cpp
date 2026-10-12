@@ -8,6 +8,7 @@
 
 #include "brain.h"
 #include "canvas.h"
+#include "hw.h"
 #include "link.h"
 #include "proto.h"
 #include "sh1106.h"
@@ -34,7 +35,7 @@ static void render_task(void*) {
     usblink::send("boot tinyclawd 1");
 
     usblink::Line line;
-    char reply[64];
+    char reply[usblink::MAX_LINE + 1];
     char msg[24];
     uint8_t t;
 
@@ -44,7 +45,8 @@ static void render_task(void*) {
 
         while (xQueueReceive(s_lines, &line, 0) == pdTRUE) {
             reply[0] = 0;
-            proto_line(s_brain, line.s, now, reply, sizeof(reply));
+            if (!hw::line(line.s, reply, sizeof(reply)))
+                proto_line(s_brain, line.s, now, reply, sizeof(reply));
             if (reply[0]) usblink::send(reply);
         }
 
@@ -54,8 +56,12 @@ static void render_task(void*) {
             usblink::send(msg);
         }
 
-        s_brain.render(s_canvas, now);
-        sh1106::flush(s_canvas);
+        int64_t t0 = esp_timer_get_time();
+        if (hw::test()) hw::draw_test(s_canvas, now);
+        else s_brain.render(s_canvas, now);
+        int64_t t1 = esp_timer_get_time();
+        int pages = sh1106::flush(s_canvas);
+        hw::frame((uint32_t)(t1 - t0), (uint32_t)(esp_timer_get_time() - t1), pages);
 
         // if a frame ran long, don't try to catch up, and still let idle run
         if (xTaskDelayUntil(&wake, pdMS_TO_TICKS(FRAME_MS)) == pdFALSE) {
@@ -70,6 +76,7 @@ extern "C" void app_main(void) {
     s_touches = xQueueCreate(8, sizeof(uint8_t));
 
     usblink::start(s_lines);
+    hw::load();       // saved screen + touch settings
     sh1106::init();   // if the screen is missing, flush keeps retrying
     touch::start(s_touches);
 
