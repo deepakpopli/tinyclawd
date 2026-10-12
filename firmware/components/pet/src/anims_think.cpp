@@ -387,9 +387,55 @@ static void a_idea_orbit(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ---------------------------------------------------------------- vibe think
+// headphones on, eyes shut, slow nod, notes drifting out
+
+static void headphones(Canvas& c, float dx, float dy) {
+    // the band: half an ellipse from cup to cup, 8 segments from the table
+    float p[18];
+    for (int k = 0; k <= 8; k++) {
+        p[2 * k] = 64 - 42 * COS32[k * 2] + dx;
+        p[2 * k + 1] = 26 - 24 * COS32[(k * 2 + 24) % 32] + dy;
+    }
+    c.polyline(p, 9, 2);
+    for (int s = -1; s <= 1; s += 2) {
+        int cx = iround(64 + s * 44 + dx), cy = iround(34 + dy);
+        c.fill_rect(cx - 5, cy - 10, cx + 5, cy + 10);
+        c.vline(cx - s * 2, cy - 7, cy + 7, false);   // a seam so it reads as a cup
+    }
+}
+
+static void a_vibe_think(Canvas& c, uint32_t t, const Ctx& x) {
+    const uint32_t BEAT = 900;
+    float b = (t % BEAT) / (float)BEAT;
+    float nod = 3 * ease_out(b < 0.25f ? b / 0.25f : 1 - (b - 0.25f) / 0.75f);
+    float sway = 3 * tsin((t % (4 * BEAT)) / (4.0f * BEAT));
+
+    Eye e;
+    e.shape = HAPPY;
+    e.w = 10;
+    e.dx = sway;
+    e.dy = 4 + nod;
+    face(c, e);
+    headphones(c, sway, nod);
+
+    // a note floats out of each cup in turn, up and away
+    for (int k = 0; k < 2; k++) {
+        uint32_t q = t + k * 1800 + (x.seed % 5) * 200;
+        float p = (q % 3600) / 3600.0f;
+        if (p > 0.75f) continue;
+        uint32_t h = hash32(q / 3600 * 7 + k + x.seed);
+        float s = k ? 1 : -1;
+        float fx = 64 + s * (46 + 10 * p) - 4 + 2 * tsin(p * 2);
+        float fy = 18 - 30 * p;
+        c.glyph(iround(fx), iround(fy), (h >> 8) & 1 ? 0x266a : 0x266b, font_sym12);
+    }
+}
+
 static const Anim A_WORDS = {"thinking_words", a_thinking_words, 4 * TW_WORD, LOOP};
 static const Anim A_BIG_SPIN = {"big_spinner", a_big_spinner, 7040, LOOP};
 static const Anim A_BULB = {"lightbulb", a_lightbulb, LB_CYC, LOOP};
 static const Anim A_ORBIT = {"idea_orbit", a_idea_orbit, IO_CYC, LOOP};
+static const Anim A_VIBE = {"vibe_think", a_vibe_think, 7200, LOOP};
 
-ANIM_LIST(anims_think, &A_WORDS, &A_BIG_SPIN, &A_BULB, &A_ORBIT);
+ANIM_LIST(anims_think, &A_WORDS, &A_BIG_SPIN, &A_BULB, &A_ORBIT, &A_VIBE);
