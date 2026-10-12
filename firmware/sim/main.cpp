@@ -37,6 +37,8 @@ static void render_anim(const Anim* a, uint32_t ms) {
     // SEED=7 SUBS=3 ./sim anim goal, to check the variations
     x.seed = getenv("SEED") ? strtoul(getenv("SEED"), nullptr, 10) : 12345;
     x.subagents = getenv("SUBS") ? atoi(getenv("SUBS")) : 5;
+    // TYPING=12 ./sim anim you_typing, keys per second
+    x.typing = getenv("TYPING") ? atoi(getenv("TYPING")) : 0;
     x.pct5h = 42;
     x.pctwk = 18;
     x.ctx = 64;
