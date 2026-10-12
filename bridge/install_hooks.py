@@ -14,7 +14,7 @@ CMD = "/usr/bin/python3 %s hook" % (Path(__file__).resolve().parent / "tinyclawd
 
 # event -> matcher (None = no matcher)
 EVENTS = {
-    "SessionStart": None, "SessionEnd": None, "UserPromptSubmit": None,
+    "SessionStart": None, "SessionEnd": None, "UserPromptSubmit": None, "UserPromptExpansion": None,
     "PreToolUse": "*", "PostToolUse": "*", "PostToolUseFailure": "*", "PermissionRequest": "*",
     "Notification": None, "Stop": None, "StopFailure": None,
     "SubagentStart": None, "SubagentStop": None, "PreCompact": None,
