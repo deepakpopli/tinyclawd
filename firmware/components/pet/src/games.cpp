@@ -1,16 +1,17 @@
-// joins the games. each lives in its own games_*.cpp, a missing one is skipped
+// joins the games. each lives in its own games_*.cpp
 #include <string.h>
 
 #include "game.h"
 
-extern const Game game_run __attribute__((weak));
-extern const Game game_keepy __attribute__((weak));
-extern const Game game_penalty __attribute__((weak));
-extern const Game game_panic __attribute__((weak));
-extern const Game game_stack __attribute__((weak));
+// plain externs, not weak: the firmware links pet as a library and would
+// silently leave weak ones out
+extern const Game game_run;
+extern const Game game_keepy;
+extern const Game game_penalty;
+extern const Game game_panic;
 
 static const Game* all(int i) {
-    const Game* list[] = {&game_run, &game_keepy, &game_penalty, &game_panic, &game_stack};
+    const Game* list[] = {&game_run, &game_keepy, &game_penalty, &game_panic};
     int n = 0;
     for (const Game* g : list) {
         if (!g) continue;
