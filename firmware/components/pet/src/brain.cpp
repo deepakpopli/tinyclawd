@@ -119,12 +119,12 @@ struct ToolMap {
     const Pick* pool;
     int n;
 };
-static const Pick T_BASH[] = {{"terminal", 5, 0}, {"working", 3, 0}};
-static const Pick T_READ[] = {{"reading", 5, 0}, {"searching", 1, 0}};
-static const Pick T_SEARCH[] = {{"searching", 5, 0}, {"reading", 1, 0}};
-static const Pick T_EDIT[] = {{"typing", 5, 0}, {"working", 1, 0}};
-static const Pick T_EDIT_MANY[] = {{"typing", 3, 0}, {"dribble", 2, 0}};
-static const Pick T_WEB[] = {{"web", 5, 0}, {"look_around", 1, 0}};
+static const Pick T_BASH[] = {{"terminal", 5, 0}, {"compile", 4, 0}, {"working", 2, 0}};
+static const Pick T_READ[] = {{"reading", 5, 0}, {"page_flip", 4, 0}, {"searching", 1, 0}};
+static const Pick T_SEARCH[] = {{"searching", 5, 0}, {"radar", 4, 0}, {"reading", 1, 0}};
+static const Pick T_EDIT[] = {{"typing", 5, 0}, {"build_blocks", 3, 0}, {"working", 1, 0}};
+static const Pick T_EDIT_MANY[] = {{"typing", 3, 0}, {"build_blocks", 2, 0}, {"dribble", 2, 0}};
+static const Pick T_WEB[] = {{"web", 5, 0}, {"satellite", 4, 0}, {"look_around", 1, 0}};
 static const Pick T_TODO[] = {{"todo", 1, 0}};
 static const Pick T_MCP[] = {{"plug", 1, 0}};
 static const Pick T_OTHER[] = {{"working", 1, 0}};
@@ -136,7 +136,7 @@ static const ToolMap TOOLS[] = {
     {"WebSearch", POOL(T_WEB)}, {"TodoWrite", POOL(T_TODO)}, {"mcp__", POOL(T_MCP)},
 };
 
-static const Pick THINK[] = {{"thinking", 1, 0}};
+static const Pick THINK[] = {{"thinking", 5, 0}, {"ponder", 3, 0}};
 static const Pick WAIT[] = {{"needs_you", 3, 0}, {"var_check", 2, 0}};
 static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
@@ -400,7 +400,10 @@ struct Brain::Impl {
             idle_base(now);
             next_micro = now + gap();
             break;
-        case THINK_M: set_base(subagents ? SUBS : THINK, 1, now); break;
+        case THINK_M:
+            if (subagents) set_base(SUBS, 1, now);
+            else set_base(POOL(THINK), now);
+            break;
         case WAIT_M: set_base(WAIT, 2, now); break;
         case SLEEP_M: set_base(SLEEPING, 1, now); next_micro = now + 20000 + rand() % 20000; break;
         case TOOL_M: break;
@@ -707,7 +710,7 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         } else if (n == 0 && was > 0) {
             if (s.mode == TOOL_M || s.mode == THINK_M) {
                 s.mode = THINK_M;
-                s.set_base(THINK, 1, now, true);
+                s.set_base(POOL(THINK), now, true);
             } else if (s.mode == IDLE_M) {
                 s.idle_base(now, true);
             }
