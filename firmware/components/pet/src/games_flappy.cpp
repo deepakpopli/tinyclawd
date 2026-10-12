@@ -220,4 +220,18 @@ static bool flappy_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_flappy = {"flappy", "flappy clawd", flappy_start, flappy_input, flappy_draw, flappy_score, flappy_bot, nullptr};
+// menu logo: flapping through the gap between two pipe ends
+static void flappy_icon(Canvas& c, int cx, int cy, uint32_t now) {
+    bool flap = (now / 200) & 1;
+    int x = cx + 3;
+    // top pipe hanging down, bottom pipe coming up, each with a lip
+    c.fill_rect(x + 2, cy - 14, x + 8, cy - 9);
+    c.fill_rect(x - 1, cy - 8, x + 11, cy - 6);
+    c.fill_rect(x - 1, cy + 6, x + 11, cy + 8);
+    c.fill_rect(x + 2, cy + 9, x + 8, cy + 13);
+    c.vline(x + 4, cy - 14, cy - 9, false);   // shine
+    c.vline(x + 4, cy + 9, cy + 13, false);
+    clawd(c, cx - 15, cy - 6 + (flap ? -1 : 1), pose(EYES_RIGHT, flap ? ARMS_UP : ARMS_DOWN, FEET_BOTH), 0.5f);
+}
+
+extern const Game game_flappy = {"flappy", "flappy clawd", flappy_start, flappy_input, flappy_draw, flappy_score, flappy_bot, flappy_icon};

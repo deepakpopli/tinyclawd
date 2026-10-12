@@ -309,6 +309,31 @@ bool bot(uint32_t now) {
     return press;
 }
 
+// menu logo: the ball flying into the top corner
+void icon(Canvas& c, int cx, int cy, uint32_t now) {
+    int l = cx - 13, r = cx + 13, top = cy - 11, bot = cy + 11;
+    for (int y = top + 4; y < bot; y += 3)
+        for (int x = l + 3 + (y & 1); x < r - 1; x += 3) c.px(x, y);
+    c.fill_rect(l, top, l + 1, bot);
+    c.fill_rect(r - 1, top, r, bot);
+    c.fill_rect(l, top, r, top + 1);
+    c.hline(cx - 16, cx + 16, bot);
+    // the ball shakes the net a little
+    int k = (now / 150) % 6 == 0 ? 1 : 0;
+    int bx = cx + 5 + k, by = top + 8 - k;
+    // clear its path through the net, then two speed lines
+    c.line(bx, by, bx - 9, by + 9, 5, false);
+    c.line(bx - 4, by + 3, bx - 10, by + 9, 1);
+    c.line(bx - 2, by + 6, bx - 6, by + 10, 1);
+    c.fill_rect(bx - 4, by - 5, bx + 4, by + 5, false);
+    c.fill_rect(bx - 5, by - 4, bx + 5, by + 4, false);
+    c.ellipse(bx - 4, by - 4, bx + 4, by + 4);
+    c.fill_rect(bx - 1, by - 1, bx + 1, by + 1);
+    c.hline(bx - 1, bx + 1, by - 3);
+    c.px(bx - 3, by + 1);
+    c.px(bx + 3, by + 1);
+}
+
 }  // namespace
 
-extern const Game game_penalty = {"penalty", "penalties", start, input, draw, score, bot, nullptr};
+extern const Game game_penalty = {"penalty", "penalties", start, input, draw, score, bot, icon};

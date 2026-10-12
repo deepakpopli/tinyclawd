@@ -242,4 +242,29 @@ static bool run_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_run = {"run", "bug run", run_start, run_input, run_draw, run_score_fn, run_bot, nullptr};
+// menu logo: mid jump over a bug
+static void run_icon(Canvas& c, int cx, int cy, uint32_t now) {
+    int hop = (now / 300) % 4 == 1 ? 1 : 0;
+    c.hline(cx - 15, cx + 15, cy + 11);
+    // a little beetle: feelers, round shell with a split, legs
+    int bx = cx + 6, by = cy + 3;
+    c.px(bx - 3, by);
+    c.px(bx + 3, by);
+    c.px(bx - 2, by + 1);
+    c.px(bx + 2, by + 1);
+    c.hline(bx - 2, bx + 2, by + 2);
+    c.fill_rect(bx - 4, by + 3, bx + 4, by + 7);
+    c.px(bx - 4, by + 3, false);
+    c.px(bx + 4, by + 3, false);
+    c.vline(bx, by + 5, by + 7, false);
+    c.px(bx - 2, by + 4, false);
+    c.px(bx + 2, by + 4, false);
+    // Clawd right over it, the dots show where he jumped from
+    clawd(c, cx - 9, cy - 12 - hop, pose(EYES_RIGHT, ARMS_UP, FEET_BOTH), 0.5f);
+    c.px(cx - 10, cy + 2);
+    c.px(cx - 12, cy + 5);
+    c.px(cx - 14, cy + 8);
+    c.hline(cx - 15, cx - 13, cy + 10);
+}
+
+extern const Game game_run = {"run", "bug run", run_start, run_input, run_draw, run_score_fn, run_bot, run_icon};

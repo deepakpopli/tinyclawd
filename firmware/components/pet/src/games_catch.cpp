@@ -207,4 +207,20 @@ static bool catch_bot(uint32_t now) {
     return false;
 }
 
-extern const Game game_catch = {"catch", "token catch", catch_start, catch_input, catch_draw, catch_score, catch_bot, nullptr};
+// menu logo: a token falling into his arms
+static void catch_icon(Canvas& c, int cx, int cy, uint32_t now) {
+    int fall = (now / 150) % 5;
+    int ty = cy - 9 + fall;
+    // a round token with a slot, like the ones in the game but bigger
+    c.ellipse(cx - 4, ty - 4, cx + 4, ty + 4);
+    c.ellipse(cx - 3, ty - 3, cx + 3, ty + 3);
+    c.vline(cx, ty - 2, ty + 2);
+    // two little sparkles
+    c.hline(cx - 9, cx - 7, ty - 3);
+    c.vline(cx - 8, ty - 4, ty - 2);
+    c.hline(cx + 7, cx + 9, ty + 1);
+    c.vline(cx + 8, ty, ty + 2);
+    clawd(c, cx - 9, cy + 1, pose(EYES_OPEN, ARMS_UP, FEET_BOTH), 0.5f);
+}
+
+extern const Game game_catch = {"catch", "token catch", catch_start, catch_input, catch_draw, catch_score, catch_bot, catch_icon};
