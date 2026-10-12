@@ -477,6 +477,161 @@ class Typing(unittest.TestCase):
         self.assertEqual(len(got), 2)
 
 
+def tone(hz, amp=0.5, n=tc.EQ_BLOCK, start=0):
+    import math
+    return [amp * math.sin(2 * math.pi * hz * (start + i) / tc.EQ_RATE) for i in range(n)]
+
+
+def raw(samples):
+    import array
+    return array.array("h", (int(v * 32767) for v in samples)).tobytes()
+
+
+class FakeAudio:
+    """stands in for parec: a tone, 10 ms a block, until closed"""
+
+    def __init__(self, hz=60, blocks=None):
+        self.hz = hz
+        self.blocks = blocks   # None = forever
+        self.closed = threading.Event()
+        self.n = 0
+
+    def read(self, n):
+        if self.closed.wait(0.01) or (self.blocks is not None and self.n >= self.blocks):
+            return b""
+        self.n += 1
+        # louder and softer so the levels change
+        return raw(tone(self.hz, 0.6 if self.n % 2 else 0.1, n // 2, self.n * n))
+
+    def close(self):
+        self.closed.set()
+
+
+def wait_for(cond, timeout=2):
+    end = time.time() + timeout
+    while time.time() < end:
+        if cond():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+class Equalizer(unittest.TestCase):
+    def feed(self, b, hz, amp=0.5, blocks=6):
+        lv = None
+        for k in range(blocks):
+            lv = b.levels(tone(hz, amp, start=k * tc.EQ_BLOCK))
+        return lv
+
+    def test_bands_numpy(self):
+        try:
+            import numpy  # noqa: F401
+        except ImportError:
+            self.skipTest("no numpy")
+        low = self.feed(tc.Bands(True), 60)
+        self.assertEqual(low.index(max(low)), 0)
+        high = self.feed(tc.Bands(True), 3500)
+        self.assertEqual(high.index(max(high)), 7)
+        mid = self.feed(tc.Bands(True), 500)
+        self.assertEqual(mid.index(max(mid)), 3)
+        self.assertTrue(all(0 <= v <= 9 for v in low + high + mid))
+
+    def test_bands_without_numpy(self):
+        low = self.feed(tc.Bands(False), 60)
+        high = self.feed(tc.Bands(False), 3500)
+        self.assertLess(low.index(max(low)), 3)
+        self.assertGreater(high.index(max(high)), 4)
+
+    def test_silence_is_empty(self):
+        for np_ in (True, False):
+            try:
+                b = tc.Bands(np_)
+                self.assertEqual(self.feed(b, 60, amp=0), [0] * 8)
+            except ImportError:
+                pass
+
+    def test_auto_gain(self):
+        b = tc.Bands(False)
+        loud = self.feed(b, 300, 0.8, blocks=10)
+        right_after = b.levels(tone(300, 0.03))
+        self.assertLess(max(right_after), max(loud))
+        # 20 s of the quiet song: the gain comes back and the bars fill again
+        later = self.feed(b, 300, 0.03, blocks=250)
+        self.assertGreaterEqual(max(later), max(loud) - 1)
+        self.assertGreater(max(later), max(right_after))
+
+    def test_samples(self):
+        self.assertEqual(tc.to_samples(raw([0, 0.5, -0.5]) + b"\x01"),
+                         [0.0, 16383 / 32768, -16383 / 32768])
+
+    def test_rate_limit_and_changes_only(self):
+        out = []
+        e = tc.Eq(out.append, lambda: None)
+        e.on = True
+        self.assertTrue(e.send([1, 2, 3, 4, 5, 6, 7, 8], now=100.0))
+        self.assertFalse(e.send([2, 2, 3, 4, 5, 6, 7, 8], now=100.03))   # too soon
+        self.assertTrue(e.send([2, 2, 3, 4, 5, 6, 7, 8], now=100.1))
+        self.assertFalse(e.send([2, 2, 3, 4, 5, 6, 7, 8], now=100.5))   # same as before
+        self.assertEqual(out, ["eq 12345678", "eq 22345678"])
+        e.on = False
+        self.assertFalse(e.send([0] * 8, now=200.0))
+
+    def test_follows_the_music(self):
+        out = []
+        lock = threading.Lock()
+
+        def put(line):
+            with lock:
+                out.append(line)
+        audio = FakeAudio()
+        e = tc.Eq(put, lambda: audio)
+        m = tc.Music(put, lambda: self.now, e)
+        self.now = ""
+        m.poll(now=1000)
+        self.assertFalse(e.on)
+        self.now = player("Playing", "A", "B")
+        m.poll(now=1002)
+        self.assertTrue(wait_for(lambda: len(out) >= 3))
+        self.assertEqual(out[0], "music 1 A - B")
+        self.assertTrue(all(l.startswith("eq ") and len(l) == 11 for l in out[1:]))
+        self.now = ""
+        m.poll(now=1010)
+        self.assertTrue(audio.closed.is_set())
+        time.sleep(0.1)
+        with lock:
+            self.assertEqual(out[-1], "music 0")
+        self.assertFalse(e.on)
+
+    def test_env_switch(self):
+        calls = []
+        os.environ["TINYCLAWD_NO_EQ"] = "1"
+        try:
+            e = tc.Eq(lambda l: None, lambda: calls.append(1))
+        finally:
+            del os.environ["TINYCLAWD_NO_EQ"]
+        e.start()
+        self.assertEqual((calls, e.on), ([], False))
+
+    def test_missing_tools(self):
+        self.assertIsNone(tc.parec_cmd(lambda name: None))
+        self.assertEqual(tc.parec_cmd(lambda name: "/usr/bin/parec")[:3],
+                         ["parec", "-d", "@DEFAULT_MONITOR@"])
+        calls = []
+        out = []
+        e = tc.Eq(out.append, lambda: calls.append(1))   # no capture tool
+        e.start()
+        e.start()
+        self.assertEqual((calls, e.on, e.off, out), ([1], False, True, []))
+
+    def test_capture_ends(self):
+        out = []
+        e = tc.Eq(out.append, lambda: FakeAudio(blocks=3))
+        e.start()
+        self.assertTrue(wait_for(lambda: not e.on))
+        e.start()   # next song tries again
+        self.assertTrue(wait_for(lambda: not e.on))
+
+
 class FakePort(unittest.TestCase):
     """daemon talking to a pty pair instead of the pet"""
 

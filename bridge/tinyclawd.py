@@ -608,15 +608,214 @@ def music_line(text):
     return None
 
 
+# ---------------------------------------------------------------- equalizer
+#
+# privacy: while music plays we listen to what the laptop itself plays (the default
+# output's monitor) at 8 kHz mono and turn it into 8 band levels right here. the sound
+# is never written to disk, never kept past the next 128 ms and never sent anywhere.
+# only the 8 digits of `eq 13579753` go to the pet. TINYCLAWD_NO_EQ=1 turns it off.
+
+EQ_RATE = 8000
+EQ_BLOCK = 640      # 80 ms of samples per update
+EQ_WINDOW = 1024    # fft size, a bit longer for the bass
+# band edges in Hz, bass first. roughly octaves, the top is what 8 kHz can hold
+EQ_EDGES = (40, 100, 200, 400, 700, 1200, 2000, 3000, 4000)
+
+
+def eq_disabled():
+    return os.environ.get("TINYCLAWD_NO_EQ", "") not in ("", "0")
+
+
+def parec_cmd(which=None):
+    """the capture command, or None when parec is missing"""
+    import shutil
+    if not (which or shutil.which)("parec"):
+        return None
+    return ["parec", "-d", "@DEFAULT_MONITOR@", "--format=s16le", "--rate=%d" % EQ_RATE,
+            "--channels=1", "--raw", "--latency-msec=40"]
+
+
+class Capture:
+    """parec as a pipe. read() gives raw s16 bytes, b'' when it ended"""
+
+    def __init__(self, cmd):
+        self.p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+    def read(self, n):
+        return self.p.stdout.read(n)
+
+    def close(self):
+        try:
+            self.p.kill()
+            self.p.wait(timeout=1)
+        except Exception:
+            pass
+
+
+def to_samples(raw):
+    """s16le bytes -> list of floats -1..1"""
+    import array
+    a = array.array("h")
+    a.frombytes(raw[:len(raw) // 2 * 2])
+    if sys.byteorder != "little":
+        a.byteswap()
+    return [v / 32768.0 for v in a]
+
+
+class Bands:
+    """samples -> 8 levels 0..9, with a slow auto gain so quiet and loud songs both fill the bars"""
+
+    RANGE = 27.0    # dB from an empty bar to a full one, 3 dB a step
+    FLOOR = -62.0   # the gain never goes below this, so silence stays at 0
+    DECAY = 2.0     # dB per second the gain comes back up after a loud part
+    TILT = 2.5      # dB per band, highs carry less energy than bass
+    PUNCH = 2.5     # how much a band jumps over its own recent average (kicks, hats)
+    HEAD = 6.0      # dB the loudest band sits under full, room for the jumps
+
+    def __init__(self, use_numpy=None):
+        if use_numpy is None:
+            try:
+                import numpy  # noqa: F401
+                use_numpy = True
+            except ImportError:
+                use_numpy = False
+        self.numpy = use_numpy
+        self.ref = self.FLOOR + self.RANGE   # loudest band seen lately, in dB
+        self.avg = None   # each band's recent average, dB
+        self.buf = []
+
+    def power_numpy(self, x):
+        import numpy as np
+        a = np.asarray(x, dtype=np.float32)
+        a = a * np.hanning(len(a))
+        spec = np.abs(np.fft.rfft(a)) ** 2 / (len(a) ** 2)
+        freqs = np.fft.rfftfreq(len(a), 1.0 / EQ_RATE)
+        out = []
+        for lo, hi in zip(EQ_EDGES, EQ_EDGES[1:]):
+            out.append(float(spec[(freqs >= lo) & (freqs < hi)].sum()))
+        return out
+
+    def power_plain(self, x):
+        # no numpy: loudness from the rms, brightness from how often the wave crosses
+        # zero. a hump of bars sits where the sound is. not a real spectrum, but it moves
+        n = len(x) or 1
+        rms = sum(v * v for v in x) / n
+        cross = sum(1 for a, b in zip(x, x[1:]) if (a < 0) != (b < 0))
+        hz = cross * EQ_RATE / (2.0 * n)
+        centre = 0
+        while centre < 7 and EQ_EDGES[centre + 1] < hz:
+            centre += 1
+        return [rms * 0.25 / (1 + abs(i - centre)) ** 2 for i in range(8)]
+
+    def levels(self, x, dt=0.08):
+        """one block of samples -> list of 8 ints 0..9"""
+        import math
+        self.buf = (self.buf + list(x))[-EQ_WINDOW:]
+        p = self.power_numpy(self.buf) if self.numpy else self.power_plain(self.buf)
+        db = [10 * math.log10(v + 1e-12) + self.TILT * i for i, v in enumerate(p)]
+        # a band only moves a few dB on a beat, so make the jumps bigger
+        if self.avg is None:
+            self.avg = db
+        k = min(1.0, dt / 0.5)
+        self.avg = [a + (d - a) * k for a, d in zip(self.avg, db)]
+        top = max(db)
+        db = [d + self.PUNCH * (d - a) for d, a in zip(db, self.avg)]
+        # jumps up to a loud part at once, comes back down slowly
+        self.ref = max(self.ref - self.DECAY * dt, top, self.FLOOR + self.RANGE)
+        lo = self.ref - self.RANGE + self.HEAD
+        out = []
+        for d in db:
+            v = int(round((d - lo) / self.RANGE * 9))
+            out.append(min(9, max(0, v)))
+        return out
+
+
+class Eq:
+    """while music plays: capture, analyse, send 'eq 13579753' at most 12 times a second"""
+
+    MIN_GAP = 1 / 12.0
+
+    def __init__(self, out, source=None, bands=None):
+        self.out = out   # function(line)
+        # source() -> object with read(n) and close(), or None when there is no capture tool
+        self.source = source or self.default_source
+        self.bands = bands
+        self.lock = threading.Lock()
+        self.cap = None
+        self.on = False
+        self.off = eq_disabled()
+        self.last_line = None
+        self.last_sent = 0.0
+        self.thread = None
+
+    @staticmethod
+    def default_source():
+        cmd = parec_cmd()
+        return Capture(cmd) if cmd else None
+
+    def start(self):
+        if self.off or self.on:
+            return
+        cap = self.source()
+        if cap is None:
+            log("parec not found, no equalizer (the pet fakes the bars)")
+            self.off = True
+            return
+        if self.bands is None:
+            self.bands = Bands()
+            log("equalizer on,", "numpy fft" if self.bands.numpy else "simple levels (no numpy)")
+        with self.lock:
+            self.cap = cap
+            self.on = True
+            self.last_line = None
+        self.thread = threading.Thread(target=self.run, args=(cap,), daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        with self.lock:
+            self.on = False
+            cap, self.cap = self.cap, None
+        if cap:
+            cap.close()
+
+    def send(self, levels, now=None):
+        """sends the levels if they changed and the last line is old enough"""
+        now = time.time() if now is None else now
+        line = "eq " + "".join(str(v) for v in levels)
+        with self.lock:
+            if not self.on or line == self.last_line or now - self.last_sent < self.MIN_GAP:
+                return False
+            self.last_line = line
+            self.last_sent = now
+            self.out(line)
+            return True
+
+    def run(self, cap):
+        while True:
+            try:
+                raw = cap.read(EQ_BLOCK * 2)
+            except Exception:
+                raw = b""
+            with self.lock:
+                if cap is not self.cap:
+                    return   # stopped
+            if not raw:
+                log("audio capture ended, no equalizer until the next song")
+                self.stop()
+                return
+            self.send(self.bands.levels(to_samples(raw)))
+
+
 class Music:
     """polls playerctl, sends music 1 on start / track change, music 0 after 5 s of silence"""
 
     EVERY = 2
     OFF_AFTER = 5   # pauses and skips are shorter than this, no flicker
 
-    def __init__(self, out, run=playerctl):
+    def __init__(self, out, run=playerctl, eq=None):
         self.out = out   # function(line)
         self.run = run   # function() -> playerctl output
+        self.eq = eq     # Eq, started and stopped with the music
         self.line = None   # what the pet shows now, None = no music
         self.last_play = 0.0
         self.off = False
@@ -637,8 +836,12 @@ class Music:
             if line != self.line:
                 self.line = line
                 self.out(line)
+                if self.eq:
+                    self.eq.start()
         elif self.line and now - self.last_play >= self.OFF_AFTER:
             self.line = None
+            if self.eq:
+                self.eq.stop()   # before music 0, so no eq line comes after it
             self.out("music 0")
 
     def loop(self):
@@ -774,11 +977,12 @@ DEVICE_PREFIXES = ("ok", "err", "touch", "boot")
 
 class Daemon:
     def __init__(self, port=None, stdout=False, path=None, player=playerctl, keys=xinput_keys,
-                 no_keys=False):
+                 no_keys=False, audio=None):
         self.path = path or sock_path()
         self.link = Link(port, stdout, self.on_connect, self.on_device)
         self.state = State(self.link.send)
-        self.music = Music(self.link.send, player)
+        self.eq = Eq(self.link.send, audio)
+        self.music = Music(self.link.send, player, self.eq)
         self.keys = Keys(self.link.send, keys)
         self.keys.off = no_keys
         self.last_time = 0.0
@@ -887,6 +1091,7 @@ class Daemon:
             self.link.stop = True
             self.music.stop = True
             self.keys.stop = True
+            self.eq.stop()
             srv.close()
             try:
                 os.unlink(self.path)
