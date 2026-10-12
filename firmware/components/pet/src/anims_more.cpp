@@ -350,9 +350,89 @@ static void a_juggle(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// ---------------------------------------------------------------- bug squash
+
+static const char* const BUG[2][6] = {
+    {".......#.#", "...####.#.", "..#######.", ".########.", ".#######..", "#.#.#.#..."},
+    {".......#.#", "...####.#.", "..#######.", ".########.", ".#######..", ".#.#.#.#.."},
+};
+
+static void a_bug_squash(Canvas& c, uint32_t t, const Ctx& x) {
+    Side s{(x.seed & 32) != 0};
+    bool miss = x.seed & 64;
+    const int GY = 59, CY = 39;
+    c.hline(0, 127, GY);
+    // bug: crawls in, stops, and on a miss dashes under Clawd
+    const Key bk[] = {{0, -12}, {1700, 28}};
+    float bug = KEYS(bk, t);
+    uint32_t squash = miss ? 3300 : 2250;
+    if (miss && t >= 1950) bug = lerp(28, 62, ease(seg(t, 1950, 2250)));
+    // clawd jumps from cx0 to land on the bug
+    float cx = 76, cy = CY;
+    float t1 = 28 + 5 - 18, t2 = 62 + 5 - 18;
+    if (t >= 1750) {
+        float u = seg(t, 1750, 2250);
+        cx = lerp(76, t1, ease(u));
+        cy = CY - 16 * sinf(PI * u);
+    }
+    if (miss && t >= 2850) {
+        float u = seg(t, 2850, 3300);
+        cx = lerp(t1, t2, ease(u));
+        cy = CY - 12 * sinf(PI * u);
+    }
+    bool flat = t >= squash;
+    Pose p = pose(s.look(false));
+    if (t >= 1750 && !flat) p = pose(EYES_OPEN, ARMS_UP, FEET_NONE);
+    if (miss && t >= 2250 && t < 2850) p = pose((t / 250) % 2 ? EYES_LEFT : EYES_RIGHT);
+    if (miss && t >= 2650 && t < 2850) p = pose(s.look(true));
+    int shake = 0;
+    if (flat) {
+        uint32_t q = t - squash;
+        shake = q < 160 ? ((q / 40) % 2 ? 1 : -1) : 0;
+        p = pose(q < 500 ? EYES_CLOSED : EYES_OPEN, q >= 500 && q < 1700 ? ARMS_UP : ARMS_DOWN);
+        if (q >= 500 && q < 1700) cy -= iround(hop(q - 500, 4));
+        if (q >= 1500) {   // steps back to show the smear
+            float u = seg(q, 1500, 2000);
+            cx += 22 * ease(u);
+            if (u < 1) p.feet = (q / 90) % 2 ? FEET_LEFT : FEET_RIGHT;
+            p.eyes = s.look(false);
+        }
+    }
+    clawd(c, s.box(iround(cx), SPRITE_W) + shake, iround(cy), p);
+    if (!flat) {
+        art(c, s.box(iround(bug), 10), GY - 6, BUG[(t / 120) % 2], 6, s.m);
+    } else {
+        // squashed flat under him, dust puffs out both sides
+        uint32_t q = t - squash;
+        float b = miss ? 62 : 28;
+        if (q < 450) {
+            float d = 4 + 14 * ease_out(q / 450.0f);
+            for (int k = -1; k <= 1; k += 2) {
+                int dx = s.px(iround(b + 5 + k * (d + 12)));
+                c.fill_rect(dx - 1, GY - 3 - iround(q / 150.0f), dx, GY - 2 - iround(q / 150.0f));
+                c.px(dx + k * 3, GY - 5);
+            }
+        }
+        if (q >= 600 && q < 1900) {
+            static const char* const WORDS[] = {"FIXED!", "SQUASH!", "PASS", "GOT IT"};
+            c.text_center(s.px(64), 4, WORDS[hash32(x.seed + 9) % 4], font_bold12);
+        }
+        if (q >= 1500) {   // the bug is a flat little smear
+            int bx = s.box(iround(b) - 1, 12);
+            c.hline(bx, bx + 11, GY - 1);
+            c.px(bx + 2, GY - 2);
+            c.px(bx + 6, GY - 2);
+            c.px(bx + 9, GY - 2);
+        }
+    }
+    if (t >= 900 && t < 1600 && (t / 120) % 4) c.text(s.box(iround(cx) + 16, 4), CY - 18, "!", font_bold16);
+    if (miss && t >= 2300 && t < 2700) c.text(s.box(iround(cx) + 15, 6), CY - 14, "?", font_6x10);
+}
+
 static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
 static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
 static const Anim A_STRETCH = {"stretch", a_stretch, 4400, CALM};
 static const Anim A_JUGGLE = {"juggle", a_juggle, 7000, SCENE};
+static const Anim A_BUG = {"bug_squash", a_bug_squash, 5800, SCENE};
 
-ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE);
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG);
