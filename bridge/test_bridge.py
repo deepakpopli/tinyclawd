@@ -198,6 +198,87 @@ class SessionState(unittest.TestCase):
         self.assertEqual(self.out, ["ev sub 1", "ev sub 0"])
 
 
+def player(status, artist, title, name="spotify"):
+    return "%s\t%s\t%s\t%s\n" % (status, name, artist, title)
+
+
+class MusicWatch(unittest.TestCase):
+    def setUp(self):
+        self.out = []
+        self.now = ""   # what playerctl prints right now
+        self.m = tc.Music(self.out.append, lambda: self.now)
+
+    def at(self, t, text):
+        self.now = text
+        self.m.poll(now=1000 + t)
+
+    def test_start_and_track_change(self):
+        self.at(0, player("Playing", "Daft Punk", "One More Time"))
+        self.at(2, player("Playing", "Daft Punk", "One More Time"))
+        self.at(4, player("Playing", "Daft Punk", "Aerodynamic"))
+        self.assertEqual(self.out, ["music 1 Daft Punk - One More Time",
+                                    "music 1 Daft Punk - Aerodynamic"])
+
+    def test_short_pause_no_flicker(self):
+        self.at(0, player("Playing", "A", "B"))
+        self.at(2, player("Paused", "A", "B"))
+        self.at(4, player("Paused", "A", "B"))
+        self.at(6, player("Playing", "A", "B"))
+        self.assertEqual(self.out, ["music 1 A - B"])
+
+    def test_stop_after_5s(self):
+        self.at(0, player("Playing", "A", "B"))
+        self.at(2, player("Paused", "A", "B"))
+        self.at(4, "")
+        self.assertEqual(self.out, ["music 1 A - B"])
+        self.at(6, "")
+        self.assertEqual(self.out, ["music 1 A - B", "music 0"])
+        self.at(8, "")
+        self.assertEqual(len(self.out), 2)
+        self.at(10, player("Playing", "A", "B"))
+        self.assertEqual(self.out[-1], "music 1 A - B")
+
+    def test_first_playing_player_wins(self):
+        text = player("Paused", "X", "Y", "chromium") + player("Playing", "", "a video", "firefox")
+        self.at(0, text)
+        self.assertEqual(self.out, ["music 1 a video"])
+
+    def test_weird_titles(self):
+        self.assertEqual(tc.music_line(player("Playing", "Sigur Rós", "Hoppípolla")),
+                         "music 1 Sigur Rs - Hopppolla")
+        self.assertEqual(tc.music_line(player("Playing", "", "  lo\x07fi \U0001f3b5  beats\x1b ")),
+                         "music 1 lofi beats")
+        self.assertEqual(tc.music_line(player("Playing", "山下", "曲")), "music 1")
+        self.assertEqual(tc.music_line(player("Playing", "a", "b\tc")), "music 1 a - bc")
+        long = tc.music_line(player("Playing", "x" * 40, "y" * 40))
+        self.assertEqual(long, "music 1 " + "x" * 40 + " - yyyyy")
+        self.assertIsNone(tc.music_line("garbage\n\n"))
+
+    def test_no_players(self):
+        self.at(0, "")
+        self.at(10, "")
+        self.assertEqual(self.out, [])
+        self.assertIsNone(tc.music_line(None))
+
+    def test_missing_playerctl(self):
+        calls = []
+        m = tc.Music(self.out.append, lambda: calls.append(1))   # returns None
+        m.poll()
+        m.poll()
+        m.loop()   # returns right away
+        self.assertEqual((self.out, len(calls), m.off), ([], 1, True))
+
+    def test_resent_on_connect(self):
+        d = tc.Daemon(stdout=True, path="/tmp/tinyclawd-test-unused.sock", player=lambda: "")
+        sent = []
+        d.link.send = sent.append
+        d.on_connect()
+        self.assertNotIn("music 1 A - B", sent)
+        d.music.line = "music 1 A - B"
+        d.on_connect()
+        self.assertEqual(sent[-1], "music 1 A - B")
+
+
 class FakePort(unittest.TestCase):
     """daemon talking to a pty pair instead of the pet"""
 
@@ -211,7 +292,7 @@ class FakePort(unittest.TestCase):
         self.slave = slave
         self.sock = os.path.join(tempfile.mkdtemp(), "t.sock")
         self.stop = threading.Event()
-        self.d = tc.Daemon(port=self.slave_name, path=self.sock)
+        self.d = tc.Daemon(port=self.slave_name, path=self.sock, player=lambda: "")
         self.t = threading.Thread(target=self.d.run, args=(self.stop,), daemon=True)
         self.t.start()
         self.buf = b""
