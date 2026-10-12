@@ -429,10 +429,102 @@ static void a_bug_squash(Canvas& c, uint32_t t, const Ctx& x) {
     if (miss && t >= 2300 && t < 2700) c.text(s.box(iround(cx) + 15, 6), CY - 14, "?", font_6x10);
 }
 
+// ---------------------------------------------------------------- git branch
+
+// polyline drawn up to length len (segments are flat or steep, length = longest side)
+static void grow(Canvas& c, const int* p, int n, float len, float& tx, float& ty) {
+    tx = p[0];
+    ty = p[1];
+    for (int i = 1; i < n && len > 0; i++) {
+        float dx = p[2 * i] - p[2 * i - 2], dy = p[2 * i + 1] - p[2 * i - 1];
+        float l = fmaxf(fabsf(dx), fabsf(dy));
+        float f = len >= l ? 1 : len / l;
+        tx = p[2 * i - 2] + dx * f;
+        ty = p[2 * i - 1] + dy * f;
+        c.line(p[2 * i - 2], p[2 * i - 1], tx, ty);
+        len -= l;
+    }
+}
+
+// a commit dot that pops in with a little overshoot
+static void commit(Canvas& c, int x, int y, uint32_t t, uint32_t at) {
+    if (t < at) return;
+    float r = t < at + 120 ? 3 : 2;
+    c.fill_circle(x, y, r);
+}
+
+static const char* const BRANCH[] = {"fix", "feat", "wip", "bugfix", "try"};
+
+static void a_git_branch(Canvas& c, uint32_t t, const Ctx& x) {
+    uint32_t h = hash32(x.seed + 31);
+    const int MY = 30, BY = 10, B0 = 22, M = 92;
+    int nb = 2 + h % 3;           // commits on the branch
+    bool main_commit = h & 8;     // someone else committed to main meanwhile
+    const int br[] = {B0, MY, B0 + 10, BY, M - 10, BY, M, MY};
+    const uint32_t B_AT = 700, B_END = 2700;   // branch grows
+    const float B_LEN = 20 + (M - B0 - 20) + 20;
+    // main: to the branch point, slowly to the merge, then on
+    float mlen;
+    if (t < B_AT) mlen = (B0 - 4) * ease(seg(t, 150, B_AT));
+    else if (t < B_END) mlen = (B0 - 4) + (M - B0) * seg(t, 900, B_END - 150);
+    else mlen = (M - 4) + 28 * ease_out(seg(t, 2950, 3500));
+    const int mn[] = {4, MY, 124, MY};
+    float mx, my, bx, by;
+    grow(c, mn, 2, mlen, mx, my);
+    float blen = B_LEN * seg(t, B_AT, B_END);
+    grow(c, br, 4, blen, bx, by);
+    // commits on main
+    commit(c, 8, MY, t, 200);
+    commit(c, B0, MY, t, B_AT - 100);
+    if (main_commit) commit(c, 56, MY, t, 900 + (uint32_t)((56 - B0) / (float)(M - B0) * (B_END - 1050)));
+    // commits on the branch
+    for (int i = 0; i < nb; i++) {
+        int cx = B0 + 18 + i * (M - B0 - 36) / (nb > 1 ? nb - 1 : 1);
+        float at_len = 20 + (cx - B0 - 10);
+        commit(c, cx, BY, t, B_AT + (uint32_t)(at_len / B_LEN * (B_END - B_AT)));
+    }
+    // merge: a hollow dot that pops
+    if (t >= B_END) {
+        uint32_t q = t - B_END;
+        int r = q < 150 ? 4 : 3;
+        c.fill_circle(M, MY, r);
+        c.fill_circle(M, MY, r - 1.5f, false);
+        if (q < 350) {
+            int d = 5 + iround(8 * ease_out(q / 350.0f));
+            for (int k = -1; k <= 1; k += 2) {
+                c.px(M + k * d, MY);
+                c.px(M, MY + k * d);
+                c.px(M + k * (d - 2), MY + k * (d - 2));
+                c.px(M + k * (d - 2), MY - k * (d - 2));
+            }
+        }
+    }
+    if (t >= 3500) commit(c, 122, MY, t, 3500);
+    c.text(4, MY + 4, "main", font_4x6);
+    if (t >= B_AT + 300) c.text(B0 + 12, BY - 8, BRANCH[(h >> 4) % 5], font_4x6);
+    // clawd watching the tip, then a happy hop
+    float tip = t >= B_AT && t < B_END ? bx : mx;
+    Pose p = pose(tip < 48 ? EYES_LEFT : (tip > 74 ? EYES_RIGHT : EYES_OPEN));
+    int y = 39;
+    if (t >= B_END + 50 && t < B_END + 1250) {
+        p = pose(EYES_CLOSED, ARMS_UP);
+        y -= iround(hop(t - B_END - 50, 5));
+    }
+    clawd(c, 28, y, p);
+    if (t >= B_END + 300) {
+        c.text(80, 42, "merged", font_5x7);
+        char hash[8];
+        for (int i = 0; i < 7; i++) hash[i] = "0123456789abcdef"[(hash32(x.seed * 7 + i) >> 3) & 15];
+        hash[7] = 0;
+        if (t >= B_END + 600) c.text(84, 52, hash, font_4x6);
+    }
+}
+
 static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
 static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
 static const Anim A_STRETCH = {"stretch", a_stretch, 4400, CALM};
 static const Anim A_JUGGLE = {"juggle", a_juggle, 7000, SCENE};
 static const Anim A_BUG = {"bug_squash", a_bug_squash, 5800, SCENE};
+static const Anim A_GIT = {"git_branch", a_git_branch, 5200, SCENE};
 
-ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG);
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE, &A_BUG, &A_GIT);
