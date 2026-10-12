@@ -34,6 +34,9 @@ static const uint32_t TAP_WINDOW = 4000;
 static const uint32_t TYPING_STALE_MS = 12000;   // the laptop resends every 5 s while you type
 static const uint32_t BREAK_MIN_MS = 25000;      // a little break while claude works, every 25-45 s
 static const uint32_t BREAK_MAX_MS = 45000;
+static const uint32_t SONG_MIN_MS = 30000;       // music on while claude works: the equalizer
+static const uint32_t SONG_MAX_MS = 50000;       // every 30-50 s, for 6 s
+static const uint32_t SONG_MS = 6000;
 
 // -------------------------------------------------------------------- pools
 
@@ -234,6 +237,8 @@ struct Brain::Impl {
     int typing = 0;                // you type on the laptop, keys per second
     uint32_t next_break = 0;       // next little break while claude works, 0 = not working
     bool on_break = false;         // cur is such a break, a new tool waits for it to end
+    uint32_t next_song = 0;        // next equalizer break while claude works and music plays
+    uint32_t until = 0;            // a one-shot that ends early, 0 = when the animation ends
     uint32_t typing_at = 0;        // last typing line
     Canvas a, b;   // scratch for transitions
 
@@ -349,6 +354,7 @@ struct Brain::Impl {
         fill_ctx(cur.ctx);
         oneshot = is_oneshot;
         on_break = false;
+        until = 0;
         mark(an, now);
     }
 
@@ -565,7 +571,7 @@ struct Brain::Impl {
         }
 
         // one-shot finished: next in the queue, or back to the base
-        if (oneshot && cur_finished(now)) {
+        if (oneshot && (cur_finished(now) || (until && now >= until))) {
             if (qn) next_from_queue(now);
             else {
                 oneshot = false;
@@ -642,11 +648,24 @@ struct Brain::Impl {
     // a long stretch of work gets a little break now and then
     void work_breaks(uint32_t now) {
         if (!working()) {
-            next_break = 0;
+            next_break = next_song = 0;
             return;
         }
         if (!next_break) next_break = now + span(BREAK_MIN_MS, BREAK_MAX_MS);
-        if (oneshot || now < next_break) return;
+        if (!music) next_song = 0;
+        else if (!next_song) next_song = now + span(8000, 15000);   // first one soon
+        if (oneshot) return;
+        if (next_song && now >= next_song) {
+            // listening along for a moment, then back to work
+            next_song = now + span(SONG_MIN_MS, SONG_MAX_MS);
+            if (next_break < now + 12000) next_break = now + 12000;
+            show(find_anim("equalizer"), now, true);
+            on_break = true;
+            until = now + SONG_MS;
+            return;
+        }
+        if (now < next_break) return;
+        if (next_song && next_song < now + 12000) next_song = now + 12000;
         next_break = now + span(BREAK_MIN_MS, BREAK_MAX_MS);
         const char* name = pick(POOL(WORK_BREAK), now);
         if (!name) return;
@@ -706,6 +725,20 @@ struct Brain::Impl {
         int n = sessions > 4 ? 4 : sessions;
         c.fill_rect(127 - n * 5, 0, 127, 5, false);
         for (int i = 0; i < n; i++) c.fill_rect(124 - i * 5, 1, 126 - i * 5, 3);
+    }
+
+    // a note in the top left corner while music plays and claude works
+    void music_sign(Canvas& c, uint32_t now) {
+        if (!music || (mode != THINK_M && mode != TOOL_M)) return;
+        if (cur.a && !strcmp(cur.a->name, "equalizer")) return;
+        int y = (now / 500) & 1;   // bobs along
+        c.fill_rect(0, 0, 9, 11, false);
+        c.fill_rect(1, 7 + y, 3, 9 + y);   // head
+        c.vline(4, 1 + y, 9 + y);          // stem
+        c.px(5, 2 + y);                    // flag
+        c.px(6, 3 + y);
+        c.px(7, 4 + y);
+        c.px(7, 5 + y);
     }
 
     void render_and_remember(Canvas& out, uint32_t now) {
@@ -980,6 +1013,7 @@ void Brain::render(Canvas& c, uint32_t now) {
     else {
         p->render_and_remember(c, now);
         p->session_dots(c);
+        p->music_sign(c, now);
     }
     menu::ring(c, now);
 }
