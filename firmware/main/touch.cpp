@@ -4,11 +4,15 @@
 #include "esp_timer.h"
 #include "freertos/task.h"
 
+#include "link.h"
+
 static const gpio_num_t PIN = GPIO_NUM_1;  // high while touched
 static const uint32_t POLL_MS = 10;
 static const uint32_t DEBOUNCE_MS = 30;
-static const uint32_t DOUBLE_MS = 280;      // gap allowed between two taps
-static const uint32_t LONG_MS = 700;
+// tunable over serial (hw double / hw long), plain words so the reads are atomic
+static volatile uint32_t s_double_ms = 280;   // gap allowed between two taps
+static volatile uint32_t s_long_ms = 700;
+static volatile bool s_raw_log = false;
 
 static QueueHandle_t s_q;
 
@@ -35,6 +39,7 @@ static void touch_task(void*) {
         if (raw != raw_last) {
             raw_last = raw;
             changed = now;
+            if (s_raw_log) usblink::send(raw ? "raw 1" : "raw 0");
         }
 
         if (raw != down && now - changed >= DEBOUNCE_MS) {
@@ -53,7 +58,7 @@ static void touch_task(void*) {
             }
         }
 
-        if (down && !long_sent && now - pressed_at >= LONG_MS) {
+        if (down && !long_sent && now - pressed_at >= s_long_ms) {
             long_sent = true;
             tap_waiting = false;  // tap then long press counts as just the long press
             emit(TOUCH_LONG);
@@ -61,7 +66,7 @@ static void touch_task(void*) {
 
         // single tap only once the double tap window is over.
         // raw high means a second touch is starting, give it time to debounce.
-        if (tap_waiting && !down && !raw && now - released_at > DOUBLE_MS) {
+        if (tap_waiting && !down && !raw && now - released_at > s_double_ms) {
             tap_waiting = false;
             emit(TOUCH_TAP);
         }
@@ -79,6 +84,13 @@ void touch::start(QueueHandle_t events) {
     gpio_config(&cfg);
     xTaskCreate(touch_task, "touch", 2048, nullptr, 6, nullptr);
 }
+
+void touch::set_times(uint32_t double_ms, uint32_t long_ms) {
+    s_double_ms = double_ms;
+    s_long_ms = long_ms;
+}
+
+void touch::set_raw_log(bool on) { s_raw_log = on; }
 
 const char* touch::name(Touch t) {
     switch (t) {
