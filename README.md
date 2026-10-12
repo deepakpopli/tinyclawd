@@ -18,30 +18,34 @@ fan-made project, not affiliated with Anthropic.
 | Bash | terminal |
 | web search / fetch | spinning globe |
 | subagents | a squad of mini Clawds passing a ball |
-| permission or question | surprised, then the screen flashes until you answer |
-| test passed | goal, header, bicycle kick |
+| permission or question | surprised, then the screen flashes with the project name until you answer |
+| tool error | surprised, or explaining the bug to a rubber duck |
+| test passed | goal, header, bicycle kick, a squashed bug |
 | test failed | yellow card, then red card |
-| commit | party, knee slide, trophy |
+| commit | a branch merging, party, knee slide, trophy |
 | context compacted | squish |
 | done | small win for short tasks, goal or trophy for long ones |
 | usage running low | tired, stoppage time, limit hit |
-| nothing going on | looks around, music, football, naps and dreams |
+| music playing (spotify, youtube...) | now playing with the song name, vibing, headbanging |
+| nothing going on | looks around, coffee, juggling, football, naps and dreams |
 | touch the head | petted, giggle, usage screen, love |
 
 ## animations
 
-71 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
+87 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
 uses the same block art as the Claude Code banner. these gifs come straight from the firmware
 running in the desktop sim.
 
 | | | |
 |---|---|---|
 | <img src="docs/gifs/thinking.gif"> thinking | <img src="docs/gifs/reading.gif"> reading (Read) | <img src="docs/gifs/typing.gif"> typing (Edit) |
-| <img src="docs/gifs/terminal.gif"> terminal (Bash) | <img src="docs/gifs/web.gif"> web search | <img src="docs/gifs/needs_you.gif"> needs you |
-| <img src="docs/gifs/subagents.gif"> subagents squad | <img src="docs/gifs/goal.gif"> goal | <img src="docs/gifs/bicycle_kick.gif"> bicycle kick |
-| <img src="docs/gifs/trophy.gif"> trophy | <img src="docs/gifs/party.gif"> party | <img src="docs/gifs/usage.gif"> usage |
-| <img src="docs/gifs/context.gif"> context jar | <img src="docs/gifs/music.gif"> music | <img src="docs/gifs/dance.gif"> dance |
-| <img src="docs/gifs/dream.gif"> dream | <img src="docs/gifs/petted.gif"> petted | <img src="docs/gifs/keepy_uppy.gif"> keepy uppy |
+| <img src="docs/gifs/terminal.gif"> terminal (Bash) | <img src="docs/gifs/searching.gif"> code search (Grep) | <img src="docs/gifs/web.gif"> web search |
+| <img src="docs/gifs/needs_you.gif"> needs you | <img src="docs/gifs/subagents.gif"> subagents squad | <img src="docs/gifs/goal.gif"> goal |
+| <img src="docs/gifs/bicycle_kick.gif"> bicycle kick | <img src="docs/gifs/git_branch.gif"> commit | <img src="docs/gifs/bug_squash.gif"> test passed |
+| <img src="docs/gifs/rubber_duck.gif"> tool error | <img src="docs/gifs/context.gif"> context filling up | <img src="docs/gifs/usage.gif"> usage |
+| <img src="docs/gifs/now_playing.gif"> now playing | <img src="docs/gifs/music.gif"> music | <img src="docs/gifs/dance.gif"> dance |
+| <img src="docs/gifs/coffee.gif"> coffee | <img src="docs/gifs/juggle.gif"> juggling | <img src="docs/gifs/paper_plane.gif"> paper plane |
+| <img src="docs/gifs/dream.gif"> dream | <img src="docs/gifs/stargaze.gif"> stargazing | <img src="docs/gifs/petted.gif"> petted |
 
 the firmware versions are time based C++ in [`firmware/components/pet`](firmware/components/pet).
 the first designs were sketched in python: [`animations/`](animations).
@@ -59,10 +63,14 @@ and hold:
 - in the menu: tap = next, hold = open, double tap = back
 - in a game: press = jump / kick / allow, hold the full ring to leave
 
+they're meant to be easy, it's a desk toy. best scores stay after unplugging.
+
 | | |
 |---|---|
-| <img src="docs/gifs/game_run.gif"> bug run: jump over bugs and 429 walls | <img src="docs/gifs/game_keepy.gif"> keepy uppy: tap when the ball hits the head |
-| <img src="docs/gifs/game_penalty.gif"> penalties: aim, power, then you're in goal | <img src="docs/gifs/game_panic.gif"> permission panic: allow `npm test`, never `rm -rf /` |
+| <img src="docs/gifs/game_run.gif"> bug run: jump over bugs | <img src="docs/gifs/game_keepy.gif"> keepy uppy: tap when the ball lands |
+| <img src="docs/gifs/game_penalty.gif"> penalties: shoot, then you're in goal | <img src="docs/gifs/game_panic.gif"> permission panic: allow `npm test`, never `rm -rf /` |
+| <img src="docs/gifs/game_flappy.gif"> flappy clawd: wide gaps, take it easy | <img src="docs/gifs/game_catch.gif"> token catch: tap to turn around |
+| <img src="docs/gifs/game_whack.gif"> whack a bug: don't bonk your friend | |
 
 ## hardware
 
@@ -77,6 +85,20 @@ frame fits without changes. there is also a small Macintosh style version.
 
 print files are in [`hardware/print/`](hardware/print), each folder has a README with what to print.
 
+## set it up
+
+1. flash the board. easiest: download the `.bin` from the releases page, open
+   [espressif's web flasher](https://espressif.github.io/esptool-js/) in chrome, connect, pick the
+   file at address `0x0` and press program. or build it yourself, see [`firmware/`](firmware).
+2. on the laptop (linux, python 3 + pyserial):
+
+```bash
+python3 bridge/setup.py            # background service + claude code hooks + usage line
+python3 bridge/setup.py --remove   # undo it all
+```
+
+it backs up every file it touches. restart claude code after.
+
 ## how it works
 
 claude code hooks and the status line feed a small python daemon on the laptop
@@ -88,6 +110,13 @@ every tool has its own look: Read reads lines, Grep sweeps for matches, Edit typ
 runs a little terminal, web searches spin a globe, subagents become a squad of mini Clawds
 passing a ball. when claude needs you the whole screen flashes. when claude is done it
 celebrates, longer tasks get bigger celebrations (goal, trophy, bicycle kick).
+
+several claude code sessions share one Clawd. whoever needs you wins, then whoever is working.
+when one session finishes while another still works you get a small celebration and it goes
+back to work. little dots in the corner show how many sessions are busy.
+
+music playing on the laptop (anything that shows up in `playerctl`) puts it in music mode: the
+song name scrolls by and it vibes along until the music stops.
 
 when nothing is going on it does its own thing: looks around, peeks, listens to music, plays
 football, gets bored, yawns, naps and dreams. at night it falls asleep faster. poke it and it
@@ -108,12 +137,10 @@ python3 gif.py --scale 2 out/*.frames  # smaller gifs
 ## status
 
 - [x] body, stand and print files
-- [x] animation designs (71 in the firmware)
-- [x] firmware (esp-idf), builds, not tested on the board yet
-- [x] laptop bridge (claude code status line + hooks over usb)
-- [x] one button menu + 4 games
+- [x] firmware, running on the real board: 87 animations, music mode, 7 games
+- [x] laptop bridge: hooks, status line usage, music, several sessions
 - [ ] focus timer, clock, quiet mode
-- [ ] high scores kept after a reboot
+- [ ] Clawd in the browser
 
 ## build the hardware files
 
@@ -123,3 +150,10 @@ cd hardware && ./build.sh
 ```
 
 needs openscad 2025+ and the original Mochi STLs in `hardware/original/` (download from the link above).
+
+## license
+
+print files: CC BY-NC-SA 4.0, because the inner frame is Dave0616's Mochi housing
+(same license, credit above). so please don't sell printed ones.
+
+fan-made, not affiliated with Anthropic. Clawd belongs to them.
