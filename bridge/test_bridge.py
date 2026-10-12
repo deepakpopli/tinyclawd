@@ -48,6 +48,60 @@ class HookMapping(unittest.TestCase):
         self.assertEqual(tc.map_hook(hook("PreToolUse", tool_name="AskUserQuestion")), ["ev perm"])
         self.assertEqual(tc.map_hook(hook("PostToolUse", tool_name="Read", tool_response={})), [])
 
+    def test_bash_looks(self):
+        cases = {
+            "grep -rn foo src": "Grep",
+            "rg TODO": "Grep",
+            "find . -name '*.py'": "Grep",
+            "ls | grep x": "Read",
+            "cat README.md": "Read",
+            "sed -n 1,40p brain.cpp": "Read",
+            "sed -i s/a/b/ x": "Bash",
+            "tail -f log.txt": "Read",
+            "cd fw && idf.py build": "Build",
+            ". ~/esp/esp-idf/export.sh >/dev/null && cd firmware && nice -n 19 idf.py build": "Build",
+            "make -j4 2>&1 | tail -3": "Build",
+            "cargo build --release": "Build",
+            "npm run build": "Build",
+            "docker build -t x .": "Build",
+            "FOO=1 pytest -q": "Test",
+            "python3 -m pytest": "Test",
+            "cd bridge && python3 -m unittest -q test_bridge": "Test",
+            "npm install && npm test": "Test",
+            "git -C x log": "Git",
+            "git status --short": "Git",
+            "gh pr view 12": "Git",
+            "sudo apt install y": "Install",
+            "pip install pytest": "Install",
+            "python3 -m pip install numpy": "Install",
+            "cargo add serde": "Install",
+            "yarn add react": "Install",
+            "curl -s https://x.y | jq .": "WebFetch",
+            "gh api repos/a/b": "WebFetch",
+            "echo hi": "Bash",
+            "python3 script.py": "Bash",
+            "sleep 5": "Bash",
+            "cd x": "Bash",
+            "echo 'a && b' | grep b": "Bash",
+            "grep 'unclosed": "Grep",
+            "": "Bash",
+            "mkdir -p out\nls out": "Read",
+        }
+        for cmd, look in cases.items():
+            self.assertEqual(tc.bash_look(cmd), look, cmd)
+            got = tc.map_hook(hook("PreToolUse", tool_name="Bash", tool_input={"command": cmd}))
+            self.assertEqual(got, ["ev tool " + look], cmd)
+        self.assertEqual(tc.bash_look(None), "Bash")
+
+    def test_bash_look_keeps_results(self):
+        # the result lines still come from the real Bash tool
+        self.assertEqual(tc.map_hook(bash("cd x && git commit -m y", "[main 1a2b3c4] y")), ["ev commit"])
+        f = hook("PostToolUseFailure", tool_name="Bash", tool_input={"command": "make"}, error="x")
+        self.assertEqual(tc.map_hook(f), ["ev toolfail Bash"])
+        m = json.loads(tc.hook_message(hook("PermissionRequest", tool_name="Bash",
+                                            tool_input={"command": "git push"})))
+        self.assertEqual(m["tool"], "Git")
+
     def test_perm(self):
         self.assertEqual(tc.map_hook(hook("PermissionRequest", tool_name="Bash")), ["ev perm"])
         self.assertEqual(tc.map_hook(hook("Notification", notification_type="permission_prompt",

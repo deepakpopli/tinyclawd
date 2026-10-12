@@ -15,6 +15,7 @@ import json
 import os
 import re
 import select
+import shlex
 import signal
 import socket
 import subprocess
@@ -111,6 +112,99 @@ def is_test(cmd):
     return bool(TEST_RE.search(INSTALL_RE.sub("", cmd or "")))
 
 
+# a bash command gets the look of what it really does
+SEARCH_CMDS = {"grep", "egrep", "fgrep", "rg", "ag", "ack", "find", "fd", "fdfind"}
+READ_CMDS = {"cat", "head", "tail", "less", "more", "bat", "batcat", "wc", "ls", "tree"}
+BUILD_CMDS = {"make", "cmake", "ninja", "idf.py", "gcc", "g++", "cc", "c++", "clang", "clang++",
+              "tsc", "platformio", "pio", "meson", "scons", "gradle", "mvn"}
+WEB_CMDS = {"curl", "wget", "http", "https", "xh"}
+PKG_CMDS = {"pip", "pip3", "uv", "apt", "apt-get", "brew", "npm", "pnpm", "yarn", "bun", "cargo",
+            "conda", "snap", "gem"}
+PKG_SUBS = {"install", "add", "i", "ci", "sync"}
+SKIP_CMDS = {"cd", "pushd", "popd", "export", "source", ".", "set", "unset", "true"}
+PREFIX_CMDS = {"sudo", "env", "time", "nohup", "exec", "command", "nice", "timeout", "stdbuf"}
+SPLIT_OPS = {"&&", "||", ";", "&"}
+
+
+def words(cmd):
+    cmd = cmd.replace("\n", " ; ")   # one command per line
+    lex = shlex.shlex(cmd, posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    try:
+        return list(lex)
+    except ValueError:   # unbalanced quotes
+        return cmd.replace(";", " ; ").replace("&&", " && ").replace("|", " | ").split()
+
+
+def main_commands(cmd):
+    """'cd fw && FOO=1 sudo make -j4 | tail' -> [['make', '-j4']]: one per part, pipes cut off"""
+    out, cur, piped, prefix = [], [], False, False
+    for w in words(cmd) + [";"]:
+        if w in SPLIT_OPS or w == "|":
+            if cur and not piped:
+                out.append(cur)
+            cur, prefix = [], False
+            piped = w == "|" or (piped and w not in SPLIT_OPS)
+            continue
+        if piped:
+            continue   # the rest of a pipe only filters what the first part makes
+        if not cur:
+            if re.match(r"\w+=", w) or w in ("(", ")", "{", "}"):
+                continue   # FOO=1, subshells
+            if w in PREFIX_CMDS:
+                prefix = True
+                continue
+            if prefix and (w.startswith("-") or re.match(r"\d+[smhd]?$", w)):
+                continue   # sudo -E, nice -n 19, timeout 30s
+        cur.append(w)
+    return [c for c in out if os.path.basename(c[0]) not in SKIP_CMDS]
+
+
+def look_of(argv):
+    prog = os.path.basename(argv[0])
+    args = argv[1:]
+    if re.match(r"python[\d.]*$", prog) and args[:2] == ["-m", "pip"]:
+        prog, args = "pip", args[2:]
+    sub = args[0] if args else ""
+    if prog == "git" or (prog == "gh" and sub != "api"):
+        return "Git"
+    if prog in WEB_CMDS or prog == "gh":
+        return "WebFetch"
+    if prog in SEARCH_CMDS:
+        return "Grep"
+    if prog in READ_CMDS or (prog == "sed" and "-n" in args):
+        return "Read"
+    if prog in PKG_CMDS and (sub in PKG_SUBS or args[:2] == ["pip", "install"]):
+        return "Install"
+    if prog in BUILD_CMDS:
+        return "Build"
+    if prog in ("cargo", "go", "docker", "podman") and sub in ("build", "check"):
+        return "Build"
+    if prog in ("npm", "pnpm", "yarn", "bun") and any(a.startswith("build") for a in args[:2]):
+        return "Build"
+    return ""
+
+
+def bash_look(cmd):
+    """the tool name the pet sees for a bash command: Grep, Read, Build, Test, Git, Install,
+    WebFetch, or Bash for anything else"""
+    if not isinstance(cmd, str) or not cmd.strip():
+        return "Bash"
+    if is_test(cmd):
+        return "Test"
+    for argv in main_commands(cmd):
+        look = look_of(argv)
+        if look:
+            return look
+    return "Bash"
+
+
+def tool_look(d):
+    tool = d.get("tool_name") or ""
+    tin = d.get("tool_input") if isinstance(d.get("tool_input"), dict) else {}
+    return bash_look(tin.get("command")) if tool == "Bash" else tool
+
+
 def slash(d):
     """'/usage now' -> 'usage', from a prompt or a slash command expansion"""
     if d.get("command_name"):
@@ -138,7 +232,7 @@ def map_hook(d):
     if ev == "PreToolUse":
         if tool in ASKING_TOOLS:
             return ["ev perm"]
-        return ["ev tool " + clean(tool)]
+        return ["ev tool " + clean(tool_look(d))]
     if ev == "PermissionRequest":
         return ["ev perm"]
     if ev == "Notification":
@@ -193,7 +287,7 @@ def hook_message(d):
         "aid": d.get("agent_id") or "",
         "lines": map_hook(d),
         "proj": project(d.get("cwd")),
-        "tool": clean(d["tool_name"], 24) if d.get("tool_name") else "",
+        "tool": clean(tool_look(d), 24) if d.get("tool_name") else "",
         "slash": clean(slash(d), 24) if slash(d) else "",
     })
 
