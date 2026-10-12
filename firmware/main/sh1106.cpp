@@ -7,12 +7,10 @@
 #include "esp_timer.h"
 
 // 400 kHz is safe. 800 kHz could be tried on the real board (the old code ran
-// 1.1 MHz), full frame time drops from ~23 ms to ~12 ms.
-static const uint32_t I2C_HZ = 400000;
+// 1.1 MHz), full frame time drops from ~23 ms to ~12 ms. `hw i2c 800` tries it live.
 static const int PIN_SDA = 20;
 static const int PIN_SCL = 21;
 static const uint8_t ADDR = 0x3C;
-static const int COL_OFFSET = 2;          // ram is 132 wide, the panel sits at +2
 static const int XFER_TIMEOUT_MS = 50;
 static const uint32_t RETRY_MS = 1000;    // wait this long after an error before trying again
 
@@ -27,7 +25,7 @@ static bool s_logged = false;     // only log the first error in a row
 static bool s_want_on = true;     // set_on() state
 static bool s_need_on = false;    // send display-on after the next good flush
 static uint32_t s_retry_at = 0;
-static uint8_t s_contrast = 0xCF;
+static sh1106::Conf s_conf;
 
 static uint32_t now_ms() { return (uint32_t)(esp_timer_get_time() / 1000); }
 
@@ -84,7 +82,7 @@ static bool bus_setup() {
     memset(&dev_cfg, 0, sizeof(dev_cfg));
     dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
     dev_cfg.device_address = ADDR;
-    dev_cfg.scl_speed_hz = I2C_HZ;
+    dev_cfg.scl_speed_hz = s_conf.hz;
     esp_err_t err = i2c_master_bus_add_device(s_bus, &dev_cfg, &s_dev);
     if (err != ESP_OK) {
         fail("add device", err);
@@ -105,10 +103,10 @@ static bool init_seq() {
         0xD3, 0x00,  // display offset 0
         0x40,        // start line 0
         0xAD, 0x8B,  // dc-dc on
-        0xA1,        // segment remap
-        0xC8,        // com scan reversed
+        (uint8_t)(s_conf.mirror != s_conf.flip ? 0xA0 : 0xA1),  // segment remap
+        (uint8_t)(s_conf.flip ? 0xC0 : 0xC8),                   // com scan direction
         0xDA, 0x12,  // com pins
-        0x81, s_contrast,
+        0x81, s_conf.contrast,
         0xD9, 0x22,  // pre-charge
         0xDB, 0x35,  // vcomh
         0xA4,        // show ram
@@ -133,8 +131,8 @@ bool sh1106::init() {
 static bool send_page(int p, const uint8_t* row) {
     const uint8_t addr[] = {
         (uint8_t)(0xB0 | p),
-        (uint8_t)(0x00 | (COL_OFFSET & 0x0F)),
-        (uint8_t)(0x10 | (COL_OFFSET >> 4)),
+        (uint8_t)(0x00 | (s_conf.offset & 0x0F)),
+        (uint8_t)(0x10 | (s_conf.offset >> 4)),
     };
     if (!cmds(addr, sizeof(addr))) return false;
 
@@ -149,31 +147,48 @@ static bool send_page(int p, const uint8_t* row) {
     return true;
 }
 
-void sh1106::flush(const Canvas& c) {
+int sh1106::flush(const Canvas& c) {
     if (!s_ready) {
-        if ((int32_t)(now_ms() - s_retry_at) < 0) return;
-        if (!bus_setup() || !init_seq()) return;
+        if ((int32_t)(now_ms() - s_retry_at) < 0) return 0;
+        if (!bus_setup() || !init_seq()) return 0;
     }
 
+    int sent = 0;
     for (int p = 0; p < Canvas::PAGES; p++) {
         if (!s_full && memcmp(s_last[p], c.buf[p], Canvas::W) == 0) continue;
-        if (!send_page(p, c.buf[p])) return;  // s_full stays set, all pages go next time
+        if (!send_page(p, c.buf[p])) return sent;  // s_full stays set, all pages go next time
         memcpy(s_last[p], c.buf[p], Canvas::W);
+        sent++;
     }
     s_full = false;
     if (s_need_on && s_want_on) {
         const uint8_t on = 0xAF;
-        if (!cmds(&on, 1)) return;
+        if (!cmds(&on, 1)) return sent;
     }
     s_need_on = false;
     if (s_logged) {
         ESP_LOGW(TAG, "screen back");
         s_logged = false;
     }
+    return sent;
+}
+
+void sh1106::configure(const Conf& c) {
+    bool speed = c.hz != s_conf.hz;
+    s_conf = c;
+    if (speed && s_dev) {
+        // the clock is fixed per device handle, so drop it and add it again
+        i2c_master_bus_rm_device(s_dev);
+        s_dev = nullptr;
+        s_ready = false;
+        s_retry_at = 0;
+        return;  // next flush runs bus_setup + init_seq with the new settings
+    }
+    if (s_ready) init_seq();  // offset, flip, mirror, contrast, then a full redraw
 }
 
 void sh1106::set_contrast(uint8_t v) {
-    s_contrast = v;
+    s_conf.contrast = v;
     if (!s_ready) return;
     const uint8_t c[] = {0x81, v};
     cmds(c, sizeof(c));
@@ -187,3 +202,11 @@ void sh1106::set_on(bool on) {
 }
 
 bool sh1106::ok() { return s_ready; }
+
+int sh1106::scan(uint8_t* found, int max) {
+    if (!make_bus()) return 0;
+    int n = 0;
+    for (uint8_t a = 0x08; a < 0x78 && n < max; a++)
+        if (i2c_master_probe(s_bus, a, 20) == ESP_OK) found[n++] = a;
+    return n;
+}
