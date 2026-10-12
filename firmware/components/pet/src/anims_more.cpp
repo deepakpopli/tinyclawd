@@ -237,8 +237,122 @@ static void a_stretch(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
+// -------------------------------------------------------------------- juggle
+
+static const char* const BLK[3][5] = {
+    {".###.", "#####", "#####", "#####", ".###."},
+    {"#####", "#...#", "#...#", "#...#", "#####"},
+    {"..#..", ".###.", "#####", ".###.", "..#.."},
+};
+
+struct Juggle {
+    uint32_t start, beat;
+    int throws, high;   // number of throws, the one thrown extra high
+    bool flub;
+};
+
+static Juggle juggle_of(uint32_t seed) {
+    uint32_t h = hash32(seed + 404);
+    Juggle j;
+    j.start = 600;
+    j.beat = 250 + h % 60;
+    j.throws = 10 + (h >> 8) % 3;
+    j.high = (h >> 12) & 1 ? 4 + (h >> 14) % 4 : -1;
+    j.flub = (h >> 20) % 3 == 0;
+    return j;
+}
+
+static const int JX = 46, JY = 36;
+
+// block k position, returns true while it is in the air
+static bool block_at(const Juggle& j, int k, uint32_t t, float& bx, float& by) {
+    const float hx[2] = {JX - 3, JX + 38}, hy = JY + 5;
+    float tb = t < j.start ? -1 : (t - j.start) / (float)j.beat;
+    if (tb < k) {   // waiting in the first hand, two stacked on the left
+        bx = hx[k % 2];
+        by = hy - (k == 2 ? 6 : 0);
+        return false;
+    }
+    int n = k + 3 * (int)((tb - k) / 3);
+    if (n >= j.throws) n -= 3 * ((n - j.throws) / 3 + 1);   // the last real throw
+    float u = tb - n;
+    int from = n % 2;
+    float fx = hx[from], tx = hx[1 - from], ty = hy, apex = 10;
+    bool last = n + 3 >= j.throws;
+    if (last) {   // goes onto the head, in throw order
+        tx = JX + 18;
+        ty = JY - 3 - 5 * (n - (j.throws - 3));
+        apex = 6;
+    }
+    if (n == j.high) apex = -4;
+    if (u < 2) {
+        float p = u / 2;
+        bx = lerp(fx, tx, p);
+        by = lerp(hy, ty, p) - (lerp(hy, ty, p) - apex) * 4 * p * (1 - p);
+        return true;
+    }
+    bx = tx;
+    by = ty;
+    if (!last) by += 2 * sinf(PI * (u - 2));   // little scoop in the hand
+    return false;
+}
+
+static void a_juggle(Canvas& c, uint32_t t, const Ctx& x) {
+    Juggle j = juggle_of(x.seed);
+    uint32_t done = j.start + (j.throws + 1) * j.beat;   // all on the head
+    c.hline(0, 127, JY + 21);
+    float bx[3], by[3];
+    float hi = 99, hx = 64;
+    for (int k = 0; k < 3; k++) {
+        if (block_at(j, k, t, bx[k], by[k]) && by[k] < hi) {
+            hi = by[k];
+            hx = bx[k];
+        }
+    }
+    Pose p;
+    p.eyes = hx < JX + 12 ? EYES_LEFT : (hx > JX + 24 ? EYES_RIGHT : EYES_OPEN);
+    float tb = (t - j.start) / (float)j.beat;
+    if (t >= j.start && tb < j.throws && (int)tb % 2 && tb - (int)tb < 0.4f) p.arms = ARMS_ONE_UP;
+    uint32_t fall = done + 500;
+    if (t >= done) {
+        if (!j.flub) {   // ta da
+            p.arms = t >= done + 200 ? ARMS_UP : ARMS_DOWN;
+            p.eyes = t >= done + 200 && t < done + 1200 ? EYES_CLOSED : EYES_OPEN;
+            if (t >= done + 200 && t < done + 1400) {
+                sparkle(c, 30, 14 + ((t / 150) % 2) * 4);
+                sparkle(c, 98, 18 - ((t / 150) % 2) * 4);
+            }
+        } else if (t < fall) {   // the tower wobbles
+            float w = (t - done) / 500.0f;
+            for (int k = 0; k < 3; k++) {
+                int lvl = iround((JY - 3 - by[k]) / 5);
+                bx[k] += lvl * 1.5f * sinf(w * 3 * PI) * w;
+            }
+            p.eyes = EYES_LEFT;
+        } else {   // and falls
+            float u = (t - fall) / 1000.0f;
+            for (int k = 0; k < 3; k++) {
+                int lvl = iround((JY - 3 - by[k]) / 5);
+                float d = (lvl == 1 ? -1 : 1) * (24 + 8 * lvl);
+                float g = clamp01(u * 2.2f - lvl * 0.15f);
+                bx[k] += d * g;
+                by[k] = fminf(by[k] - 6 * sinf(PI * g * 0.6f) + 30 * g * g, JY + 17);
+            }
+            p.eyes = EYES_CLOSED;
+            if (t >= fall + 200 && t < fall + 1600) stars(c, JX + 18, JY - 4, (t - fall) / 600.0f);
+        }
+    }
+    clawd(c, JX, JY, p);
+    for (int k = 0; k < 3; k++) {   // a dark border so they read on top of him
+        int bx0 = iround(bx[k]) - 2, by0 = iround(by[k]) - 2;
+        c.fill_rect(bx0 - 1, by0 - 1, bx0 + 5, by0 + 5, false);
+        art(c, bx0, by0, BLK[k], 5);
+    }
+}
+
 static const Anim A_COFFEE = {"coffee", a_coffee, 5800, CALM};
 static const Anim A_DUCK = {"rubber_duck", a_rubber_duck, 6200, SCENE};
 static const Anim A_STRETCH = {"stretch", a_stretch, 4400, CALM};
+static const Anim A_JUGGLE = {"juggle", a_juggle, 7000, SCENE};
 
-ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH);
+ANIM_LIST(anims_more, &A_COFFEE, &A_DUCK, &A_STRETCH, &A_JUGGLE);
