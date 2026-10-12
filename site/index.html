@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tiny clawd</title>
+<meta name="description" content="a tiny Clawd that lives on your desk and reacts to Claude Code. 3D printed, ESP32-C3, a 1.3 inch OLED face, about 10 dollars of parts.">
+<meta name="theme-color" content="#0a0c10">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='3' width='10' height='7' fill='%23c8372d'/%3E%3Crect x='1' y='5' width='2' height='3' fill='%23c8372d'/%3E%3Crect x='13' y='5' width='2' height='3' fill='%23c8372d'/%3E%3Crect x='4' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='6' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='9' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='11' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='5' y='5' width='1' height='2' fill='%230a0c10'/%3E%3Crect x='10' y='5' width='1' height='2' fill='%230a0c10'/%3E%3C/svg%3E">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tinyclawd.deepakpopli.in/">
+<meta property="og:title" content="tiny clawd">
+<meta property="og:description" content="a tiny Clawd that lives on your desk and reacts to Claude Code.">
+<meta property="og:image" content="https://tinyclawd.deepakpopli.in/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="tiny clawd">
+<meta name="twitter:description" content="a tiny Clawd that lives on your desk and reacts to Claude Code.">
+<meta name="twitter:image" content="https://tinyclawd.deepakpopli.in/assets/og.png">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#"><span class="dot"></span>tiny clawd</a>
+  <nav>
+    <a class="wide" href="#reacts">reacts</a>
+    <a class="wide" href="#games">games</a>
+    <a href="#build">build one</a>
+    <a href="https://github.com/deepak61296/tinyclawd">github</a>
+  </nav>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="device">
+    <div class="screen">
+      <img src="assets/hero.gif" width="384" height="226" alt="tiny clawd reacting to a Claude Code session: thinking, reading, typing, running a terminal, celebrating">
+    </div>
+  </div>
+  <div class="pitch">
+    <p class="prompt">&gt; tiny clawd</p>
+    <h1>a tiny Clawd that lives on your desk and reacts to Claude Code.</h1>
+    <p class="sub">it thinks when claude thinks, types when claude edits, flashes when claude
+      needs you and scores a goal when the task is done. when nothing is going on it just plays football.</p>
+    <p class="facts">3D printed &middot; ESP32-C3 &middot; 1.3" OLED face &middot; about $10 of parts</p>
+    <div class="buttons">
+      <a class="btn red" href="#build">build one</a>
+      <a class="btn" href="https://github.com/deepak61296/tinyclawd">github</a>
+    </div>
+  </div>
+</section>
+
+<section id="reacts">
+  <h2><span>01</span> it reacts to everything</h2>
+  <p class="lead">claude code hooks talk to it over usb. every tool gets its own look.</p>
+  <div class="grid">
+    <figure><img src="assets/thinking.gif" loading="lazy" width="256" height="128" alt=""><figcaption>thinking <em>prompt sent</em></figcaption></figure>
+    <figure><img src="assets/reading.gif" loading="lazy" width="256" height="128" alt=""><figcaption>reading <em>Read</em></figcaption></figure>
+    <figure><img src="assets/typing.gif" loading="lazy" width="256" height="128" alt=""><figcaption>typing <em>Edit, Write</em></figcaption></figure>
+    <figure><img src="assets/terminal.gif" loading="lazy" width="256" height="128" alt=""><figcaption>terminal <em>Bash</em></figcaption></figure>
+    <figure><img src="assets/searching.gif" loading="lazy" width="256" height="128" alt=""><figcaption>sweeping for matches <em>Grep</em></figcaption></figure>
+    <figure><img src="assets/web.gif" loading="lazy" width="256" height="128" alt=""><figcaption>spinning globe <em>web search</em></figcaption></figure>
+    <figure><img src="assets/subagents.gif" loading="lazy" width="256" height="128" alt=""><figcaption>a squad of mini Clawds <em>subagents</em></figcaption></figure>
+    <figure><img src="assets/needs_you.gif" loading="lazy" width="256" height="128" alt=""><figcaption>flashes until you answer <em>needs you</em></figcaption></figure>
+    <figure><img src="assets/goal.gif" loading="lazy" width="256" height="128" alt=""><figcaption>goal <em>task done</em></figcaption></figure>
+    <figure><img src="assets/bug_squash.gif" loading="lazy" width="256" height="128" alt=""><figcaption>bug squashed <em>tests pass</em></figcaption></figure>
+    <figure><img src="assets/rubber_duck.gif" loading="lazy" width="256" height="128" alt=""><figcaption>rubber duck <em>tool error</em></figcaption></figure>
+    <figure><img src="assets/git_branch.gif" loading="lazy" width="256" height="128" alt=""><figcaption>branch merging <em>commit</em></figcaption></figure>
+    <figure><img src="assets/context.gif" loading="lazy" width="256" height="128" alt=""><figcaption>filling up <em>context</em></figcaption></figure>
+    <figure><img src="assets/usage.gif" loading="lazy" width="256" height="128" alt=""><figcaption>limits left <em>usage</em></figcaption></figure>
+    <figure><img src="assets/trophy.gif" loading="lazy" width="256" height="128" alt=""><figcaption>trophy <em>long task done</em></figcaption></figure>
+  </div>
+  <ul class="more">
+    <li>failing tests get a yellow card, then a red one</li>
+    <li>running low on usage: tired, stoppage time, limit hit</li>
+    <li>several sessions share one Clawd. whoever needs you wins, little dots show who's busy</li>
+  </ul>
+</section>
+
+<section id="life">
+  <h2><span>02</span> it has a life</h2>
+  <p class="lead">no laptop, no problem. it looks around, has a coffee, juggles, naps and dreams.
+    at night it falls asleep faster. put on a song and it vibes along.</p>
+  <div class="grid">
+    <figure><img src="assets/now_playing.gif" loading="lazy" width="256" height="128" alt=""><figcaption>now playing <em>spotify, youtube...</em></figcaption></figure>
+    <figure><img src="assets/music.gif" loading="lazy" width="256" height="128" alt=""><figcaption>headbanging</figcaption></figure>
+    <figure><img src="assets/juggle.gif" loading="lazy" width="256" height="128" alt=""><figcaption>juggling</figcaption></figure>
+    <figure><img src="assets/bicycle_kick.gif" loading="lazy" width="256" height="128" alt=""><figcaption>bicycle kick</figcaption></figure>
+    <figure><img src="assets/coffee.gif" loading="lazy" width="256" height="128" alt=""><figcaption>coffee break</figcaption></figure>
+    <figure><img src="assets/paper_plane.gif" loading="lazy" width="256" height="128" alt=""><figcaption>paper plane</figcaption></figure>
+    <figure><img src="assets/stargaze.gif" loading="lazy" width="256" height="128" alt=""><figcaption>stargazing</figcaption></figure>
+    <figure><img src="assets/dream.gif" loading="lazy" width="256" height="128" alt=""><figcaption>asleep, dreaming</figcaption></figure>
+    <figure><img src="assets/petted.gif" loading="lazy" width="256" height="128" alt=""><figcaption>petted <em>touch its head</em></figcaption></figure>
+  </div>
+  <p class="note">87 animations, all drawn on the real 128x64 screen. these gifs come straight from the firmware.</p>
+</section>
+
+<section id="games">
+  <h2><span>03</span> games</h2>
+  <p class="lead">7 games, one button: the touch pad on its head. tap, double tap, hold.
+    they're easy on purpose, it's a desk toy. best scores survive unplugging.</p>
+  <div class="grid games">
+    <figure><img src="assets/game_run.gif" loading="lazy" width="256" height="128" alt=""><figcaption>bug run <em>jump over bugs</em></figcaption></figure>
+    <figure><img src="assets/game_keepy.gif" loading="lazy" width="256" height="128" alt=""><figcaption>keepy uppy <em>tap when the ball lands</em></figcaption></figure>
+    <figure><img src="assets/game_penalty.gif" loading="lazy" width="256" height="128" alt=""><figcaption>penalties <em>shoot, then you're in goal</em></figcaption></figure>
+    <figure><img src="assets/game_panic.gif" loading="lazy" width="256" height="128" alt=""><figcaption>permission panic <em>allow npm test, never rm -rf /</em></figcaption></figure>
+    <figure><img src="assets/game_flappy.gif" loading="lazy" width="256" height="128" alt=""><figcaption>flappy clawd <em>wide gaps, take it easy</em></figcaption></figure>
+    <figure><img src="assets/game_catch.gif" loading="lazy" width="256" height="128" alt=""><figcaption>token catch <em>tap to turn around</em></figcaption></figure>
+    <figure><img src="assets/game_whack.gif" loading="lazy" width="256" height="128" alt=""><figcaption>whack a bug <em>don't bonk your friend</em></figcaption></figure>
+  </div>
+</section>
+
+<section id="build">
+  <h2><span>04</span> build your own</h2>
+  <p class="lead">about $10 of parts and an evening.
+    it's not for sale, you make it.</p>
+
+  <div class="cols">
+    <div class="card">
+      <h3>parts</h3>
+      <table class="parts">
+        <tr><td>ESP32-C3 Super Mini</td><td>~$3</td></tr>
+        <tr><td>1.3" SH1106 OLED, 128x64, I2C</td><td>~$4</td></tr>
+        <tr><td>TTP223 touch pad</td><td>~$0.5</td></tr>
+        <tr><td>USB-C data cable</td><td>~$2</td></tr>
+        <tr><td>~40 g of PLA, red + black</td><td>~$1</td></tr>
+        <tr class="total"><td>total</td><td>~$10</td></tr>
+      </table>
+      <p class="small">print files (body, back plate, stand) are in
+        <a href="https://github.com/deepak61296/tinyclawd/tree/main/hardware/print">hardware/print</a>.
+        each folder has a README with what to print.</p>
+    </div>
+
+    <div class="card">
+      <h3>1. flash the board</h3>
+      <p>grab the <code>.bin</code> from the
+        <a href="https://github.com/deepak61296/tinyclawd/releases">releases page</a>, open
+        <a href="https://espressif.github.io/esptool-js/">espressif's web flasher</a> in chrome,
+        connect, pick the file at address <code>0x0</code> and press program.</p>
+
+      <h3>2. set up the laptop</h3>
+      <p>this installs the bridge, the claude code hooks and the usage line:</p>
+      <div class="code">
+        <pre><code id="install">curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash</code></pre>
+        <button class="copy" data-copy="install">copy</button>
+      </div>
+      <p class="small">or <a href="https://github.com/deepak61296/tinyclawd#set-it-up">by hand</a>.
+        it backs up every file it touches. restart claude code after and say hi.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <img class="foot-gif" src="assets/petted.gif" loading="lazy" width="128" height="64" alt="">
+  <p>fan-made, not affiliated with Anthropic. Clawd belongs to Anthropic.</p>
+  <p>code: <a href="https://github.com/deepak61296/tinyclawd/blob/main/LICENSE">MIT</a>.
+    print files: <a href="https://github.com/deepak61296/tinyclawd/blob/main/hardware/LICENSE">CC BY-NC-SA 4.0</a>,
+    the inner frame is the <a href="https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi">Mochi housing by Dave0616</a>.
+    please don't sell printed ones.</p>
+  <p>made by <a href="https://github.com/deepak61296">Deepak Popli</a></p>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var text = document.getElementById(b.dataset.copy).textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      b.textContent = 'copied';
+      setTimeout(function () { b.textContent = 'copy'; }, 1500);
+    });
+  });
+});
+</script>
+</body>
+</html>
