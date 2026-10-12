@@ -214,19 +214,40 @@ static void a_spin(Canvas& c, uint32_t t, const Ctx& x) {
     else clawd(c, SX, SY);
 }
 
-static void a_wave(Canvas& c, uint32_t t, const Ctx&) {
-    if (t < 400) {
-        clawd(c, SX, SY);
-    } else if (t < 1200) {
-        int k = (t - 400) / 160;
-        clawd(c, SX, SY, pose(EYES_OPEN, k % 2 ? ARMS_DOWN : ARMS_ONE_UP));
-    } else if (t < 1920) {
-        const Key k[] = {{1200, 0}, {1320, -3}, {1440, -5}, {1820, -5}, {1920, -2}};
-        bool wink = t >= 1440 && t < 1820;
-        clawd(c, SX, SY + iround(KEYS(k, t)), pose(wink ? EYES_WINK : EYES_OPEN, ARMS_UP));
-    } else {
-        clawd(c, SX, SY);
+// a big blocky claw, pivot at the bottom (px, py), ang in radians (0 = straight up)
+static void big_claw(Canvas& c, float px, float py, float ang) {
+    // arm, palm, two fingers with a gap between them (local x right, y up)
+    static const float parts[4][4] = {{-4, 0, 4, 24}, {-10, 24, 10, 34}, {-10, 34, -3, 44}, {3, 34, 10, 42}};
+    float ca = cosf(ang), sa = sinf(ang);
+    for (int k = 0; k < 4; k++) {
+        const float* r = parts[k];
+        float lx[4] = {r[0], r[2], r[2], r[0]}, ly[4] = {r[1], r[1], r[3], r[3]};
+        float p[8];
+        for (int i = 0; i < 4; i++) {
+            p[2 * i] = px + lx[i] * ca + ly[i] * sa;
+            p[2 * i + 1] = py + lx[i] * sa - ly[i] * ca;
+        }
+        c.fill_poly(p, 4);
     }
+}
+
+static void a_wave(Canvas& c, uint32_t t, const Ctx& x) {
+    // the big face, a claw comes up from the corner and waves hi
+    const uint32_t UP = 250, WAVE = 600, STOP = 1900, GONE = 2200;
+    bool left = x.seed & 4;   // which side the claw comes from
+    float side = left ? -1 : 1;
+    float m = ease(seg(t, UP, WAVE)) * (1 - ease(seg(t, STOP, GONE)));   // how far it is up
+    Eye e;
+    e.dx = -12 * side * m;
+    if (t >= WAVE && t < STOP) {
+        e.shape = HAPPY;
+        e.w = 10;
+        e.dy = -2;
+    }
+    face(c, e);
+    if (m <= 0) return;
+    float swing = t >= WAVE && t < STOP ? 0.3f * sinf((t - WAVE) / 430.0f * 2 * (float)M_PI) : 0;
+    big_claw(c, left ? 20 : 108, 64 + 46 * (1 - m), side * swing);
 }
 
 static const Anim A_IDLE = {"idle", a_idle, 10000, LOOP | CALM};
@@ -236,6 +257,6 @@ static const Anim A_WINK = {"wink", a_wink, 2100, CALM};
 static const Anim A_TURN = {"turn_around", a_turn_around, 2460, CALM};
 static const Anim A_THINK = {"thinking", a_thinking, 3960, LOOP};
 static const Anim A_SPIN = {"spin", a_spin, 3000, SCENE};
-static const Anim A_WAVE = {"wave", a_wave, 2400, SCENE};
+static const Anim A_WAVE = {"wave", a_wave, 2400, CALM};
 
 ANIM_LIST(anims_claude, &A_IDLE, &A_BLINK, &A_LOOK, &A_WINK, &A_TURN, &A_THINK, &A_SPIN, &A_WAVE);
