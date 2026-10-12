@@ -1,0 +1,13 @@
+# short session for the readme: prompt, tools, test, permission, done
+0 hello 1
+0 time 14:30
+300 ev start
+300 usage 5h=42 wk=18 ctx=12 reset=135
+3600 ev prompt
+7000 ev tool Read
+9500 ev tool Edit
+12000 ev tool Bash
+14500 ev test pass
+17000 ev perm
+21000 ev tool Bash
+24000 ev done
