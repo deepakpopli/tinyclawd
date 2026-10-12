@@ -1,0 +1,26 @@
+# two claude code sessions at once, as the bridge sends them
+# tinyclawd works on a long task, dimos on a short one
+0 hello 1
+0 time 14:30
+1000 ev prompt
+3500 ev tool Read
+5000 ev prompt
+5000 sessions 2
+7000 ev tool Grep
+9500 ev tool Edit
+12000 ev tool Bash
+# dimos asks for a permission
+14000 ev perm dimos
+19000 ev tool Bash
+21000 ev tool Edit
+# both ask at once
+23000 ev perm tinyclawd
+24500 ev perm +2
+40000 ev perm tinyclawd
+46000 ev tool Bash
+# dimos is done, tinyclawd still works
+50000 ev done small
+50000 ev tool Bash
+50000 sessions 1
+56000 ev tool Edit
+60000 ev done
