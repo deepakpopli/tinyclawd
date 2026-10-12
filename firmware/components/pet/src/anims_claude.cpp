@@ -134,14 +134,69 @@ void spinner(Canvas& c, int x, int y, uint32_t t) {
     c.glyph(x, y, SPINNER[i], font_sym14);
 }
 
-static void a_thinking(Canvas& c, uint32_t t, const Ctx&) {
-    float i = t / 110.0f;
+// one glyph drawn 2x and centred on cx, so the spinner reads across the desk
+static void glyph2x(Canvas& c, int cx, int y, uint16_t code, const Font& f) {
+    for (int i = 0; i < f.count; i++) {
+        const Glyph& g = f.glyphs[i];
+        if (g.code != code) continue;
+        int bw = (g.w + 7) / 8, x = cx - g.w;
+        for (int r = 0; r < f.h; r++)
+            for (int q = 0; q < g.w; q++)
+                if (f.data[g.off + r * bw + q / 8] & (0x80 >> (q % 8)))
+                    c.fill_rect(x + q * 2, y + r * 2, x + q * 2 + 1, y + r * 2 + 1);
+        return;
+    }
+}
+
+// thought bubble around the box x0..x1, y0..y1: round corners, 2 px border
+static void bubble(Canvas& c, int x0, int y0, int x1, int y1) {
+    const int r = 4;
+    c.fill_rect(x0 - 2, y0 - 2 + r, x1 + 2, y1 + 2 - r);
+    c.fill_rect(x0 - 2 + r, y0 - 2, x1 + 2 - r, y1 + 2);
+    c.fill_circle(x0 - 2 + r, y0 - 2 + r, r);
+    c.fill_circle(x1 + 2 - r, y0 - 2 + r, r);
+    c.fill_circle(x0 - 2 + r, y1 + 2 - r, r);
+    c.fill_circle(x1 + 2 - r, y1 + 2 - r, r);
+    c.fill_rect(x0, y0 + 2, x1, y1 - 2, false);
+    c.fill_rect(x0 + 2, y0, x1 - 2, y1, false);
+    c.px(x0 + 1, y0 + 1, false);
+    c.px(x1 - 1, y0 + 1, false);
+    c.px(x0 + 1, y1 - 1, false);
+    c.px(x1 - 1, y1 - 1, false);
+}
+
+static void a_thinking(Canvas& c, uint32_t t, const Ctx& x) {
+    // the first time: eyes go up, dots rise, the cloud pops. then it loops
+    uint32_t lt = t < 4000 ? t : 4000 + (t - 4000) % 3960;
+    float up = ease(seg(t, 0, 350));
+
+    // eyes: squinted in concentration, looking up at the cloud, drifting and pausing
+    float drift = 0;
+    if (lt >= 600) {
+        static const Key k[] = {{0, 0}, {700, 0}, {1100, -5}, {2300, -5}, {2700, 0}, {3960, 0}};
+        drift = KEYS(k, (lt - 600) % 3960);
+    }
     Eye e;
-    e.dx = -5 + 3 * sinf(i / 6);
-    e.dy = -6;
-    // blink now and then while thinking
-    face_blink(c, t % 3960, 2600, e);
-    spinner(c, 108, 4, t);
+    e.dx = -16 * up + drift * up;
+    e.dy = -5 * up;
+    e.h = EYE_H - 10 * up;
+    e.w = EYE_W + 2 * up;
+    uint32_t b = 2000 + (x.seed & 0x3ff);   // blink somewhere in each loop
+    uint32_t bt = (lt + 3960) % 3960;
+    if (bt >= b && bt < b + BLINK_MS) e = blink_eye(e, (bt - b) / (float)BLINK_MS);
+    face(c, e);
+
+    // bubble dots rise from above the right eye, then the cloud
+    float sway = (lt / 600) % 2 ? 1 : 0;   // a slow 1 px bob
+    if (t > 150) c.fill_circle(82, 19 - sway, 1.5f);
+    if (t > 300) c.fill_circle(87, 13 + sway, 2);
+    if (t < 450) return;
+    int cx0 = 99, cy0 = 4 - sway;
+    bubble(c, cx0, cy0, cx0 + 26, cy0 + 20);
+    // the real spinner, big, forward then back like the CLI
+    int i = (t / 110) % 12;
+    if (i >= 6) i = 11 - i;
+    glyph2x(c, cx0 + 13, cy0 + 1, SPINNER[i], font_sym14);
 }
 
 // ---------------------------------------------------------- mini Clawd poses
