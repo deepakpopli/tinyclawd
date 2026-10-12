@@ -149,8 +149,26 @@ void ring(Canvas& c, uint32_t now) {
     float k = (held - RING_SHOW_MS) / (float)(OPEN_MS - RING_SHOW_MS);
     if (k > 1) k = 1;
     // a dark band so the ring reads over any frame
-    c.ellipse(1, 1, 126, 62, 6, false);
-    c.arc(2, 2, 125, 61, -90, -90 + 360 * k, 4);
+    c.fill_rect(0, 0, 127, 5, false);
+    c.fill_rect(0, 58, 127, 63, false);
+    c.fill_rect(0, 0, 5, 63, false);
+    c.fill_rect(122, 0, 127, 63, false);
+    // a 3 px band around the screen edge, clockwise from the top middle.
+    // only rectangles: arcs need sin/cos and the C3 has no fpu
+    int len = (int)(k * 384);
+    int n = len < 64 ? len : 64;   // top, middle to the right
+    if (n > 0) c.fill_rect(64, 0, 63 + n, 2);
+    len -= 64;
+    n = len < 64 ? len : 64;       // right side, down
+    if (n > 0) c.fill_rect(125, 0, 127, n - 1);
+    len -= 64;
+    n = len < 128 ? len : 128;     // bottom, to the left
+    if (n > 0) c.fill_rect(128 - n, 61, 127, 63);
+    len -= 128;
+    n = len < 64 ? len : 64;       // left side, up
+    if (n > 0) c.fill_rect(0, 64 - n, 2, 63);
+    len -= 64;
+    if (len > 0) c.fill_rect(0, 0, len - 1, 2);   // top, left to the middle
 }
 
 // ------------------------------------------------------------------ icons
