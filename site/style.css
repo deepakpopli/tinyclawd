@@ -335,3 +335,181 @@ img.clawd3d-fallback.gif {
 
 .pet-btn { display: none; margin-top: 32px; }
 .clawd3d-ready .pet-btn { display: inline-block; }
+
+/* full width bands: they cover the stage as they pass */
+
+.band {
+  position: relative;
+  z-index: 2;
+  background: var(--paper);
+  padding: 128px 0;
+}
+
+.band-head {
+  grid-column: 1 / -1;
+  border-top: 2px solid var(--ink);
+  padding-top: 12px;
+  margin-bottom: 48px;
+}
+.band-head h2 { margin-top: 12px; max-width: 20em; }
+.band-head p:not(.label) { margin-top: 24px; max-width: 34em; }
+
+.photos .photo { grid-column: 7 / 10; }
+.photos .photo.big { grid-column: 1 / 7; }
+.photos .photo:last-child { grid-column: 10 / 13; }
+.photos .r45 { aspect-ratio: auto; }
+
+/* screen plates: black, no border, gifs at 2x */
+
+.plates {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 256px);
+  gap: 24px;
+}
+.plates figure, .wall-grid figure { margin: 0; }
+.plates img, .wall-grid img { display: block; width: 256px; height: 128px; background: var(--screen); }
+.plates figcaption, .wall-grid figcaption { margin-top: 8px; }
+.band-note { grid-column: 1 / -1; margin-top: 32px; }
+
+.knoll { grid-column: 1 / 7; }
+.bom { grid-column: 7 / -1; }
+.bom .small { margin-top: 32px; }
+
+.step { grid-column: span 4; }
+.step .num { font-family: var(--mono); font-size: 22px; line-height: 33px; }
+.step h3 { margin-top: 8px; }
+.step h3 + p { margin-top: 12px; }
+.printing { grid-column: span 4; }
+
+/* the code block is a screen too */
+
+.code {
+  grid-column: 1 / -1;
+  position: relative;
+  margin-top: 48px;
+  background: var(--screen);
+  color: var(--lit);
+}
+.code pre {
+  margin: 0;
+  padding: 24px 112px 24px 24px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: var(--mono);
+  font-size: 22px;
+  line-height: 33px;
+}
+.code pre code { font-family: inherit; font-weight: 400; }
+.code pre code::before { content: "$ "; color: var(--dim-lit); }
+
+.copy-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 22px;
+  color: var(--paper);
+  background: var(--screen);
+  border: 1px solid var(--dim-lit);
+  border-radius: 0;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.by-hand { grid-column: 1 / -1; margin-top: 16px; }
+
+/* the animation wall: the one big black area, it is all screens */
+
+.wall {
+  position: relative;
+  z-index: 2;
+  background: var(--screen);
+  color: var(--paper);
+  padding: 128px 0;
+}
+.wall .band-head { border-top-color: var(--paper); }
+.wall .label { color: var(--dim-lit); }
+.wall a { color: var(--paper); }
+.wall-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 256px);
+  gap: 32px 24px;
+}
+.wall-more { grid-column: 1 / -1; margin-top: 48px; }
+
+/* footer: a colophon */
+
+.foot {
+  position: relative;
+  z-index: 2;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  padding: 64px 0 96px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.foot-brand {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-bottom: 32px;
+}
+.foot .wrap > div { grid-column: span 4; }
+.foot .label { margin-bottom: 8px; }
+
+/* phones and small tablets: the 3D Clawd sits on top, the text scrolls under it */
+
+@media (max-width: 899px) {
+  .stage {
+    height: 42vh;
+    height: 42svh;
+    z-index: 3;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+  }
+  .stage-box { grid-column: 1 / -1; }
+
+  .scenes { margin-top: 0; }
+  .scene { display: block; min-height: 0; padding: 64px 0 32px; }
+  .copy { grid-column: 1 / -1; }
+  .lead { font-size: 1.1875rem; }
+  .specs dd { font-size: 11px; line-height: 22px; }
+
+  .band, .wall { z-index: 4; padding: 64px 0; }
+
+  .photos .photo.big { grid-column: 1 / -1; margin-bottom: 24px; }
+  .photos .photo { grid-column: 1 / 5; }
+  .photos .photo:last-child { grid-column: 5 / -1; }
+  .photos .r45 { aspect-ratio: 4 / 5; }
+
+  .plates, .wall-grid { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
+  .plates img, .wall-grid img { width: 100%; height: auto; }
+
+  .knoll, .bom { grid-column: 1 / -1; }
+  .bom { margin-top: 32px; }
+  .step { grid-column: 1 / 5; }
+  .step + .step { grid-column: 5 / -1; }
+  .printing { grid-column: 1 / -1; margin-top: 32px; }
+
+  .code pre { font-size: 11px; line-height: 22px; padding: 16px 80px 16px 16px; }
+  .copy-btn { top: 16px; right: 16px; }
+
+  .foot .wrap > div { grid-column: 1 / -1; margin-top: 24px; }
+}
+
+@media (max-width: 599px) {
+  .photos .photo { grid-column: 1 / 3; }
+  .photos .photo:last-child { grid-column: 3 / -1; }
+  .step, .step + .step { grid-column: 1 / -1; }
+  .step + .step { margin-top: 32px; }
+  .side-by { grid-template-columns: minmax(0, 1fr) 120px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  canvas#clawd3d, a, .btn { transition: none; }
+}
