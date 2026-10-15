@@ -312,6 +312,7 @@ h2 {
   background: #0a0c10;
 }
 
+.games { grid-template-columns: repeat(3, 1fr); }
 .games figure { margin: 0; }
 .games figcaption { font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 5px 2px 0; }
 .copy .note { font-size: 14px; margin-top: 16px; }
@@ -505,6 +506,7 @@ footer p { margin: 6px auto; max-width: 640px; }
   h2 { font-size: clamp(34px, 9.5vw, 52px); }
 
   .term li { grid-template-columns: 1fr; gap: 0; }
+  .games { grid-template-columns: 1fr 1fr; }
   .wall { padding-top: 80px; }
   .wall-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 }
