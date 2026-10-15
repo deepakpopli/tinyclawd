@@ -1,0 +1,50 @@
+# the launch video, about 60 s, every moment forced so one take is enough.
+# film it: python3 bridge/tinyclawd.py replay firmware/sim/scripts/launch.txt
+# (close claude code first, or its hooks will mix in)
+0 hello 1
+0 time 14:30
+0 usage 5h=42 wk=18 ctx=37 reset=135
++0 ev end
++200 play idle
+
+# you type a prompt, Clawd watches
++2500 typing 6
++100 play typing_along
++2600 typing 0
+
+# enter: thinking, with the real cli words
++200 ev prompt
++100 play thinking_words
++3600 ev tool Read
++100 play page_flip
++2600 ev tool Grep
++100 play searching
++2600 ev tool Build
++100 play crane
++3000 ev tool Test
++100 play test_tubes
+
+# a failing test gets a card
++2300 ev test fail
++2400 ev tool Edit
++100 play typing
+
+# the subagent squad
++2400 ev tool Task
++0 ev sub 3
++5200 ev sub 0
+
+# claude needs you, then you approve
++2800 ev perm tinyclawd
++3600 ev tool Bash
++100 play terminal
++2200 ev test pass
++100 play bicycle_kick
++3800 ev done
++100 play trophy
+
+# after work: music, then a nap
++4500 music 1 Lofi Girl - beats to code to
++10000 music 0
++500 play dream
++5000 play idle
