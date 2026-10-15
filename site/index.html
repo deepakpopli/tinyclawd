@@ -50,7 +50,7 @@
 
   <main class="scenes">
 
-    <section class="scene hero" data-clawd-anim="idle,wake_up" data-clawd-pose="front" data-clawd-side="right" data-gif="juggle">
+    <section class="scene hero" id="hero" data-clawd-anim="idle,wake_up" data-clawd-pose="front" data-clawd-side="right" data-gif="juggle">
       <div class="copy">
         <p class="kicker">&gt; tiny clawd</p>
         <h1>a tiny Clawd<br>for your desk.</h1>
@@ -355,6 +355,12 @@ setTimeout(function () {
   var started = document.documentElement.classList.contains('clawd3d-ready') || (c && c.tagName === 'IMG');
   if (!started) document.getElementById('stage').classList.add('empty');
 }, 3000);
+// test only: ?shot=id puts the middle of that section in the middle of the screen
+var shot = new URLSearchParams(location.search).get('shot');
+if (shot) addEventListener('load', function () {
+  var r = document.getElementById(shot).getBoundingClientRect();
+  scrollTo({ top: scrollY + r.top + r.height / 2 - innerHeight / 2, behavior: 'instant' });
+});
 </script>
 <script type="module" src="js/clawd3d.js"></script>
 </body>
