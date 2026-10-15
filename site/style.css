@@ -175,3 +175,163 @@ img { image-rendering: pixelated; }
   h2 { font-size: 2rem; }
   h3 { font-size: 1.125rem; }
 }
+
+/* the story: text in columns 1 to 5, the 3D Clawd in 7 to 12, always */
+
+.story { position: relative; }
+
+.stage {
+  position: sticky;
+  top: var(--top);
+  height: calc(100vh - var(--top));
+  height: calc(100svh - var(--top));
+  z-index: 0;
+}
+
+.stage .wrap { height: 100%; }
+.stage-box { grid-column: 7 / -1; position: relative; height: 100%; }
+
+canvas#clawd3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.6s linear;
+}
+canvas#clawd3d.is-ready { opacity: 1; }
+
+/* no WebGL or reduced motion: the engine puts a photo here, or a framed gif */
+
+img.clawd3d-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 84%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  image-rendering: auto;
+}
+img.clawd3d-fallback.gif {
+  width: min(84%, 420px);
+  aspect-ratio: 2 / 1;
+  background: var(--screen);
+  border: 20px solid var(--red);
+  image-rendering: pixelated;
+}
+
+/* 2D stand-in if the 3D script never starts */
+
+.fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(80%, 400px);
+  transform: translate(-50%, -50%);
+  display: none;
+}
+.stage.empty .fallback { display: block; }
+.clawd3d-ready .stage .fallback,
+.stage:has(img#clawd3d) .fallback { display: none; }
+
+.fallback .body { position: relative; background: var(--red); padding: 9% 8% 12%; }
+.fallback .body::before,
+.fallback .body::after { content: ""; position: absolute; top: 36%; width: 9%; height: 26%; background: var(--red); }
+.fallback .body::before { left: -8%; }
+.fallback .body::after { right: -8%; }
+.fallback .screen { background: var(--screen); padding: 4%; }
+.fallback .screen img { display: block; width: 100%; height: auto; }
+.fallback .legs { display: flex; justify-content: space-between; padding: 0 12%; }
+.fallback .legs i { width: 7%; aspect-ratio: 1 / 2.4; background: var(--red); }
+
+.scenes { margin-top: calc(var(--top) - 100vh); margin-top: calc(var(--top) - 100svh); }
+
+.scene {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - var(--top));
+  min-height: calc(100svh - var(--top));
+  display: flex;
+  align-items: center;
+  padding: 64px 0;
+}
+.scene > .wrap { width: 100%; }
+.copy { grid-column: 1 / 6; }
+
+.copy > .label + h1,
+.copy > .label + h2 { margin-top: 12px; }
+.copy > h1 + p,
+.copy > h2 + p { margin-top: 24px; }
+.copy > p + p { margin-top: 16px; }
+.copy > p { max-width: 34em; }
+
+.lead { font-size: 1.375rem; line-height: 1.45; }
+
+.specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 32px;
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule);
+}
+.specs div { padding: 8px 16px 12px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.specs dd { margin: 0; font-family: var(--mono); font-size: 22px; line-height: 33px; }
+
+.copy > .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; margin-top: 32px; }
+.copy > .actions + .small { margin-top: 16px; }
+
+/* datasheet tables: hairline rows, no boxes */
+
+.sheet { width: 100%; border-collapse: collapse; font-size: 0.9375rem; line-height: 1.5; }
+.copy > .sheet, .copy > .figs, .copy > .photo, .copy > .side-by { margin-top: 32px; }
+.sheet th, .sheet td {
+  text-align: left;
+  vertical-align: baseline;
+  padding: 8px 16px 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.sheet tr:first-child th, .sheet tr:first-child td { border-top: 1px solid var(--ink); }
+.sheet th { font-weight: 400; white-space: nowrap; }
+.sheet .key { font-family: var(--mono); font-size: 11px; line-height: 22px; white-space: nowrap; }
+.sheet .gap td { padding-top: 24px; }
+.sheet .total td { font-weight: 600; border-bottom: 0; border-top: 1px solid var(--ink); }
+
+/* photos. until a file is there, a hairline box says what goes in it */
+
+.photo { display: flex; flex-direction: column; }
+.photo figcaption { margin-top: 8px; }
+.frame { position: relative; flex: 1; }
+.r32 { aspect-ratio: 3 / 2; }
+.r45 { aspect-ratio: 4 / 5; }
+.r11 { aspect-ratio: 1 / 1; }
+.r169 { aspect-ratio: 16 / 9; }
+.frame img, .frame video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: auto;
+}
+.frame:not(:has(img, video)) { border: 1px solid var(--rule); }
+.ph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 22px;
+  color: var(--grey);
+}
+.frame:has(img, video) .ph { visibility: hidden; }
+
+.figs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.side-by { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
+
+.pet-btn { display: none; margin-top: 32px; }
+.clawd3d-ready .pet-btn { display: inline-block; }

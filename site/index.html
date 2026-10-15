@@ -1,305 +1,434 @@
 <!doctype html>
 <html lang="en">
+<!--
+  photos and clips: drop a file into site/assets/photos/ with the name below
+  and it shows up, nothing else to change. until then a framed placeholder
+  says what goes there. sizes are the export size, keep each photo under 250 KB.
+
+  p1-desk.jpg          2400x1600 (3:2)  clawd 3/4 on the desk, laptop behind. photos band, reduced motion hero
+  p3-pet.jpg           1920x2400 (4:5)  a finger on the top pad, screen shows petted. photos band + touch
+  p4-scale.jpg         1920x2400 (4:5)  next to a mug or a keycap row. photos band
+  p5-knolling.jpg      2400x2400 (1:1)  all parts laid out top down. inside band
+  p7-needs-you.jpg     2400x1600 (3:2)  close up, screen flashing the project name. needs you
+  p8-printing.jpg      2400x1600 (3:2)  the body half printed on the A1 bed. build band
+  usage-screen.jpg     2400x1600 (3:2)  the usage screen on the real Clawd. limits
+  status-line.png      as cropped, 1x   the Claude Code status line. limits
+  c3-music.mp4/.webm   1280x720, 6 s, no audio, under 1.5 MB, + c3-music.jpg poster. music
+-->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>tiny clawd: a tiny Clawd that reacts to Claude Code</title>
-<meta name="description" content="a 3D printed Clawd with a tiny OLED face. it reacts live to Claude Code: thinking, every tool, subagents, needs you, goals. about $5 of parts, open source, you build it.">
-<meta name="theme-color" content="#08090c">
+<meta name="description" content="a 3D printed Clawd with a 1.3 inch OLED face. it plugs into your laptop over USB and shows what Claude Code is doing. about $5 of parts, open source, you build it.">
+<meta name="theme-color" content="#f1eee6">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='3' width='10' height='7' fill='%23c8372d'/%3E%3Crect x='1' y='5' width='2' height='3' fill='%23c8372d'/%3E%3Crect x='13' y='5' width='2' height='3' fill='%23c8372d'/%3E%3Crect x='4' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='6' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='9' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='11' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='5' y='5' width='1' height='2' fill='%230a0c10'/%3E%3Crect x='10' y='5' width='1' height='2' fill='%230a0c10'/%3E%3C/svg%3E">
 
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://tinyclawd.deepakpopli.in/">
 <meta property="og:title" content="tiny clawd">
-<meta property="og:description" content="a tiny 3D printed Clawd that reacts live to Claude Code. about $5 of parts, open source, build your own.">
+<meta property="og:description" content="a 3D printed Clawd with a 1.3 inch OLED face that shows what Claude Code is doing. about $5 of parts, open source, build your own.">
 <meta property="og:image" content="https://tinyclawd.deepakpopli.in/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="tiny clawd">
-<meta name="twitter:description" content="a tiny 3D printed Clawd that reacts live to Claude Code. about $5 of parts, open source, build your own.">
+<meta name="twitter:description" content="a 3D printed Clawd with a 1.3 inch OLED face that shows what Claude Code is doing. about $5 of parts, open source, build your own.">
 <meta name="twitter:image" content="https://tinyclawd.deepakpopli.in/assets/og.png">
 
+<link rel="preload" href="fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/departure-mono.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 <script>document.documentElement.className = 'js';</script>
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="clawd" viewBox="0 0 16 16">
+    <path fill="#c8372d" d="M3 3h10v7H3zM1 5h2v3H1zM13 5h2v3h-2zM4 10h1v3H4zM6 10h1v3H6zM9 10h1v3H9zM11 10h1v3h-1z"/>
+    <path fill="#151515" d="M5 5h1v2H5zM10 5h1v2h-1z"/>
+  </symbol>
+</svg>
+
 <header class="top">
-  <a class="brand" href="#"><span class="dot"></span>tiny clawd</a>
-  <nav>
-    <a class="wide" href="#tools">how it reacts</a>
-    <a class="wide" href="#games">games</a>
-    <a class="wide" href="#anims">animations</a>
-    <a href="https://github.com/deepak61296/tinyclawd">github</a>
-    <a class="pill" href="#build">build one</a>
-  </nav>
+  <div class="wrap">
+    <a class="brand" href="#"><svg class="mark" aria-hidden="true"><use href="#clawd"/></svg>tiny clawd</a>
+    <nav>
+      <a class="wide" href="#think">how it works</a>
+      <a class="wide" href="#games">games</a>
+      <a class="wide" href="#build">build</a>
+      <a href="https://github.com/deepak61296/tinyclawd">github</a>
+      <a class="build" href="#build">build one</a>
+    </nav>
+  </div>
 </header>
 
 <div class="story">
 
-  <div class="stage" id="stage" data-side="right">
-    <canvas id="clawd3d"></canvas>
-    <div class="fallback" aria-hidden="true">
-      <div class="body">
-        <div class="screen"><img id="fallback-gif" src="assets/juggle.gif" width="256" height="128" alt=""></div>
+  <div class="stage" id="stage">
+    <div class="wrap">
+      <div class="stage-box">
+        <canvas id="clawd3d"></canvas>
+        <div class="fallback" aria-hidden="true">
+          <div class="body">
+            <div class="screen"><img id="fallback-gif" src="assets/juggle.gif" width="256" height="128" alt=""></div>
+          </div>
+          <div class="legs"><i></i><i></i><i></i><i></i></div>
+        </div>
       </div>
-      <div class="legs"><i></i><i></i><i></i><i></i></div>
     </div>
   </div>
 
   <main class="scenes">
 
-    <section class="scene hero" id="hero" data-clawd-anim="idle,wake_up" data-clawd-pose="front" data-clawd-side="right" data-gif="juggle">
-      <div class="copy">
-        <p class="kicker">&gt; tiny clawd</p>
-        <h1>a tiny Clawd<br>for your desk.</h1>
-        <p class="pitch">it watches Claude Code work and reacts live. thinks when claude thinks, calls you when
-          claude needs you, scores a goal when the job is done.</p>
-        <p class="facts"><span>3D printed</span><span>ESP32-C3</span><span>1.3" OLED face</span><span>~$5 of parts</span></p>
-        <div class="buttons">
-          <a class="btn red" href="#build">build one</a>
-          <a class="btn" href="https://github.com/deepak61296/tinyclawd">github</a>
-        </div>
-        <p class="tiny">fan-made, not affiliated with Anthropic. not for sale, you build it.</p>
-      </div>
-    </section>
-
-    <section class="scene" id="think" data-clawd-anim="thinking_words" data-clawd-pose="close" data-clawd-side="left" data-gif="thinking_words">
-      <div class="copy">
-        <p class="kicker">01 &middot; thinking</p>
-        <h2>you hit enter.</h2>
-        <p>it starts thinking, with the same words the CLI uses. pondering, noodling, percolating,
-          clauding. a little spinner, eyes reading along.</p>
-        <p>before that it watches you type. it only counts how fast keys go down, never which keys.
-          you can switch that off.</p>
-        <p class="chip"><span>prompt sent</span> thinking words</p>
-      </div>
-    </section>
-
-    <section class="scene" id="tools" data-clawd-anim="terminal,searching,crane,test_tubes,git_graph" data-clawd-pose="three-quarter" data-clawd-side="right" data-gif="crane">
-      <div class="copy">
-        <p class="kicker">02 &middot; tools</p>
-        <h2>it watches every tool.</h2>
-        <p>Read reads, Grep sweeps for matches, Edit types code, web searches spin a globe.
-          Bash gets its own looks, picked by what the command does.</p>
-        <ul class="term">
-          <li><span>grep, find</span> searching</li>
-          <li><span>make, cargo build</span> a building crane</li>
-          <li><span>npm test, pytest</span> bubbling test tubes</li>
-          <li><span>git commit</span> a git graph</li>
-          <li><span>pip install</span> packages</li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="scene" id="squad" data-clawd-anim="subagents_march,subagents" data-clawd-pose="side" data-clawd-side="left" data-gif="subagents_march">
-      <div class="copy">
-        <p class="kicker">03 &middot; subagents</p>
-        <h2>a squad for subagents.</h2>
-        <p>when claude sends out subagents, mini Clawds march in and pass a ball around.
-          one for each subagent. they march back out when the work is done.</p>
-        <p class="chip"><span>subagent started</span> mini Clawd squad</p>
-      </div>
-    </section>
-
-    <section class="scene" id="calls" data-clawd-anim="needs_you" data-clawd-pose="close" data-clawd-side="right" data-gif="needs_you">
-      <div class="copy">
-        <p class="kicker">04 &middot; needs you</p>
-        <h2>it calls you back.</h2>
-        <p>a permission prompt or a question? the whole screen flashes with the project name until you answer.
-          no more coming back to a session that waited for you all along.</p>
-        <p>several sessions share one Clawd. whoever needs you wins, then whoever is working.
-          little dots in the corner show how many are busy.</p>
-      </div>
-    </section>
-
-    <section class="scene" id="celebrate" data-clawd-anim="goal,bicycle_kick,yellow_card" data-clawd-pose="three-quarter" data-clawd-side="left" data-gif="goal">
-      <div class="copy">
-        <p class="kicker">05 &middot; done</p>
-        <h2>it celebrates.</h2>
-        <p>the bigger the task, the bigger the party. a quick fix gets a small win.
-          a long session gets a goal, a trophy or a bicycle kick.</p>
-        <p>and when tests fail it gets a yellow card. fail again, red card.</p>
-        <div class="pair">
-          <img src="assets/bicycle_kick.gif" loading="lazy" width="256" height="128" alt="bicycle kick">
-          <img src="assets/yellow_card.gif" loading="lazy" width="256" height="128" alt="yellow card">
+    <section class="scene hero" id="hero" data-clawd-anim="idle,wake_up" data-clawd-pose="front" data-gif="juggle">
+      <div class="wrap">
+        <div class="copy">
+          <h1>a tiny Clawd for your desk.</h1>
+          <p class="lead">a 3D printed Clawd with a 1.3 inch OLED face. it plugs into your laptop over USB
+            and shows what Claude Code is doing, as it happens.</p>
+          <dl class="specs">
+            <div><dt class="label">screen</dt><dd>1.3" OLED</dd></div>
+            <div><dt class="label">brain</dt><dd>ESP32-C3</dd></div>
+            <div><dt class="label">input</dt><dd>1 touch pad</dd></div>
+            <div><dt class="label">parts</dt><dd>~$5</dd></div>
+          </dl>
+          <p class="actions"><a class="btn" href="#build">build one</a> <a href="https://github.com/deepak61296/tinyclawd">github -&gt;</a></p>
+          <p class="small">fan-made, not affiliated with Anthropic. not for sale, you build it.</p>
         </div>
       </div>
     </section>
 
-    <section class="scene" id="limits" data-clawd-anim="usage" data-clawd-pose="front" data-clawd-side="right" data-gif="usage">
-      <div class="copy">
-        <p class="kicker">06 &middot; usage</p>
-        <h2>it keeps an eye on your limits.</h2>
-        <p>your 5 hour and weekly limits, read from the Claude Code status line. running low and it gets tired.
-          then stoppage time. hit the limit and it tells you when you're back.</p>
-        <p class="chip"><span>double tap</span> usage screen</p>
-      </div>
-    </section>
-
-    <section class="scene" id="music" data-clawd-anim="now_playing,equalizer" data-clawd-pose="side" data-clawd-side="left" data-gif="equalizer">
-      <div class="copy">
-        <p class="kicker">07 &middot; music</p>
-        <h2>music on.</h2>
-        <p>play something on the laptop. the song name scrolls by and it vibes along.
-          the equalizer bars move to your real laptop audio, not a fake loop.</p>
-        <p class="chip"><span>spotify, youtube...</span> now playing</p>
-      </div>
-    </section>
-
-    <section class="scene" id="life" data-clawd-anim="coffee,juggle,dream,asleep" data-clawd-pose="three-quarter" data-clawd-side="right" data-gif="coffee">
-      <div class="copy">
-        <p class="kicker">08 &middot; idle</p>
-        <h2>a life of its own.</h2>
-        <p>nothing going on? it has a coffee, juggles, plays football, stares at the stars,
-          naps and dreams. at night it falls asleep faster.</p>
-        <p>105 animations, picked at random with cooldowns, so it rarely does the same thing twice.</p>
-      </div>
-    </section>
-
-    <section class="scene" id="pet" data-clawd-anim="petted,love" data-clawd-pose="top" data-clawd-side="left" data-gif="petted">
-      <div class="copy">
-        <p class="kicker">09 &middot; touch</p>
-        <h2>pet it.</h2>
-        <p>there's one touch pad, on top of its head. that's the whole interface.</p>
-        <ul class="term">
-          <li><span>tap</span> petted, giggles</li>
-          <li><span>double tap</span> your usage</li>
-          <li><span>hold</span> love</li>
-          <li><span>hold till the ring fills</span> the menu</li>
-        </ul>
-        <button class="btn red pet-btn" type="button" data-play="petted,love">pet it</button>
-      </div>
-    </section>
-
-    <section class="scene" id="games" data-clawd-anim="game_run,game_panic,game_flappy" data-clawd-pose="front" data-clawd-side="right" data-gif="game_run">
-      <div class="copy">
-        <p class="kicker">10 &middot; games</p>
-        <h2>7 games, one button.</h2>
-        <p>tap to jump, kick or allow. they're easy on purpose, it's a desk toy.
-          high scores survive unplugging.</p>
-        <div class="games">
-          <figure><img src="assets/game_run.gif" loading="lazy" width="256" height="128" alt=""><figcaption>bug run</figcaption></figure>
-          <figure><img src="assets/game_panic.gif" loading="lazy" width="256" height="128" alt=""><figcaption>permission panic</figcaption></figure>
-          <figure><img src="assets/game_flappy.gif" loading="lazy" width="256" height="128" alt=""><figcaption>flappy clawd</figcaption></figure>
-          <figure><img src="assets/game_keepy.gif" loading="lazy" width="256" height="128" alt=""><figcaption>keepy uppy</figcaption></figure>
-          <figure><img src="assets/game_penalty.gif" loading="lazy" width="256" height="128" alt=""><figcaption>penalties</figcaption></figure>
-          <figure><img src="assets/game_catch.gif" loading="lazy" width="256" height="128" alt=""><figcaption>token catch</figcaption></figure>
-          <figure><img src="assets/game_whack.gif" loading="lazy" width="256" height="128" alt=""><figcaption>whack a bug</figcaption></figure>
+    <section class="band photos" id="photos">
+      <div class="wrap">
+        <div class="band-head">
+          <p class="label">photos</p>
+          <h2>the real one.</h2>
         </div>
-        <p class="note">permission panic: allow <code>npm test</code>, never <code>rm -rf /</code>.</p>
+        <figure class="photo big">
+          <div class="frame r32"><img src="assets/photos/p1-desk.jpg" width="2400" height="1600" alt="Tiny Clawd on a desk, a laptop with Claude Code behind it" onerror="this.remove()"><span class="ph">photo: clawd on the desk<br>p1-desk.jpg</span></div>
+          <figcaption class="label">red PLA, printed with no supports</figcaption>
+        </figure>
+        <figure class="photo">
+          <div class="frame r45"><img src="assets/photos/p3-pet.jpg" width="1920" height="2400" loading="lazy" alt="a finger on the touch pad on top of its head" onerror="this.remove()"><span class="ph">photo: a finger on the pad<br>p3-pet.jpg</span></div>
+          <figcaption class="label">the touch pad is on its head</figcaption>
+        </figure>
+        <figure class="photo">
+          <div class="frame r45"><img src="assets/photos/p4-scale.jpg" width="1920" height="2400" loading="lazy" alt="Tiny Clawd next to a coffee mug for scale" onerror="this.remove()"><span class="ph">photo: next to a mug<br>p4-scale.jpg</span></div>
+          <figcaption class="label">for scale</figcaption>
+        </figure>
       </div>
     </section>
 
-    <section class="scene" id="inside" data-clawd-anim="idle" data-clawd-pose="exploded" data-clawd-side="left" data-gif="paper_plane">
-      <div class="copy">
-        <p class="kicker">11 &middot; inside</p>
-        <h2>about $5 of parts.</h2>
-        <table class="parts">
-          <tr><td>ESP32-C3 Super Mini</td><td>~$2</td></tr>
-          <tr><td>1.3" SH1106 OLED, 128x64, I2C</td><td>~$2</td></tr>
-          <tr><td>TTP223 touch pad</td><td>~$0.2</td></tr>
-          <tr><td>~40 g of PLA, red + black</td><td>~$0.5</td></tr>
-          <tr><td>USB-C data cable</td><td>you have one</td></tr>
-          <tr class="total"><td>total</td><td>~$5</td></tr>
-        </table>
-        <p class="small">print files for the body, back plate and stand are in
-          <a href="https://github.com/deepak61296/tinyclawd/tree/main/hardware/print">hardware/print</a>.
-          the inner frame is the <a href="https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi">Mochi housing by Dave0616</a>.
-          only the outside is new, so the original electronics frame fits as is.</p>
+    <section class="scene" id="think" data-clawd-anim="thinking_words" data-clawd-pose="close" data-gif="thinking_words">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">UserPromptSubmit</p>
+          <h2>you hit enter.</h2>
+          <p>it starts thinking with the same words the CLI uses: pondering, noodling, percolating, clauding.</p>
+          <p>the typing watch only sees how fast keys go down. you can switch it off.</p>
+          <table class="sheet">
+            <tr><th class="label">you type</th><td>it watches the keys go down (speed only, never which keys)</td></tr>
+            <tr><th class="label">you press enter</th><td>thinking words, same as the CLI</td></tr>
+          </table>
+        </div>
       </div>
     </section>
 
-    <section class="scene" id="build" data-clawd-anim="wake_up,love" data-clawd-pose="front" data-clawd-side="right" data-gif="love">
-      <div class="copy">
-        <p class="kicker">12 &middot; build one</p>
-        <h2>build one.</h2>
-        <ol class="steps">
-          <li>
-            <h3>flash the board</h3>
-            <p>get the <code>.bin</code> from the <a href="https://github.com/deepak61296/tinyclawd/releases">releases page</a>.
-              open <a href="https://espressif.github.io/esptool-js/">espressif's web flasher</a> in chrome,
-              connect, pick the file at address <code>0x0</code>, press program.</p>
-          </li>
-          <li>
-            <h3>set up the laptop</h3>
-            <p>the bridge, the Claude Code hooks and the usage line, in one go:</p>
-            <div class="code">
-              <pre><code id="install">curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash</code></pre>
-              <button class="copy-btn" type="button" data-copy="install">copy</button>
-            </div>
-            <p class="small">or <a href="https://github.com/deepak61296/tinyclawd#set-it-up">set it up by hand</a>.
-              it backs up every file it touches. restart Claude Code and say hi.</p>
-          </li>
-        </ol>
+    <section class="scene" id="tools" data-clawd-anim="terminal,searching,crane,test_tubes,git_graph" data-clawd-pose="three-quarter" data-gif="crane">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">PreToolUse</p>
+          <h2>every tool gets its own look.</h2>
+          <p>Bash commands are sorted by what they do, so a build looks different from a test run.</p>
+          <table class="sheet">
+            <tr><th class="label">tool or command</th><th class="label">what it shows</th></tr>
+            <tr><td class="key">Read</td><td>reading, a page flip</td></tr>
+            <tr><td class="key">Grep</td><td>searching, a radar sweep</td></tr>
+            <tr><td class="key">Edit</td><td>typing code</td></tr>
+            <tr><td class="key">WebSearch</td><td>a globe, a satellite</td></tr>
+            <tr><td class="key">make</td><td>a building crane</td></tr>
+            <tr><td class="key">npm test</td><td>bubbling test tubes</td></tr>
+            <tr><td class="key">git commit</td><td>a git graph, then a party</td></tr>
+            <tr><td class="key">pip install</td><td>packages coming down</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="squad" data-clawd-anim="subagents_march,subagents" data-clawd-pose="side" data-gif="subagents_march">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">SubagentStart</p>
+          <h2>a squad for subagents.</h2>
+          <p>when Claude Code starts subagents, mini Clawds march in, one for each, and pass a ball around.</p>
+          <p>another one joins as a substitute. when the last subagent stops, the squad walks back out.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="calls" data-clawd-anim="needs_you" data-clawd-pose="close" data-gif="needs_you">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">PermissionRequest</p>
+          <h2>it calls you back.</h2>
+          <p>a permission prompt or a question? the whole screen flashes the project name until you answer,
+            so a session never sits there waiting while you are in another window.</p>
+          <p>several sessions share one Clawd. whoever needs you wins, then whoever is working.
+            dots in the corner show how many are busy.</p>
+          <figure class="photo">
+            <div class="frame r32"><img src="assets/photos/p7-needs-you.jpg" width="2400" height="1600" loading="lazy" alt="the screen flashing a project name" onerror="this.remove()"><span class="ph">photo: screen flashing the project name<br>p7-needs-you.jpg</span></div>
+            <figcaption class="label">it flashes until you answer</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="celebrate" data-clawd-anim="goal,bicycle_kick,yellow_card" data-clawd-pose="three-quarter" data-gif="goal">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">Stop</p>
+          <h2>it celebrates.</h2>
+          <p>under 20 seconds of work gets a small win. over 2 minutes gets a goal, a trophy or a bicycle kick.</p>
+          <table class="sheet">
+            <tr><th class="label">time from enter to done</th><th class="label">what it plays</th></tr>
+            <tr><td class="key">under 20 s</td><td>a small win</td></tr>
+            <tr><td class="key">20 s to 2 min</td><td>goal, header, party</td></tr>
+            <tr><td class="key">over 2 min</td><td>goal, trophy, bicycle kick</td></tr>
+            <tr class="gap"><td class="key">test fails</td><td>yellow card</td></tr>
+            <tr><td class="key">fails again</td><td>red card</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="limits" data-clawd-anim="usage" data-clawd-pose="front" data-gif="usage">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">status line</p>
+          <h2>your 5 hour and weekly limits, on its face.</h2>
+          <p>read from the Claude Code status line. running low and it gets tired, then stoppage time.
+            hit the limit and it tells you when you're back.</p>
+          <div class="figs">
+            <figure class="photo">
+              <div class="frame r32"><img src="assets/photos/status-line.png" loading="lazy" alt="the Claude Code status line" onerror="this.remove()"><span class="ph">screenshot: status line<br>status-line.png</span></div>
+              <figcaption class="label">the status line</figcaption>
+            </figure>
+            <figure class="photo">
+              <div class="frame r32"><img src="assets/photos/usage-screen.jpg" width="2400" height="1600" loading="lazy" alt="the usage screen on the Clawd" onerror="this.remove()"><span class="ph">photo: usage screen<br>usage-screen.jpg</span></div>
+              <figcaption class="label">double tap for this</figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="music" data-clawd-anim="now_playing,equalizer" data-clawd-pose="side" data-gif="equalizer">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">laptop audio</p>
+          <h2>music on.</h2>
+          <p>play something on the laptop. the song name scrolls by, and the equalizer bars move
+            to the real laptop audio, not a fake loop.</p>
+          <figure class="photo">
+            <div class="frame r169"><video src="assets/photos/c3-music.mp4" poster="assets/photos/c3-music.jpg" muted loop playsinline preload="none" onerror="this.remove()"></video><span class="ph">clip: equalizer moving to a song<br>c3-music.mp4</span></div>
+            <figcaption class="label">6 s, laptop playing in the back</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="life" data-clawd-anim="coffee,juggle,dream,asleep" data-clawd-pose="three-quarter" data-gif="coffee">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">nothing running</p>
+          <h2>nothing running? it has a coffee.</h2>
+          <p>or it juggles, plays football, stares at the stars and naps. at night it falls asleep faster.</p>
+          <p>what it does is picked at random with cooldowns, so it rarely does the same thing twice in a row.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="pet" data-clawd-anim="petted,love" data-clawd-pose="top" data-gif="petted">
+      <div class="wrap">
+        <div class="copy">
+          <p class="label">touch pad</p>
+          <h2>pet it.</h2>
+          <p>one touch pad, on top of its head. that's the whole interface.</p>
+          <div class="side-by">
+            <table class="sheet">
+              <tr><td class="key">tap</td><td>petted</td></tr>
+              <tr><td class="key">double tap</td><td>usage</td></tr>
+              <tr><td class="key">hold</td><td>love</td></tr>
+              <tr><td class="key">hold till the ring fills</td><td>menu</td></tr>
+            </table>
+            <figure class="photo">
+              <div class="frame r45"><img src="assets/photos/p3-pet.jpg" width="1920" height="2400" loading="lazy" alt="a finger on the touch pad" onerror="this.remove()"><span class="ph">photo<br>p3-pet.jpg</span></div>
+            </figure>
+          </div>
+          <button class="btn pet-btn" type="button" data-play="petted,love">pet it</button>
+        </div>
       </div>
     </section>
 
   </main>
 </div>
 
-<section class="wall" id="anims">
-  <div class="wall-head">
-    <p class="kicker">105 animations</p>
-    <h2>a few of them.</h2>
-    <p>all drawn on the real 128x64 screen. these gifs come straight from the firmware.</p>
+<section class="band" id="games">
+  <div class="wrap">
+    <div class="band-head">
+      <p class="label">in the menu</p>
+      <h2>7 games, one button.</h2>
+      <p>tap to jump, kick or allow. they're easy on purpose, and high scores survive unplugging.</p>
+    </div>
+    <div class="plates">
+      <figure><img src="assets/game_run.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">bug run</figcaption></figure>
+      <figure><img src="assets/game_panic.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">permission panic</figcaption></figure>
+      <figure><img src="assets/game_flappy.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">flappy clawd</figcaption></figure>
+      <figure><img src="assets/game_keepy.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">keepy uppy</figcaption></figure>
+      <figure><img src="assets/game_penalty.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">penalties</figcaption></figure>
+      <figure><img src="assets/game_catch.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">token catch</figcaption></figure>
+      <figure><img src="assets/game_whack.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">whack a bug</figcaption></figure>
+    </div>
+    <p class="band-note">permission panic: allow <code>npm test</code>, never <code>rm -rf /</code>.</p>
   </div>
-  <div class="wall-grid">
-    <figure><img src="assets/thinking_words.gif" loading="lazy" width="256" height="128" alt=""><figcaption>thinking words</figcaption></figure>
-    <figure><img src="assets/thinking.gif" loading="lazy" width="256" height="128" alt=""><figcaption>thinking</figcaption></figure>
-    <figure><img src="assets/lightbulb.gif" loading="lazy" width="256" height="128" alt=""><figcaption>lightbulb</figcaption></figure>
-    <figure><img src="assets/reading.gif" loading="lazy" width="256" height="128" alt=""><figcaption>reading</figcaption></figure>
-    <figure><img src="assets/typing.gif" loading="lazy" width="256" height="128" alt=""><figcaption>typing</figcaption></figure>
-    <figure><img src="assets/typing_along.gif" loading="lazy" width="256" height="128" alt=""><figcaption>typing along</figcaption></figure>
-    <figure><img src="assets/keyboard_peek.gif" loading="lazy" width="256" height="128" alt=""><figcaption>keyboard peek</figcaption></figure>
-    <figure><img src="assets/letters_fly.gif" loading="lazy" width="256" height="128" alt=""><figcaption>letters fly</figcaption></figure>
-    <figure><img src="assets/terminal.gif" loading="lazy" width="256" height="128" alt=""><figcaption>terminal</figcaption></figure>
-    <figure><img src="assets/searching.gif" loading="lazy" width="256" height="128" alt=""><figcaption>searching</figcaption></figure>
-    <figure><img src="assets/web.gif" loading="lazy" width="256" height="128" alt=""><figcaption>web search</figcaption></figure>
-    <figure><img src="assets/crane.gif" loading="lazy" width="256" height="128" alt=""><figcaption>build crane</figcaption></figure>
-    <figure><img src="assets/test_tubes.gif" loading="lazy" width="256" height="128" alt=""><figcaption>test tubes</figcaption></figure>
-    <figure><img src="assets/git_graph.gif" loading="lazy" width="256" height="128" alt=""><figcaption>git graph</figcaption></figure>
-    <figure><img src="assets/git_branch.gif" loading="lazy" width="256" height="128" alt=""><figcaption>branch merge</figcaption></figure>
-    <figure><img src="assets/package.gif" loading="lazy" width="256" height="128" alt=""><figcaption>packages</figcaption></figure>
-    <figure><img src="assets/subagents_march.gif" loading="lazy" width="256" height="128" alt=""><figcaption>squad march</figcaption></figure>
-    <figure><img src="assets/subagents.gif" loading="lazy" width="256" height="128" alt=""><figcaption>subagents</figcaption></figure>
-    <figure><img src="assets/needs_you.gif" loading="lazy" width="256" height="128" alt=""><figcaption>needs you</figcaption></figure>
-    <figure><img src="assets/rubber_duck.gif" loading="lazy" width="256" height="128" alt=""><figcaption>rubber duck</figcaption></figure>
-    <figure><img src="assets/goal.gif" loading="lazy" width="256" height="128" alt=""><figcaption>goal</figcaption></figure>
-    <figure><img src="assets/bicycle_kick.gif" loading="lazy" width="256" height="128" alt=""><figcaption>bicycle kick</figcaption></figure>
-    <figure><img src="assets/trophy.gif" loading="lazy" width="256" height="128" alt=""><figcaption>trophy</figcaption></figure>
-    <figure><img src="assets/bug_squash.gif" loading="lazy" width="256" height="128" alt=""><figcaption>bug squashed</figcaption></figure>
-    <figure><img src="assets/yellow_card.gif" loading="lazy" width="256" height="128" alt=""><figcaption>yellow card</figcaption></figure>
-    <figure><img src="assets/red_card.gif" loading="lazy" width="256" height="128" alt=""><figcaption>red card</figcaption></figure>
-    <figure><img src="assets/var_check.gif" loading="lazy" width="256" height="128" alt=""><figcaption>var check</figcaption></figure>
-    <figure><img src="assets/context.gif" loading="lazy" width="256" height="128" alt=""><figcaption>context filling up</figcaption></figure>
-    <figure><img src="assets/usage.gif" loading="lazy" width="256" height="128" alt=""><figcaption>usage</figcaption></figure>
-    <figure><img src="assets/limit_hit.gif" loading="lazy" width="256" height="128" alt=""><figcaption>limit hit</figcaption></figure>
-    <figure><img src="assets/now_playing.gif" loading="lazy" width="256" height="128" alt=""><figcaption>now playing</figcaption></figure>
-    <figure><img src="assets/equalizer.gif" loading="lazy" width="256" height="128" alt=""><figcaption>equalizer</figcaption></figure>
-    <figure><img src="assets/music.gif" loading="lazy" width="256" height="128" alt=""><figcaption>music</figcaption></figure>
-    <figure><img src="assets/headbang.gif" loading="lazy" width="256" height="128" alt=""><figcaption>headbang</figcaption></figure>
-    <figure><img src="assets/dance.gif" loading="lazy" width="256" height="128" alt=""><figcaption>dance</figcaption></figure>
-    <figure><img src="assets/coffee.gif" loading="lazy" width="256" height="128" alt=""><figcaption>coffee</figcaption></figure>
-    <figure><img src="assets/juggle.gif" loading="lazy" width="256" height="128" alt=""><figcaption>juggling</figcaption></figure>
-    <figure><img src="assets/paper_plane.gif" loading="lazy" width="256" height="128" alt=""><figcaption>paper plane</figcaption></figure>
-    <figure><img src="assets/stargaze.gif" loading="lazy" width="256" height="128" alt=""><figcaption>stargazing</figcaption></figure>
-    <figure><img src="assets/dream.gif" loading="lazy" width="256" height="128" alt=""><figcaption>dreaming</figcaption></figure>
-    <figure><img src="assets/petted.gif" loading="lazy" width="256" height="128" alt=""><figcaption>petted</figcaption></figure>
-    <figure><img src="assets/love.gif" loading="lazy" width="256" height="128" alt=""><figcaption>love</figcaption></figure>
-  </div>
-  <p class="wall-more">the rest are waiting on the desk. <a href="#build">build one</a></p>
 </section>
 
-<footer>
-  <p class="foot-brand"><span class="dot"></span>tiny clawd</p>
-  <p>fan-made, not affiliated with Anthropic. Clawd belongs to Anthropic.</p>
-  <p>code: <a href="https://github.com/deepak61296/tinyclawd/blob/main/LICENSE">MIT</a>.
-    print files: <a href="https://github.com/deepak61296/tinyclawd/blob/main/hardware/LICENSE">CC BY-NC-SA 4.0</a>,
-    the inner frame is the <a href="https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi">Mochi housing by Dave0616</a>.
-    please don't sell printed ones.</p>
-  <p>made by <a href="https://github.com/deepak61296">Deepak Popli</a></p>
+<section class="band" id="inside">
+  <div class="wrap">
+    <div class="band-head">
+      <p class="label">bill of materials</p>
+      <h2>about $5 of parts.</h2>
+    </div>
+    <figure class="photo knoll">
+      <div class="frame r11"><img src="assets/photos/p5-knolling.jpg" width="2400" height="2400" loading="lazy" alt="all the parts laid out on paper" onerror="this.remove()"><span class="ph">photo: all the parts laid out<br>p5-knolling.jpg</span></div>
+      <figcaption class="label">everything that goes inside</figcaption>
+    </figure>
+    <div class="bom">
+      <table class="sheet">
+        <tr><th class="label">part</th><th class="label">spec</th><th class="label">qty</th><th class="label">approx</th></tr>
+        <tr><td>ESP32-C3 Super Mini</td><td>RISC-V, USB-C</td><td class="key">1</td><td class="key">~$2</td></tr>
+        <tr><td>SH1106 OLED</td><td>1.3", 128x64, I2C</td><td class="key">1</td><td class="key">~$2</td></tr>
+        <tr><td>TTP223 touch pad</td><td>capacitive, 1 key</td><td class="key">1</td><td class="key">~$0.2</td></tr>
+        <tr><td>PLA</td><td>red + black, ~40 g</td><td class="key">-</td><td class="key">~$0.5</td></tr>
+        <tr><td>USB-C cable</td><td>one that carries data</td><td class="key">1</td><td class="key">you have one</td></tr>
+        <tr class="total"><td>total</td><td></td><td></td><td class="key">~$5</td></tr>
+      </table>
+      <p class="small">print files for the body, back plate and stand are in
+        <a href="https://github.com/deepak61296/tinyclawd/tree/main/hardware/print">hardware/print</a>.
+        the inner frame is the <a href="https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi">Mochi housing by Dave0616</a>.
+        only the outside is new, so the original electronics frame fits as is.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="build">
+  <div class="wrap">
+    <div class="band-head">
+      <p class="label">firmware and bridge</p>
+      <h2>build one.</h2>
+    </div>
+    <div class="step">
+      <p class="num">1</p>
+      <h3>flash the board</h3>
+      <p>get the <code>.bin</code> from the <a href="https://github.com/deepak61296/tinyclawd/releases">releases page</a>.
+        open <a href="https://espressif.github.io/esptool-js/">espressif's web flasher</a> in Chrome,
+        connect, pick the file at address <code>0x0</code>, press program.</p>
+    </div>
+    <div class="step">
+      <p class="num">2</p>
+      <h3>set up the laptop</h3>
+      <p>the bridge, the Claude Code hooks and the usage line, in one go. it backs up every file it touches.
+        restart Claude Code and say hi.</p>
+    </div>
+    <figure class="photo printing">
+      <div class="frame r32"><img src="assets/photos/p8-printing.jpg" width="2400" height="1600" loading="lazy" alt="the body printing in red PLA" onerror="this.remove()"><span class="ph">photo: the body on the print bed<br>p8-printing.jpg</span></div>
+      <figcaption class="label">the body, half printed</figcaption>
+    </figure>
+    <div class="code">
+      <pre><code id="install">curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash</code></pre>
+      <button class="copy-btn" type="button" data-copy="install">copy</button>
+    </div>
+    <p class="small by-hand">or <a href="https://github.com/deepak61296/tinyclawd#set-it-up">set it up by hand</a>.</p>
+  </div>
+</section>
+
+<section class="wall" id="anims">
+  <div class="wrap">
+    <div class="band-head">
+      <p class="label">animations</p>
+      <h2>42 of 105 animations, straight from the firmware.</h2>
+      <p>all drawn on the real 128x64 screen, shown here at 2x.</p>
+    </div>
+    <div class="wall-grid">
+      <figure><img src="assets/thinking_words.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">thinking words</figcaption></figure>
+      <figure><img src="assets/thinking.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">thinking</figcaption></figure>
+      <figure><img src="assets/lightbulb.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">lightbulb</figcaption></figure>
+      <figure><img src="assets/reading.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">reading</figcaption></figure>
+      <figure><img src="assets/typing.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">typing</figcaption></figure>
+      <figure><img src="assets/typing_along.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">typing along</figcaption></figure>
+      <figure><img src="assets/keyboard_peek.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">keyboard peek</figcaption></figure>
+      <figure><img src="assets/letters_fly.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">letters fly</figcaption></figure>
+      <figure><img src="assets/terminal.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">terminal</figcaption></figure>
+      <figure><img src="assets/searching.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">searching</figcaption></figure>
+      <figure><img src="assets/web.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">web search</figcaption></figure>
+      <figure><img src="assets/crane.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">build crane</figcaption></figure>
+      <figure><img src="assets/test_tubes.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">test tubes</figcaption></figure>
+      <figure><img src="assets/git_graph.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">git graph</figcaption></figure>
+      <figure><img src="assets/git_branch.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">branch merge</figcaption></figure>
+      <figure><img src="assets/package.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">packages</figcaption></figure>
+      <figure><img src="assets/subagents_march.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">squad march</figcaption></figure>
+      <figure><img src="assets/subagents.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">subagents</figcaption></figure>
+      <figure><img src="assets/needs_you.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">needs you</figcaption></figure>
+      <figure><img src="assets/rubber_duck.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">rubber duck</figcaption></figure>
+      <figure><img src="assets/goal.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">goal</figcaption></figure>
+      <figure><img src="assets/bicycle_kick.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">bicycle kick</figcaption></figure>
+      <figure><img src="assets/trophy.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">trophy</figcaption></figure>
+      <figure><img src="assets/bug_squash.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">bug squashed</figcaption></figure>
+      <figure><img src="assets/yellow_card.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">yellow card</figcaption></figure>
+      <figure><img src="assets/red_card.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">red card</figcaption></figure>
+      <figure><img src="assets/var_check.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">var check</figcaption></figure>
+      <figure><img src="assets/context.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">context filling up</figcaption></figure>
+      <figure><img src="assets/usage.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">usage</figcaption></figure>
+      <figure><img src="assets/limit_hit.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">limit hit</figcaption></figure>
+      <figure><img src="assets/now_playing.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">now playing</figcaption></figure>
+      <figure><img src="assets/equalizer.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">equalizer</figcaption></figure>
+      <figure><img src="assets/music.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">music</figcaption></figure>
+      <figure><img src="assets/headbang.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">headbang</figcaption></figure>
+      <figure><img src="assets/dance.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">dance</figcaption></figure>
+      <figure><img src="assets/coffee.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">coffee</figcaption></figure>
+      <figure><img src="assets/juggle.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">juggling</figcaption></figure>
+      <figure><img src="assets/paper_plane.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">paper plane</figcaption></figure>
+      <figure><img src="assets/stargaze.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">stargazing</figcaption></figure>
+      <figure><img src="assets/dream.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">dreaming</figcaption></figure>
+      <figure><img src="assets/petted.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">petted</figcaption></figure>
+      <figure><img src="assets/love.gif" loading="lazy" width="256" height="128" alt=""><figcaption class="label">love</figcaption></figure>
+    </div>
+    <p class="wall-more">the other 63 you will see on your own desk. <a href="#build">build one</a></p>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="foot-brand"><svg class="mark" aria-hidden="true"><use href="#clawd"/></svg>tiny clawd</p>
+    <div>
+      <p class="label">about</p>
+      <p>fan-made, not affiliated with Anthropic. Clawd belongs to Anthropic.
+        made by <a href="https://github.com/deepak61296">Deepak Popli</a>.</p>
+    </div>
+    <div>
+      <p class="label">licences</p>
+      <p>code: <a href="https://github.com/deepak61296/tinyclawd/blob/main/LICENSE">MIT</a>.
+        print files: <a href="https://github.com/deepak61296/tinyclawd/blob/main/hardware/LICENSE">CC BY-NC-SA 4.0</a>.
+        the inner frame is the <a href="https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi">Mochi housing by Dave0616</a>.
+        please don't sell printed ones.</p>
+    </div>
+    <div>
+      <p class="label">colophon</p>
+      <p>set in <a href="https://github.com/Omnibus-Type/Archivo">Archivo</a> by Omnibus-Type and
+        <a href="https://departuremono.com">Departure Mono</a> by Helena Zhang. 3D with
+        <a href="https://threejs.org">three.js</a>. photos shot on my desk.</p>
+    </div>
+  </div>
 </footer>
 
 <script>
@@ -321,30 +450,40 @@ document.querySelectorAll('.copy-btn').forEach(function (b) {
   });
 });
 
-// a section takes over once it holds the middle of the screen, the same
-// line the 3D Clawd uses: the stage moves to its side
+// clips play only while you can see them
+var clips = document.querySelectorAll('video');
+var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!still && 'IntersectionObserver' in window) {
+  var seen = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) e.target.play().catch(function () {}); else e.target.pause(); });
+  });
+  clips.forEach(function (v) { seen.observe(v); });
+}
+
+// reduced motion: the first frame of every gif instead of the gif
+if (still) document.querySelectorAll('img[src$=".gif"]').forEach(function (g) {
+  g.src = g.getAttribute('src').replace('assets/', 'assets/still/').replace('.gif', '.png');
+});
+
+// the 2D stand-in shows the gif of the section in the middle of the screen
 (function () {
   var stage = document.getElementById('stage');
   var scenes = [].slice.call(document.querySelectorAll('.scene'));
-
   function update() {
     var mid = innerHeight / 2, s = null;
     scenes.forEach(function (o) {
       var r = o.getBoundingClientRect();
       if (r.top <= mid && r.bottom > mid) s = o;
     });
-    if (!s) return;
-    s.parentNode.classList.add('live');
-    scenes.forEach(function (o) { o.classList.toggle('now', o === s); });
-    stage.dataset.side = s.dataset.clawdSide;
+    if (!s || still) return;
     var src = 'assets/' + s.dataset.gif + '.gif';
-    var gifs = stage.querySelectorAll('#fallback-gif, img#clawd3d');
-    gifs.forEach(function (g) { if (g.getAttribute('src') !== src) g.setAttribute('src', src); });
+    stage.querySelectorAll('#fallback-gif').forEach(function (g) {
+      if (g.getAttribute('src') !== src) g.setAttribute('src', src);
+    });
   }
   addEventListener('scroll', update, { passive: true });
   addEventListener('resize', update);
   update();
-  addEventListener('load', update);
 })();
 
 // the 2D stand-in only shows if the 3D script never starts at all
@@ -353,6 +492,7 @@ setTimeout(function () {
   var started = document.documentElement.classList.contains('clawd3d-ready') || (c && c.tagName === 'IMG');
   if (!started) document.getElementById('stage').classList.add('empty');
 }, 3000);
+
 // test only: ?shot=id puts the middle of that section in the middle of the screen
 var shot = new URLSearchParams(location.search).get('shot');
 if (shot) addEventListener('load', function () {
