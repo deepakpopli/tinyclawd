@@ -2,9 +2,13 @@
 
 <p align="center"><img src="docs/gifs/hero.gif" width="70%"></p>
 
-a tiny Clawd that lives on my desk. it watches my Claude Code sessions, shows how much of my
-usage limits are left and reacts to what claude is doing. thinking, running tools, waiting for me,
-done. sometimes it just plays football.
+a tiny 3D printed Clawd with an OLED face that shows what Claude Code is doing.
+
+it lives on my desk, plugged into the laptop over USB. it thinks when claude thinks, types when
+claude edits, calls me back when a session is waiting, shows how much of my usage limits are
+left and celebrates when the work is done. when nothing is going on it just plays football.
+
+about $5 of parts. site: **[tinyclawd.deepakpopli.in](https://tinyclawd.deepakpopli.in)**
 
 fan-made project, not affiliated with Anthropic.
 
@@ -15,7 +19,7 @@ fan-made project, not affiliated with Anthropic.
 | prompt sent | thinking |
 | Read, Grep, Glob | reading, searching |
 | Edit, Write | typing |
-| Bash | terminal |
+| Bash | terminal, a crane for builds, test tubes for tests, packages for installs |
 | web search / fetch | spinning globe |
 | subagents | a squad of mini Clawds passing a ball |
 | permission or question | surprised, then the screen flashes with the project name until you answer |
@@ -26,9 +30,10 @@ fan-made project, not affiliated with Anthropic.
 | context compacted | squish |
 | done | small win for short tasks, goal or trophy for long ones |
 | usage running low | tired, stoppage time, limit hit |
-| music playing (spotify, youtube...) | now playing with the song name, vibing, headbanging |
+| music playing (spotify, youtube...) | now playing with the song name, equalizer, headbanging |
+| you typing | it watches the keys go down |
 | nothing going on | looks around, coffee, juggling, football, naps and dreams |
-| touch the head | petted, giggle, usage screen, love |
+| touch the head | petted, usage screen, love |
 
 ## animations
 
@@ -50,9 +55,6 @@ running in the desktop sim.
 the firmware versions are time based C++ in [`firmware/components/pet`](firmware/components/pet).
 the first designs were sketched in python: [`animations/`](animations).
 
-there is also a 3D viewer: `hardware/build_live_viewer.py` builds `hardware/out/clawd_live.html`,
-the printed body with every animation playing on its screen.
-
 ## games
 
 there is only one button, the touch pad on its head. so everything works with tap, double tap
@@ -63,7 +65,7 @@ and hold:
 - in the menu: tap = next, hold = open, double tap = back
 - in a game: press = jump / kick / allow, hold the full ring to leave
 
-they're meant to be easy, it's a desk toy. best scores stay after unplugging.
+7 games. they're meant to be easy, it's a desk toy. best scores stay after unplugging.
 
 | | |
 |---|---|
@@ -74,30 +76,59 @@ they're meant to be easy, it's a desk toy. best scores stay after unplugging.
 
 ## hardware
 
-- ESP32-C3 Super Mini
-- 1.3" SH1106 128x64 OLED (I2C, SDA 20 / SCL 21)
-- TTP223 touch pad on the head (GPIO 1)
-- printed body + stand, see [`hardware/`](hardware)
+| part | approx |
+|---|---|
+| ESP32-C3 Super Mini | ~$2 |
+| 1.3" SH1106 128x64 OLED, I2C | ~$2 |
+| TTP223 touch pad | ~$0.2 |
+| PLA, red + black, ~40 g | ~$0.5 |
+| a USB-C cable that carries data | you have one |
+| **total** | **~$5** |
+
+wiring: OLED SDA to GPIO 20, SCL to GPIO 21, touch pad output to GPIO 1.
 
 the inside of the body is the [Mochi housing by Dave0616](https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi)
 (inner frame, OLED holder, back plate). i only redesigned the outside, so the original electronics
 frame fits without changes. there is also a small Macintosh style version.
 
-print files are in [`hardware/print/`](hardware/print), each folder has a README with what to print.
+print files are in [`hardware/print/`](hardware/print), each folder has a README with what to
+print. no supports needed.
 
-## set it up
+## quick start
 
-1. flash the board. easiest: download the `.bin` from the releases page, open
-   [espressif's web flasher](https://espressif.github.io/esptool-js/) in chrome, connect, pick the
-   file at address `0x0` and press program. or build it yourself, see [`firmware/`](firmware).
-2. on the laptop (linux, python 3 + pyserial):
+linux for now. one command gets the code, can flash the board and hooks it into claude code:
 
 ```bash
-python3 bridge/setup.py            # background service + claude code hooks + usage line
-python3 bridge/setup.py --remove   # undo it all
+curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash
 ```
 
-it backs up every file it touches. restart claude code after.
+it asks before flashing. it backs up every file it touches. undo with
+`python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd`.
+
+### by hand
+
+1. flash the board (see below)
+2. on the laptop (python 3 + pyserial):
+
+```bash
+git clone https://github.com/deepak61296/tinyclawd
+cd tinyclawd
+python3 -m pip install --user pyserial     # or: sudo apt install python3-serial
+python3 bridge/setup.py                    # background service + claude code hooks + usage line
+python3 bridge/setup.py --remove           # undo it all
+```
+
+restart claude code after. if the port can't be opened: `sudo usermod -aG dialout $USER`, then
+log out and in. more in [`bridge/`](bridge).
+
+### flash from the browser
+
+1. download `tinyclawd-esp32c3-v1.0.0.bin` from the
+   [releases page](https://github.com/deepak61296/tinyclawd/releases)
+2. open [espressif's web flasher](https://espressif.github.io/esptool-js/) in chrome or edge
+3. connect, pick the file at address `0x0`, press program
+
+or build it yourself with esp-idf, see [`firmware/`](firmware).
 
 ## how it works
 
@@ -106,22 +137,23 @@ claude code hooks and the status line feed a small python daemon on the laptop
 `usage 5h=42 ...`, see [`firmware/PROTOCOL.md`](firmware/PROTOCOL.md)). the ESP32 runs the pet
 engine and decides what to play. no laptop = it just lives on its own.
 
-every tool has its own look: Read reads lines, Grep sweeps for matches, Edit types code, Bash
-runs a little terminal, web searches spin a globe, subagents become a squad of mini Clawds
-passing a ball. when claude needs you the whole screen flashes. when claude is done it
-celebrates, longer tasks get bigger celebrations (goal, trophy, bicycle kick).
-
 several claude code sessions share one Clawd. whoever needs you wins, then whoever is working.
-when one session finishes while another still works you get a small celebration and it goes
-back to work. little dots in the corner show how many sessions are busy.
+little dots in the corner show how many sessions are busy.
 
-music playing on the laptop (anything that shows up in `playerctl`) puts it in music mode: the
-song name scrolls by and it vibes along until the music stops.
+when nothing is going on it does its own thing. animations come from weighted pools with
+cooldowns, so it rarely does the same thing twice in a row. at night it falls asleep faster.
 
-when nothing is going on it does its own thing: looks around, peeks, listens to music, plays
-football, gets bored, yawns, naps and dreams. at night it falls asleep faster. poke it and it
-reacts (tap, double tap for usage, long press for love). animations come from weighted pools
-with cooldowns, so it rarely does the same thing twice in a row.
+## privacy
+
+nothing leaves the laptop except the short lines that go to the pet over USB. the daemon has no
+network code and there are no accounts.
+
+- typing: it only counts how fast keys go down. which key you pressed is never read, stored or
+  sent. off with `TINYCLAWD_NO_KEYS=1`
+- music: the song name comes from `playerctl`. the equalizer levels are worked out on the laptop
+  from what it is playing, the sound itself is never stored or sent. off with `TINYCLAWD_NO_EQ=1`
+- claude code: the pet gets the event, the tool name (for Bash only the kind, like build or test),
+  the project folder name and your usage percentages. never your prompts or code
 
 ## try it without the board
 
@@ -129,18 +161,9 @@ with cooldowns, so it rarely does the same thing twice in a row.
 cd firmware/sim && make
 ./sim script scripts/demo.txt          # fake claude session -> out/demo.frames
 python3 gif.py out/demo.frames         # -> out/demo.gif (needs pillow)
-python3 gif.py --scale 2 out/*.frames  # smaller gifs
-./sim anim goal ; ./sim list ; ./sim soak 12
+./sim anim goal ; ./sim list ; ./sim games
 ./sim game run                         # a game played by its own bot -> out/game_run.frames
 ```
-
-## status
-
-- [x] body, stand and print files
-- [x] firmware, running on the real board: 105 animations, music mode, 7 games
-- [x] laptop bridge: hooks, status line usage, music, several sessions
-- [ ] focus timer, clock, quiet mode
-- [ ] Clawd in the browser
 
 ## build the hardware files
 
@@ -149,11 +172,17 @@ pip install -r hardware/requirements.txt
 cd hardware && ./build.sh
 ```
 
-needs openscad 2025+ and the original Mochi STLs in `hardware/original/` (download from the link above).
+needs openscad 2025+ and the original Mochi STLs in `hardware/original/` (download them from the
+link above, they are not in this repo).
 
-## license
+## license and credits
 
-code: [MIT](LICENSE). print files: [CC BY-NC-SA 4.0](hardware/LICENSE), because the inner frame is Dave0616's Mochi housing
-(same license, credit above). so please don't sell printed ones.
+- code: [MIT](LICENSE)
+- print files: [CC BY-NC-SA 4.0](hardware/LICENSE), because the inner frame is Dave0616's
+  [Mochi housing](https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi)
+  (same license). so please don't sell printed ones
+- site: [three.js](https://threejs.org) (MIT), fonts [Archivo](https://github.com/Omnibus-Type/Archivo)
+  and [Departure Mono](https://departuremono.com) (SIL OFL), stand lettering in Chakra Petch (SIL OFL).
+  licence files sit next to them
 
-fan-made, not affiliated with Anthropic. Clawd belongs to them.
+fan-made, not affiliated with Anthropic. Clawd and Claude Code belong to them.
