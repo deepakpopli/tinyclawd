@@ -306,6 +306,7 @@ img.clawd3d-fallback.gif {
 .r45 { aspect-ratio: 4 / 5; }
 .r11 { aspect-ratio: 1 / 1; }
 .r169 { aspect-ratio: 16 / 9; }
+.r21 { aspect-ratio: 2 / 1; }
 .frame img, .frame video {
   position: absolute;
   inset: 0;
@@ -365,6 +366,7 @@ img.clawd3d-fallback.gif {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(auto-fill, 256px);
+  justify-content: space-between;
   gap: 24px;
 }
 .plates figure, .wall-grid figure { margin: 0; }
@@ -435,6 +437,7 @@ img.clawd3d-fallback.gif {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(auto-fill, 256px);
+  justify-content: space-between;
   gap: 32px 24px;
 }
 .wall-more { grid-column: 1 / -1; margin-top: 48px; }
