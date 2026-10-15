@@ -169,6 +169,7 @@
           <li><span>hold</span> love</li>
           <li><span>hold till the ring fills</span> the menu</li>
         </ul>
+        <button class="btn red pet-btn" type="button" data-play="petted,love">pet it</button>
       </div>
     </section>
 
@@ -302,6 +303,13 @@
 </footer>
 
 <script>
+// pet it: plays on the 3D Clawd
+document.querySelectorAll('[data-play]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    if (window.Clawd3D) window.Clawd3D.play(b.dataset.play);
+  });
+});
+
 // copy button
 document.querySelectorAll('.copy-btn').forEach(function (b) {
   b.addEventListener('click', function () {

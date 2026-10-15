@@ -293,6 +293,9 @@ h2 {
 .term span { color: var(--red-hi); }
 .term span::before { content: "$ "; color: var(--dim); }
 
+.pet-btn { display: none; margin-top: 22px; cursor: pointer; font-family: inherit; }
+.clawd3d-ready .pet-btn { display: inline-block; }
+
 .pair, .games {
   display: grid;
   grid-template-columns: 1fr 1fr;
