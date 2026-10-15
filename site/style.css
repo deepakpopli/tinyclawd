@@ -332,6 +332,7 @@ img.clawd3d-fallback.gif {
 .frame:has(img, video) .ph { visibility: hidden; }
 
 .figs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.side-by .key { white-space: normal; }
 .side-by { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
 
 .pet-btn { display: none; margin-top: 32px; }
