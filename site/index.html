@@ -314,30 +314,19 @@ document.querySelectorAll('.copy-btn').forEach(function (b) {
 });
 
 // a section takes over once it holds the middle of the screen, the same
-// line the 3D Clawd uses: its text fades in and the stage moves to its side
+// line the 3D Clawd uses: the stage moves to its side
 (function () {
   var stage = document.getElementById('stage');
   var scenes = [].slice.call(document.querySelectorAll('.scene'));
-  if (!('IntersectionObserver' in window)) {
-    scenes.forEach(function (s) { s.classList.add('in'); });
-  } else {
-    var reveal = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) e.target.classList.add('in');
-      });
-    }, { rootMargin: '0px 0px -45% 0px' });
-    scenes.forEach(function (s) { reveal.observe(s); });
-  }
 
-  var now = null;
   function update() {
     var mid = innerHeight / 2, s = null;
     scenes.forEach(function (o) {
       var r = o.getBoundingClientRect();
       if (r.top <= mid && r.bottom > mid) s = o;
     });
-    if (!s || s === now) return;
-    now = s;
+    if (!s) return;
+    s.parentNode.classList.add('live');
     scenes.forEach(function (o) { o.classList.toggle('now', o === s); });
     stage.dataset.side = s.dataset.clawdSide;
     var src = 'assets/' + s.dataset.gif + '.gif';
@@ -347,6 +336,7 @@ document.querySelectorAll('.copy-btn').forEach(function (b) {
   addEventListener('scroll', update, { passive: true });
   addEventListener('resize', update);
   update();
+  addEventListener('load', update);
 })();
 
 // the 2D stand-in only shows if the 3D script never starts at all

@@ -355,25 +355,11 @@ h2 {
 }
 .copy-btn:hover { border-color: var(--dim); }
 
-/* text comes in as you scroll */
-
-.js .scene .copy > * {
-  opacity: 0;
-  transform: translateY(26px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
-}
-.js .scene.in .copy > * { opacity: 1; transform: none; }
-.js .scene.in .copy > :nth-child(2) { transition-delay: 0.07s; }
-.js .scene.in .copy > :nth-child(3) { transition-delay: 0.14s; }
-.js .scene.in .copy > :nth-child(4) { transition-delay: 0.21s; }
-.js .scene.in .copy > :nth-child(5) { transition-delay: 0.28s; }
-.js .scene.in .copy > :nth-child(n+6) { transition-delay: 0.35s; }
-
 /* on wide screens the text you scrolled past steps back, so it never sits on top of the Clawd */
 
-@media (min-width: 900px) {
+@media (min-width: 900px) and (min-aspect-ratio: 211/200) {
   .js .scene .copy { transition: opacity 0.5s ease; }
-  .js .scene.in:not(.now) .copy { opacity: 0.12; }
+  .js .scenes.live .scene:not(.now) .copy { opacity: 0.12; }
 }
 
 /* the animation wall */
@@ -483,6 +469,5 @@ footer p { margin: 6px auto; max-width: 640px; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .js .scene .copy > * { opacity: 1; transform: none; transition: none; }
-  .stage::before, .fallback { transition: none; }
+  .stage::before, .fallback, img.clawd3d-fallback, canvas#clawd3d { transition: none; }
 }
