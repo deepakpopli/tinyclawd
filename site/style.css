@@ -125,7 +125,8 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.035em; }
 .stage[data-side="left"] .fallback { left: 25%; }
 .js .stage .fallback { opacity: 0; }
 .js .stage.empty .fallback { opacity: 1; }
-.stage.live .fallback { display: none; }
+.clawd3d-ready .stage .fallback,
+.stage:has(> img#clawd3d) .fallback { display: none; }
 
 .fallback .body {
   position: relative;

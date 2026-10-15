@@ -349,19 +349,12 @@ document.querySelectorAll('.copy-btn').forEach(function (b) {
   update();
 })();
 
-// the 2D stand-in shows only while the 3D canvas stays empty
-(function () {
-  var stage = document.getElementById('stage');
-  var tries = 0;
-  function check() {
-    var c = document.getElementById('clawd3d');
-    var live = !c || c.width !== 300 || c.height !== 150 || stage.querySelector(':scope > img');
-    stage.classList.toggle('live', !!live);
-    stage.classList.toggle('empty', !live && tries >= 3);
-    if (!live && tries++ < 60) setTimeout(check, 500);
-  }
-  check();
-})();
+// the 2D stand-in only shows if the 3D script never starts at all
+setTimeout(function () {
+  var c = document.getElementById('clawd3d');
+  var started = document.documentElement.classList.contains('clawd3d-ready') || (c && c.tagName === 'IMG');
+  if (!started) document.getElementById('stage').classList.add('empty');
+}, 3000);
 </script>
 <script type="module" src="js/clawd3d.js"></script>
 </body>
