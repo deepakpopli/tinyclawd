@@ -231,6 +231,7 @@ img.clawd3d-fallback.gif {
   transform: translate(-50%, -50%);
   display: none;
 }
+html:not(.js) .fallback,
 .stage.empty .fallback { display: block; }
 .clawd3d-ready .stage .fallback,
 .stage:has(img#clawd3d) .fallback { display: none; }
