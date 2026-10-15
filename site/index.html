@@ -313,34 +313,40 @@ document.querySelectorAll('.copy-btn').forEach(function (b) {
   });
 });
 
-// a section takes over once it passes the middle of the screen:
-// its text fades in and the stage moves to its side
+// a section takes over once it holds the middle of the screen, the same
+// line the 3D Clawd uses: its text fades in and the stage moves to its side
 (function () {
   var stage = document.getElementById('stage');
-  var gif = document.getElementById('fallback-gif');
-  var scenes = document.querySelectorAll('.scene');
+  var scenes = [].slice.call(document.querySelectorAll('.scene'));
   if (!('IntersectionObserver' in window)) {
     scenes.forEach(function (s) { s.classList.add('in'); });
-    return;
+  } else {
+    var reveal = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) e.target.classList.add('in');
+      });
+    }, { rootMargin: '0px 0px -45% 0px' });
+    scenes.forEach(function (s) { reveal.observe(s); });
   }
-  var reveal = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      if (e.isIntersecting) e.target.classList.add('in');
-    });
-  }, { rootMargin: '0px 0px -45% 0px' });
-  scenes.forEach(function (s) { reveal.observe(s); });
 
-  var current = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      if (!e.isIntersecting) return;
-      var s = e.target;
-      scenes.forEach(function (o) { o.classList.toggle('now', o === s); });
-      stage.dataset.side = s.dataset.clawdSide;
-      var src = 'assets/' + s.dataset.gif + '.gif';
-      if (gif.getAttribute('src') !== src) gif.setAttribute('src', src);
+  var now = null;
+  function update() {
+    var mid = innerHeight / 2, s = null;
+    scenes.forEach(function (o) {
+      var r = o.getBoundingClientRect();
+      if (r.top <= mid && r.bottom > mid) s = o;
     });
-  }, { rootMargin: '-55% 0px -44% 0px' });
-  scenes.forEach(function (s) { current.observe(s); });
+    if (!s || s === now) return;
+    now = s;
+    scenes.forEach(function (o) { o.classList.toggle('now', o === s); });
+    stage.dataset.side = s.dataset.clawdSide;
+    var src = 'assets/' + s.dataset.gif + '.gif';
+    var gifs = stage.querySelectorAll('#fallback-gif, img#clawd3d');
+    gifs.forEach(function (g) { if (g.getAttribute('src') !== src) g.setAttribute('src', src); });
+  }
+  addEventListener('scroll', update, { passive: true });
+  addEventListener('resize', update);
+  update();
 })();
 
 // the 2D stand-in shows only while the 3D canvas stays empty
