@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 . ~/esp/esp-idf/export.sh >/dev/null
 idf.py build >/dev/null
 mkdir -p release
-VER=$(git describe --tags --always --dirty)
+VER=${VER:-$(git describe --tags --always --dirty)}   # or VER=v1.0.0 tools/release.sh
 OUT=release/tinyclawd-esp32c3-$VER.bin
 idf.py merge-bin -o "$PWD/$OUT" >/dev/null
 echo "$OUT ($(du -h "$OUT" | cut -f1)), flash it at 0x0"
