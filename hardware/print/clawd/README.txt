@@ -7,7 +7,7 @@ PICK ONE:
                                     Needs AMS / multi-colour: the colours share the first layers.
                                     Stand not included: print 3_clawd_stand_30deg.stl on its own.
 
-Filament slots match your A1 AMS lite: 4 = red (body, back plate), 3 = black (football,
+AMS slots in the 3mf files (Bambu A1 + AMS lite): 4 = red (body, back plate), 3 = black (football,
 stand), 2 = white (hexagons). Slot 1 (yellow) is not used.
 
 Stand (black is best):
@@ -23,4 +23,5 @@ Single STLs, numbered (body must stay FACE DOWN exactly as it loads):
                        two small holes on the face, press the badge on, a drop of glue)
 
 tests (optional)/tolerance_rings.3mf: 5 thin rings (1-5 notches). The body uses ring 3.
-If ring 3 is not the snug one, tell Claude which ring felt right.
+If another ring is the snug one, set rib_side / rib_floor in mochi_fit.scad to its
+values (see tolerance_rings.scad) and run build.sh.
