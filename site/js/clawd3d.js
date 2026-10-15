@@ -212,7 +212,7 @@ async function init(canvas) {
   const camera = new THREE.PerspectiveCamera(28, 1, 5, 2000);
 
   const key = new THREE.DirectionalLight(0xfff4ea, 2.6);
-  key.position.set(-70, 140, 110);
+  key.position.set(-50, 240, 120);   // high, so the desk shadow stays short and inside the canvas
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
   key.shadow.camera.left = -90;
@@ -220,7 +220,7 @@ async function init(canvas) {
   key.shadow.camera.top = 90;
   key.shadow.camera.bottom = -90;
   key.shadow.camera.near = 20;
-  key.shadow.camera.far = 400;
+  key.shadow.camera.far = 500;
   key.shadow.radius = 6;
   key.shadow.bias = -0.0008;
   key.shadow.normalBias = 0.3;
@@ -239,7 +239,7 @@ async function init(canvas) {
   scene.add(floor);
 
   // soft contact shadow right under the feet
-  const blob = new THREE.Mesh(new THREE.PlaneGeometry(130, 80), new THREE.MeshBasicMaterial({
+  const blob = new THREE.Mesh(new THREE.PlaneGeometry(110, 66), new THREE.MeshBasicMaterial({
     map: radialTexture(), transparent: true, depthWrite: false, opacity: 0.35, toneMapped: false,
   }));
   blob.rotation.x = -Math.PI / 2;
