@@ -14,7 +14,7 @@ MIN_T, CLEAR = 3, 0.3
 
 # variants to make: (stand, tilt angle, riser mm)
 VARIANTS = [("mac_ramp", 30, 0), ("mac_floppy", 30, 0), ("clawd", 30, 0)]
-USB_PLUG = 5      # how far Deepak's USB-C plug sticks out of the back (measured, max)
+USB_PLUG = 5      # how far a USB-C plug sticks out of the back (measured, max)
 
 
 def stl_name(name, angle, riser):

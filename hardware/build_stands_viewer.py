@@ -16,7 +16,7 @@ CDN = "https://cdn.jsdelivr.net/npm/three@0.169.0/"
 LABELS = {"mac_ramp": "Mac: simple ramp", "mac_floppy": "Mac: floppy disk", "clawd": "Clawd: footprints"}
 COLOURS = {"mac": 0xf4f3ee, "clawd": 0xc8372d, "stand": 0x3a3f4a, "plate": 0xe2e1dc, "screen": 0x050607,
            "plug": 0x6d8fd8, "ball_black": 0x1a1a1a, "ball_white": 0xf2f2f2}
-PLUG_LEN = cs.USB_PLUG   # Deepak's USB-C plug, sticking out of the back
+PLUG_LEN = cs.USB_PLUG   # a USB-C plug, sticking out of the back
 
 
 BADGE_T = np.array([[1, 0, 0, 50.5], [0, 0, -1, -1.5], [0, 1, 0, 4.0], [0, 0, 0, 1]], float)  # football_badge.py

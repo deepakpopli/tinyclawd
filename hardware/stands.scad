@@ -101,7 +101,7 @@ label_depth = 1.2;            // 6 layers at 0.2 mm
 part        = "all";          // "all", "body" (stand without the letters), "label" (letters only)
 
 // "tinyclawd": pixel Clawd on top, "tiny clawd" in Chakra Petch Bold underneath, stacked and centred
-// (picked by Deepak from out/font_options). Text about 51 x 9 mm, thinnest strokes ~0.85 mm.
+// (picked from out/font_options). Text about 51 x 9 mm, thinnest strokes ~0.85 mm.
 module tinyclawd_label_2d() {
     emblem_w = 16;                       // 16 x 10.7 mm, 0.89 mm pixels
     translate([0, 5.9]) clawd_emblem(emblem_w);
