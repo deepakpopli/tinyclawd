@@ -438,47 +438,66 @@ footer {
 footer p { margin: 6px auto; max-width: 640px; }
 .foot-brand { font-family: var(--mono); font-weight: 700; color: var(--text); display: flex; justify-content: center; align-items: center; gap: 9px; margin-bottom: 16px !important; }
 
-/* phones and small tablets: the 3D sits on top, text scrolls under it */
+/* phones, small tablets and any tall window: a square 3D stage stays on top,
+   the text scrolls under it. Sections start low so the screen changes
+   when their text is in view, at the middle of the window. */
 
-@media (max-width: 899px) {
+@media (max-width: 899px), (max-aspect-ratio: 21/20) {
+  :root { --sq: min(100vw, 40svh); }
   body { font-size: 16px; }
 
   .top nav { gap: 14px; }
   .top nav .wide { display: none; }
 
   .stage {
-    height: 46vh;
-    height: 46svh;
+    height: calc(var(--top) + var(--sq));
     z-index: 3;
-    background: linear-gradient(var(--bg) 88%, rgba(8, 9, 12, 0));
+    overflow: visible;
+    background: var(--bg);
+  }
+  .stage::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 40px;
+    background: linear-gradient(var(--bg), rgba(8, 9, 12, 0));
+    pointer-events: none;
   }
 
   .stage::before,
-  .stage[data-side="left"]::before { left: 50%; top: calc(50% + var(--top) / 2); width: 60vmin; height: 60vmin; }
+  .stage[data-side="left"]::before { left: 50%; top: calc(var(--top) + var(--sq) / 2); width: var(--sq); height: var(--sq); }
 
-  #clawd3d,
-  .stage > img { top: var(--top); height: calc(100% - var(--top)); }
+  canvas#clawd3d {
+    top: var(--top);
+    left: 50%;
+    width: var(--sq);
+    height: var(--sq);
+    transform: translateX(-50%);
+  }
 
+  img.clawd3d-fallback,
+  .stage[data-side="left"] img.clawd3d-fallback,
   .fallback,
   .stage[data-side="left"] .fallback {
     left: 50%;
-    top: calc(50% + var(--top) / 2);
-    width: min(56vw, 300px);
+    top: calc(var(--top) + var(--sq) / 2);
+    width: min(64vw, calc(var(--sq) * 0.8));
   }
 
   .scenes { margin-top: 0; }
 
   .scene {
     display: block;
-    min-height: 72vh;
-    min-height: 72svh;
-    padding: 28px 22px 72px;
+    min-height: 0;
+    padding: 22svh 22px 32px;
   }
+  .hero { padding-top: 32px; }
 
   .copy,
   .scene[data-clawd-side="left"] .copy { width: auto; max-width: 560px; margin: 0 auto; }
 
-  .hero { min-height: auto; padding-bottom: 96px; }
   h1 { font-size: clamp(42px, 12vw, 64px); }
   h2 { font-size: clamp(34px, 9.5vw, 52px); }
 
