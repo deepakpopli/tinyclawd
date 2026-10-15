@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clawd3d test</title>
+<style>
+ body { margin: 0; background: #0d0f12; color: #e6e6e6; font: 18px/1.5 system-ui, sans-serif; }
+ .stage { position: fixed; inset: 0; pointer-events: none; }
+ #clawd3d { width: 100%; height: 100%; display: block; }
+ .clawd3d-fallback { width: 320px; height: auto; margin: 30vh auto; display: block; image-rendering: pixelated; }
+ section { min-height: 100vh; display: flex; align-items: center; padding: 0 8vw; position: relative; }
+ section .copy { max-width: 32ch; }
+ section[data-clawd-side="left"] { justify-content: flex-end; }
+ h2 { font-size: 40px; margin: 0 0 8px; }
+ button { pointer-events: auto; }
+ .tools { position: fixed; bottom: 12px; left: 12px; z-index: 2; }
+</style></head><body>
+<div class="stage"><canvas id="clawd3d"></canvas></div>
+<section id="s1" data-clawd-anim="idle" data-clawd-pose="three-quarter"><div class="copy"><h2>Hi, I'm Clawd</h2>three-quarter, centre, idle</div></section>
+<section id="s2" data-clawd-anim="thinking_words,typing" data-clawd-pose="front" data-clawd-side="right"><div class="copy"><h2>Thinks with you</h2>front, right, thinking_words then typing</div></section>
+<section id="s3" data-clawd-anim="subagents" data-clawd-pose="side" data-clawd-side="left"><div class="copy"><h2>Side</h2>side, left, subagents</div></section>
+<section id="s4" data-clawd-anim="needs_you" data-clawd-pose="close"><div class="copy"><h2>Close</h2>close on the screen, needs_you</div></section>
+<section id="s5" data-clawd-anim="goal" data-clawd-pose="top" data-clawd-side="right"><div class="copy"><h2>Top</h2>top, right, goal</div></section>
+<section id="s6" data-clawd-anim="asleep" data-clawd-pose="back" data-clawd-side="left"><div class="copy"><h2>Back</h2>back, left, asleep</div></section>
+<section id="s7" data-clawd-anim="game_run,game_flappy" data-clawd-pose="exploded"><div class="copy"><h2>Exploded</h2>exploded, games</div></section>
+<div class="tools">
+ <button onclick="Clawd3D.play('love')">love</button>
+ <button onclick="Clawd3D.play('bicycle_kick')">kick</button>
+ <button onclick="Clawd3D.pose('front')">front</button>
+ <button onclick="Clawd3D.pose('back')">back</button>
+</div>
+<script type="module" src="js/clawd3d.js"></script>
+</body></html>
