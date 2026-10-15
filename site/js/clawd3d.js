@@ -424,18 +424,30 @@ async function init(canvas) {
   let intro = 0;
   let pointerX = 0, pointerY = 0, px = 0, py = 0;
 
+  // every corner of every part, to keep the whole model in its safe box
+  const parts3d = [];
+  lift.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); parts3d.push(o); } });
+  const corner = new THREE.Vector3();
+
+  // how far the model spills out of its box: 1 = just fits.
+  // on wide screens the box is its own half, below the top bar.
+  function spill() {
+    const xMax = wide ? 0.42 : 0.88, yTop = wide ? 0.74 : 0.88, yBottom = wide ? 0.86 : 0.88;
+    lift.updateMatrixWorld(true);
+    camera.updateMatrixWorld();
+    let s = 0;
+    for (const m of parts3d) {
+      const b = m.geometry.boundingBox;
+      for (let i = 0; i < 8; i++) {
+        corner.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z);
+        corner.applyMatrix4(m.matrixWorld).project(camera);
+        s = Math.max(s, Math.abs(corner.x) / xMax, corner.y / yTop, -corner.y / yBottom);
+      }
+    }
+    return s;
+  }
+
   function applyState(now) {
-    const sideShift = state.side * 0.24;
-    const fit = camera.aspect < 1 ? Math.min(2.2, 1.05 / camera.aspect) : 1;
-    const dist = state.dist * fit;
-    const look = bodyLook.clone().lerp(screenLook, state.look);
-    const pitch = THREE.MathUtils.degToRad(state.pitch + py * 3);
-
-    camera.position.set(look.x, look.y + Math.sin(pitch) * dist, look.z + Math.cos(pitch) * dist);
-    camera.lookAt(look);
-    if (sideShift) camera.setViewOffset(width, height, -sideShift * width, 0, width, height);
-    else camera.clearViewOffset();
-
     const sway = Math.sin(now / 2600) * 2.5;
     model.rotation.y = THREE.MathUtils.degToRad(state.yaw + sway + px * 6);
     lift.position.y = (Math.sin(now / 1700) * 0.6 + 0.6) * (1 - state.explode);
@@ -448,6 +460,23 @@ async function init(canvas) {
     panel.position.z = sz - 0.45 + 22 * e;
     lift.position.y += 6 * e;
     blob.scale.setScalar(1 - 0.3 * e);
+
+    const sideShift = state.side * 0.24;
+    const look = bodyLook.clone().lerp(screenLook, state.look);
+    const pitch = THREE.MathUtils.degToRad(state.pitch + py * 3);
+    const dir = new THREE.Vector3(0, Math.sin(pitch), Math.cos(pitch));
+    camera.clearViewOffset();
+    // the close up may fill its box, the other poses leave some air
+    const room = 0.85 + 0.15 * state.look;
+    let dist = state.dist;
+    for (let i = 0; i < 4; i++) {
+      camera.position.copy(look).addScaledVector(dir, dist);
+      camera.lookAt(look);
+      const s = spill() / room;
+      if (s <= 1.001) break;
+      dist *= s;
+    }
+    if (sideShift) camera.setViewOffset(width, height, -sideShift * width, 0, width, height);
   }
 
   // ---------- loop ----------
