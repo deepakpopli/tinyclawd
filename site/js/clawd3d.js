@@ -3,14 +3,15 @@
 // The page gives us:
 //   <canvas id="clawd3d"> inside a sticky box
 //   sections with data-clawd-anim="name[,name...]", data-clawd-pose="front|three-quarter|side|back|top|close|exploded"
-//   and optional data-clawd-side="left|right"
+// The canvas is its own box next to the text, so the model always fits inside it.
 // We give back window.Clawd3D = { play(name), pose(name) }
 
 import * as THREE from '../vendor/three.js';
 
 const MODEL_URL = new URL('../assets/3d/clawd.bin', import.meta.url);
 const FRAMES_URL = new URL('../assets/frames/', import.meta.url);
-const FALLBACK = 'assets/hero.gif';
+const FALLBACK_PHOTO = 'assets/photos/p1-desk.jpg';
+const FALLBACK_GIF = 'assets/hero.gif';
 
 // yaw = model turn, pitch = camera height angle, dist = camera distance in mm,
 // look = what the camera looks at ('body' or 'screen'), explode = 0..1
@@ -23,8 +24,8 @@ const POSES = {
   'close':         { yaw: -6,   pitch: 3,  dist: 125, look: 1, explode: 0 },
   'exploded':      { yaw: -38,  pitch: 16, dist: 320, look: 0, explode: 1 },
 };
-const SIDES = { left: -1, right: 1 };
-const KEYS = ['yaw', 'pitch', 'dist', 'look', 'explode', 'side'];
+const KEYS = ['yaw', 'pitch', 'dist', 'look', 'explode'];
+const SAFE = 0.84;   // 8% margin on every side of the canvas
 
 const ON = [232, 240, 255];   // lit pixel, like the gifs
 const OFF = [10, 12, 16];
@@ -51,10 +52,16 @@ function hasWebGL() {
 }
 
 function fallback(canvas) {
+  // the desk photo if it is there, else the gif in a red frame
   const img = document.createElement('img');
-  img.src = new URL(FALLBACK, document.baseURI).href;
   img.alt = 'Tiny Clawd, a small red pixel crab with a screen for a face';
   img.className = (canvas.className + ' clawd3d-fallback').trim();
+  img.onerror = () => {
+    img.onerror = null;
+    img.classList.add('gif');
+    img.src = new URL(FALLBACK_GIF, document.baseURI).href;
+  };
+  img.src = new URL(FALLBACK_PHOTO, document.baseURI).href;
   img.id = 'clawd3d';
   canvas.replaceWith(img);
   window.Clawd3D = { play() {}, pose() {}, fallback: true };
@@ -219,21 +226,21 @@ async function init(canvas) {
   key.shadow.normalBias = 0.3;
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0xbfd4ff, 2.2);
+  const rim = new THREE.DirectionalLight(0xbfd4ff, 1.1);   // half, the page is light
   rim.position.set(90, 70, -140);
   scene.add(rim);
   const fill = new THREE.DirectionalLight(0xffffff, 0.5);
   fill.position.set(120, 20, 80);
   scene.add(fill);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.ShadowMaterial({ opacity: 0.32 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.ShadowMaterial({ opacity: 0.18 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
 
   // soft contact shadow right under the feet
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(130, 80), new THREE.MeshBasicMaterial({
-    map: radialTexture(), transparent: true, depthWrite: false, opacity: 0.55, toneMapped: false,
+    map: radialTexture(), transparent: true, depthWrite: false, opacity: 0.35, toneMapped: false,
   }));
   blob.rotation.x = -Math.PI / 2;
   blob.position.y = 0.05;
@@ -285,7 +292,6 @@ async function init(canvas) {
     el,
     anims: el.dataset.clawdAnim.split(',').map(s => s.trim()).filter(Boolean),
     pose: POSES[el.dataset.clawdPose] ? el.dataset.clawdPose : 'front',
-    side: SIDES[el.dataset.clawdSide] || 0,
     mid: 0,
   }));
 
@@ -299,19 +305,18 @@ async function init(canvas) {
     }
   }
 
-  const poseOf = (name, side) => ({ ...POSES[name], side });
+  const poseOf = name => ({ ...POSES[name] });
   const mix = (a, b, t) => {
     const o = {};
     for (const k of KEYS) o[k] = a[k] + (b[k] - a[k]) * t;
     return o;
   };
-  const smooth = t => t * t * (3 - 2 * t);
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;   // cubic in-out
 
   let forcedPose = null;      // from Clawd3D.pose(), cleared when the section changes
-  let wide = true;
 
   function scrollTarget() {
-    if (!sections.length) return poseOf(forcedPose || 'three-quarter', 0);
+    if (!sections.length) return poseOf(forcedPose || 'three-quarter');
     const c = scrollY + innerHeight / 2;
     let a = sections[0], b = sections[0], t = 0;
     if (c >= sections[sections.length - 1].mid) {
@@ -321,14 +326,12 @@ async function init(canvas) {
       while (sections[i + 1].mid <= c) i++;
       a = sections[i];
       b = sections[i + 1];
-      // hold the pose around each section middle, move in between
+      // hold the pose for the middle half of each section, move in between
       const raw = (c - a.mid) / Math.max(1, b.mid - a.mid);
-      t = smooth(Math.min(1, Math.max(0, (raw - 0.2) / 0.6)));
+      t = ease(Math.min(1, Math.max(0, (raw - 0.25) / 0.5)));
     }
-    let target = mix(poseOf(a.pose, a.side), poseOf(b.pose, b.side), t);
-    if (forcedPose) target = { ...poseOf(forcedPose, target.side) };
-    if (!wide) target.side = 0;
-    return target;
+    if (forcedPose) return poseOf(forcedPose);
+    return mix(poseOf(a.pose), poseOf(b.pose), t);
   }
 
   function activeSection() {
@@ -409,7 +412,6 @@ async function init(canvas) {
     if (w === width && h === height) return;
     width = w;
     height = h;
-    wide = w / h > 1.05;
     renderer.setPixelRatio(dprCap);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
@@ -429,10 +431,8 @@ async function init(canvas) {
   lift.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); parts3d.push(o); } });
   const corner = new THREE.Vector3();
 
-  // how far the model spills out of its box: 1 = just fits.
-  // on wide screens the box is its own half, below the top bar.
+  // how far the model spills out of the safe box: 1 = just fits
   function spill() {
-    const xMax = wide ? 0.42 : 0.88, yTop = wide ? 0.74 : 0.88, yBottom = wide ? 0.86 : 0.88;
     lift.updateMatrixWorld(true);
     camera.updateMatrixWorld();
     let s = 0;
@@ -441,7 +441,7 @@ async function init(canvas) {
       for (let i = 0; i < 8; i++) {
         corner.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z);
         corner.applyMatrix4(m.matrixWorld).project(camera);
-        s = Math.max(s, Math.abs(corner.x) / xMax, corner.y / yTop, -corner.y / yBottom);
+        s = Math.max(s, Math.abs(corner.x) / SAFE, Math.abs(corner.y) / SAFE);
       }
     }
     return s;
@@ -449,7 +449,7 @@ async function init(canvas) {
 
   function applyState(now) {
     const sway = Math.sin(now / 2600) * 2.5;
-    model.rotation.y = THREE.MathUtils.degToRad(state.yaw + sway + px * 6);
+    model.rotation.y = THREE.MathUtils.degToRad(state.yaw + sway + px * 2);
     lift.position.y = (Math.sin(now / 1700) * 0.6 + 0.6) * (1 - state.explode);
 
     const e = state.explode;
@@ -461,12 +461,10 @@ async function init(canvas) {
     lift.position.y += 6 * e;
     blob.scale.setScalar(1 - 0.3 * e);
 
-    const sideShift = state.side * 0.24;
     const look = bodyLook.clone().lerp(screenLook, state.look);
-    const pitch = THREE.MathUtils.degToRad(state.pitch + py * 3);
+    const pitch = THREE.MathUtils.degToRad(state.pitch + py);
     const dir = new THREE.Vector3(0, Math.sin(pitch), Math.cos(pitch));
-    camera.clearViewOffset();
-    // the close up may fill its box, the other poses leave some air
+    // the close up may fill the safe box, the other poses leave some air
     const room = 0.85 + 0.15 * state.look;
     let dist = state.dist;
     for (let i = 0; i < 4; i++) {
@@ -476,7 +474,6 @@ async function init(canvas) {
       if (s <= 1.001) break;
       dist *= s;
     }
-    if (sideShift) camera.setViewOffset(width, height, -sideShift * width, 0, width, height);
   }
 
   // ---------- loop ----------
