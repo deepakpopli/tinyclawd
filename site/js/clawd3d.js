@@ -270,6 +270,15 @@ async function init(canvas) {
   lift.add(inlay);
   inlay.add(mesh('black'), mesh('white'));
   const plate = mesh('plate');
+  // the electronics inside, seen through the USB-C opening. they have metal and rough set
+  for (const p of head.parts) {
+    if (p.metal === undefined) continue;
+    const m = new THREE.Mesh(parts[p.name].geo,
+      new THREE.MeshStandardMaterial({ color: p.color, metalness: p.metal, roughness: p.rough }));
+    m.castShadow = true;
+    m.receiveShadow = true;
+    lift.add(m);
+  }
 
   const screen = makeScreen();
   const [sx, sy, sz] = head.screen.pos;
