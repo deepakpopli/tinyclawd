@@ -30,7 +30,7 @@ fan-made project, not affiliated with Anthropic.
 | context compacted | squish |
 | done | small win for short tasks, goal or trophy for long ones |
 | usage running low | tired, stoppage time, limit hit |
-| music playing (spotify, youtube...) | now playing with the song name, equalizer, headbanging |
+| music playing (spotify, youtube...) | now playing with the song name, four full screen visualizers, headbanging |
 | you typing | it watches the keys go down |
 | nothing going on | looks around, coffee, juggling, football, naps and dreams |
 | touch the head | petted, usage screen, love |
