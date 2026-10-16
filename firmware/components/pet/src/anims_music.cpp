@@ -24,9 +24,6 @@ static void eq_bars(Canvas& c, uint32_t t, uint32_t seed, float k, const uint8_t
         }
         int h = iround(peak * (1 - fall) * k);
         if (h > 0) c.fill_rect(x, 63 - h + 1, x + 5, 63);
-        // the cap falls slower than the bar
-        int cap = iround(peak * (1 - fall * 0.4f) * k) + 2;
-        if (k > 0.5f) c.hline(x, x + 5, 63 - cap);
     }
 }
 
@@ -166,12 +163,11 @@ static void targets(int* out, int n, uint32_t t, const Ctx& x) {
     }
 }
 
-// smoothed bars: rise fast, fall slow, caps hold a moment then drop slowly
+// smoothed bars: rise fast, fall slow
 struct EqState {
     uint32_t last = 0;
     bool ok = false;
-    int lvl[MAXB], cap[MAXB];
-    uint32_t hold[MAXB];
+    int lvl[MAXB];
 
     void step(uint32_t t, const Ctx& x, int n) {
         int want[MAXB];
@@ -180,22 +176,11 @@ struct EqState {
         if (dt > 400) dt = -1;   // a jump in time (a new play): start fresh
         last = t;
         for (int i = 0; i < n; i++) {
-            if (dt < 0) {
-                lvl[i] = cap[i] = want[i];
-                hold[i] = t;
-                continue;
-            }
-            if (want[i] > lvl[i]) lvl[i] += (want[i] - lvl[i]) * (dt > 40 ? 40 : dt) / 40;
+            if (dt < 0) lvl[i] = want[i];
+            else if (want[i] > lvl[i]) lvl[i] += (want[i] - lvl[i]) * (dt > 40 ? 40 : dt) / 40;
             else {
                 lvl[i] -= dt * 14 * Q / 1000;   // 14 steps a second
                 if (lvl[i] < want[i]) lvl[i] = want[i];
-            }
-            if (lvl[i] >= cap[i]) {
-                cap[i] = lvl[i];
-                hold[i] = t + 320;
-            } else if (t > hold[i]) {
-                cap[i] -= dt * 5 * Q / 1000;
-                if (cap[i] < lvl[i]) cap[i] = lvl[i];
             }
         }
         ok = true;
@@ -207,7 +192,7 @@ static int scale(int lvl, int max) { return (lvl * max + TOP / 2) / TOP; }
 
 // ------------------------------------------------------------------ equalizer
 
-// solid bars standing on a floor, a thin cap floats above each one
+// solid bars standing on a floor
 static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
     const int N = 10, FLOOR = 60, MAXH = 52;
@@ -221,10 +206,6 @@ static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
         c.px(x0, top, false);
         c.px(x1, top, false);
         if (h > 5) c.hline(x0 + 1, x1 - 1, top + 2, false);
-        // the cap: 2 px, one dark row above the bar
-        int cap = 2 + scale(s.cap[i], MAXH);
-        if (cap < h) cap = h;
-        c.fill_rect(x0, FLOOR - cap - 3, x1, FLOOR - cap - 2);
     }
     c.hline(0, 127, FLOOR);
     // the floor goes thick on a kick
@@ -272,25 +253,13 @@ static int hill(const int* v, int n, int x, int max) {
     return a + (b - a) * f / 256;
 }
 
-// a filled spectrum across the screen under the song title, the peaks
-// float as a thin line above it
+// a filled spectrum across the screen under the song title
 static void a_eq_hills(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
     const int N = 12, MAXH = 44;
     s.step(t, x, N);
     title_strip(c, 1, t, x.track);
-    int last = -1;
-    for (int i = 0; i < 128; i++) {
-        int top = 61 - hill(s.lvl, N, i, MAXH);
-        c.vline(i, top, 63);
-        // the peak line, at least one dark row above the hill, joined
-        // to the last column so steep parts have no holes
-        int cap = 61 - hill(s.cap, N, i, MAXH) - 2;
-        if (cap > top - 2) cap = top - 2;
-        int a = last < 0 ? cap : last;
-        c.vline(i, a < cap ? a : cap, a < cap ? cap : a);
-        last = cap;
-    }
+    for (int i = 0; i < 128; i++) c.vline(i, 61 - hill(s.lvl, N, i, MAXH), 63);
 }
 
 static const Anim A_NOW_PLAYING = {"now_playing", a_now_playing, 5600, CALM};
