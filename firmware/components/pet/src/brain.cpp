@@ -80,6 +80,7 @@ static const Pick ASLEEP[] = {
 static const Pick MUSIC[] = {
     {"dance", 4, 60}, {"headbang", 3, 60}, {"now_playing", 3, 120}, {"content", 2, 90},
     {"wink", 1, 40}, {"spin", 1, 90}, {"music", 3, 60},
+    {"equalizer", 2, 90}, {"eq_mirror", 2, 90}, {"eq_dots", 2, 90}, {"eq_ring", 1, 90},
 };
 
 // celebrations, by how long claude worked on the turn
@@ -583,6 +584,10 @@ struct Brain::Impl {
             else {
                 oneshot = false;
                 if (mode == SLEEP_M && cur.a && !strcmp(cur.a->name, "sleepy")) base = find_anim("asleep");
+                if (mode == IDLE_M && base_pool == GROOVE) {   // a fresh visualizer, not the same one again
+                    const char* name = pick(POOL(GROOVE), now);
+                    if (name) base = find_anim(name);
+                }
                 show(base, now, false);
                 if (mode == IDLE_M) next_micro = now + gap();
             }
