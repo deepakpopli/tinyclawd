@@ -39,22 +39,24 @@ static void title_strip(Canvas& c, int y, uint32_t t, const char* s) {
         c.text(x + NOTE_W, y, s, f);
         return;
     }
-    // marquee: wait a moment, then scroll left forever with a gap between copies
-    const int X0 = 16, GAP = 30;
+    // marquee: wait a moment, then the note and the title scroll left
+    // together, so letters only get cut at the screen edges
+    const int X0 = 3, GAP = 24;
+    int len = NOTE_W + tw + GAP;
     int shift = t < 900 ? 0 : (int)((t - 900) * 40 / 1000);
-    shift %= tw + GAP;
+    shift %= len;
     int adv = c.text_width("a", f);
     for (int copy = 0; copy < 2; copy++) {
-        int x = X0 - shift + copy * (tw + GAP);
-        for (const char* p = s; *p; p++, x += adv) {
-            if (x <= X0 - adv || x >= 128) continue;   // off the strip, skip the work
+        int x = X0 - shift + copy * len;
+        if (x >= 128) break;
+        c.glyph(x, y, 0x266b, font_sym12);
+        x += NOTE_W;
+        for (const char* p = s; *p && x < 128; p++, x += adv) {
+            if (x <= -adv) continue;   // off the screen, skip the work
             char one[2] = {*p, 0};
             c.text(x, y, one, f);
         }
     }
-    // the note sits on a clean patch so letters slide under it
-    c.fill_rect(0, y, X0 - 2, y + f.h, false);
-    c.glyph(3, y, 0x266b, font_sym12);
 }
 
 // ---------------------------------------------------------------- now playing
