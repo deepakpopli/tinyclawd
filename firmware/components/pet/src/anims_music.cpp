@@ -207,21 +207,29 @@ static int scale(int lvl, int max) { return (lvl * max + TOP / 2) / TOP; }
 
 // ------------------------------------------------------------------ equalizer
 
-// the old hifi look: 16 bars of chunky segments, caps that float and fall
+// solid bars standing on a floor, a thin cap floats above each one
 static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
-    const int N = 16, ROWS = 16;
+    const int N = 10, FLOOR = 60, MAXH = 52;
     s.step(t, x, N);
     for (int i = 0; i < N; i++) {
-        int x0 = 1 + i * 8;
-        // 3 px on, 1 px off, the bottom one is always lit
-        int n = 1 + scale(s.lvl[i], ROWS - 2);
-        for (int k = 0; k < n; k++) c.fill_rect(x0, 61 - 4 * k, x0 + 5, 63 - 4 * k);
-        // the cap sits in the slot above the bar, or higher while it falls
-        int cn = 1 + scale(s.cap[i], ROWS - 2);
-        if (cn < n) cn = n;
-        if (cn < ROWS) c.hline(x0, x0 + 5, 63 - 4 * cn);
+        int x0 = i * 13, x1 = x0 + 10;
+        int h = 2 + scale(s.lvl[i], MAXH);   // never quite empty
+        int top = FLOOR - h;
+        c.fill_rect(x0, top, x1, FLOOR - 1);
+        // soft corners and a dark line under the top, like a lit lip
+        c.px(x0, top, false);
+        c.px(x1, top, false);
+        if (h > 5) c.hline(x0 + 1, x1 - 1, top + 2, false);
+        // the cap: 2 px, one dark row above the bar
+        int cap = 2 + scale(s.cap[i], MAXH);
+        if (cap < h) cap = h;
+        c.fill_rect(x0, FLOOR - cap - 3, x1, FLOOR - cap - 2);
     }
+    c.hline(0, 127, FLOOR);
+    // the floor goes thick on a kick
+    if (s.lvl[0] >= 7 * Q) c.fill_rect(0, FLOOR + 2, 127, 63);
+    else for (int i = 0; i < 128; i += 2) c.px(i, 63);
 }
 
 // ------------------------------------------------------------------ eq mirror
