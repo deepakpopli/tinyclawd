@@ -293,45 +293,10 @@ static void a_eq_hills(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
-// -------------------------------------------------------------------- eq ring
-
-// 24 spokes clockwise from the top, x256 (a table, no trig per frame)
-static const int16_t RAY[24][2] = {
-    {0, -256}, {66, -247}, {128, -222}, {181, -181}, {222, -128}, {247, -66},
-    {256, 0}, {247, 66}, {222, 128}, {181, 181}, {128, 222}, {66, 247},
-    {0, 256}, {-66, 247}, {-128, 222}, {-181, 181}, {-222, 128}, {-247, 66},
-    {-256, 0}, {-247, -66}, {-222, -128}, {-181, -181}, {-128, -222}, {-66, -247},
-};
-
-// a dot on a spoke at radius r, a bit wider than tall to fill the screen
-static void ray_dot(Canvas& c, int s, int r, int size) {
-    int px = 64 + RAY[s][0] * r * 3 / 512;
-    int py = 32 + RAY[s][1] * r / 256;
-    c.fill_rect(px - size / 2, py - size / 2, px - size / 2 + size - 1, py - size / 2 + size - 1);
-}
-
-// spokes of dots around a note, the bass at the bottom. the rim pumps with the bass
-static void a_eq_ring(Canvas& c, uint32_t t, const Ctx& x) {
-    static EqState s;
-    const int N = 13, R0 = 12, DOTS = 7;
-    s.step(t, x, N);
-    int rim = R0 - 4 + scale((s.lvl[0] + s.lvl[1]) / 2, 2);
-    for (int sp = 0; sp < 24; sp++) {
-        int i = sp <= 12 ? 12 - sp : sp - 12;   // both sides mirror
-        int n = scale(s.lvl[i], DOTS);
-        int cn = scale(s.cap[i], DOTS);
-        ray_dot(c, sp, rim, 1);
-        for (int k = 0; k < n; k++) ray_dot(c, sp, R0 + 3 * k, 2);
-        if (cn > n) ray_dot(c, sp, R0 + 3 * (cn - 1), 1);
-    }
-    c.glyph(59, 26, 0x266b, font_sym12);
-}
-
 static const Anim A_NOW_PLAYING = {"now_playing", a_now_playing, 5600, CALM};
 static const Anim A_HEADBANG = {"headbang", a_headbang, 3900, CALM};
 static const Anim A_EQUALIZER = {"equalizer", a_equalizer, 9400, LOOP | SCENE};
 static const Anim A_EQ_MIRROR = {"eq_mirror", a_eq_mirror, 9400, LOOP | SCENE};
 static const Anim A_EQ_HILLS = {"eq_hills", a_eq_hills, 9400, LOOP | SCENE};
-static const Anim A_EQ_RING = {"eq_ring", a_eq_ring, 9400, LOOP | SCENE};
 
-ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER, &A_EQ_MIRROR, &A_EQ_HILLS, &A_EQ_RING);
+ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER, &A_EQ_MIRROR, &A_EQ_HILLS);
