@@ -674,7 +674,8 @@ struct Brain::Impl {
             // listening along for a moment, then back to work
             next_song = now + span(SONG_MIN_MS, SONG_MAX_MS);
             if (next_break < now + 12000) next_break = now + 12000;
-            show(find_anim("equalizer"), now, true);
+            const char* name = pick(POOL(GROOVE), now);
+            show(find_anim(name ? name : "equalizer"), now, true);
             on_break = true;
             until = now + SONG_MS;
             return;
@@ -745,7 +746,8 @@ struct Brain::Impl {
     // a note in the top left corner while music plays and claude works
     void music_sign(Canvas& c, uint32_t now) {
         if (!music || (mode != THINK_M && mode != TOOL_M)) return;
-        if (cur.a && !strcmp(cur.a->name, "equalizer")) return;
+        for (const Pick& g : GROOVE)   // the visualizers are the music already
+            if (cur.a && !strcmp(cur.a->name, g.name)) return;
         int y = (now / 500) & 1;   // bobs along
         c.fill_rect(0, 0, 9, 11, false);
         c.fill_rect(1, 7 + y, 3, 9 + y);   // head
