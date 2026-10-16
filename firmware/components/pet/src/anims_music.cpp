@@ -234,23 +234,29 @@ static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
 
 // ------------------------------------------------------------------ eq mirror
 
-// bass in the middle, highs out to both sides, standing on a floor
-// with a dotted reflection under it
+// solid bars grow up and down from the middle, bass in the centre
 static void a_eq_mirror(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
-    const int N = 16, FLOOR = 44;
+    const int N = 6, MAXH = 29;
     s.step(t, x, N);
     for (int i = 0; i < N; i++) {
-        int h = 1 + scale(s.lvl[i], 40);
-        int cap = 1 + scale(s.cap[i], 40);
+        int h = 2 + scale(s.lvl[i], MAXH);
         for (int side = 0; side < 2; side++) {
-            int x0 = side ? 65 + i * 4 : 60 - i * 4;
-            c.fill_rect(x0, FLOOR - h, x0 + 2, FLOOR - 1);
-            if (cap > h + 1) c.hline(x0, x0 + 2, FLOOR - cap - 1);
-            // the reflection: half as tall, every other row
-            for (int y = FLOOR + 2; y < FLOOR + 2 + h / 2 && y < 64; y += 2) c.hline(x0, x0 + 2, y);
+            int x0 = side ? 65 + i * 11 : 55 - i * 11, x1 = x0 + 7;
+            c.fill_rect(x0, 32 - h, x1, 32 + h);
+            // soft corners and a dark line in from each end
+            c.px(x0, 32 - h, false);
+            c.px(x1, 32 - h, false);
+            c.px(x0, 32 + h, false);
+            c.px(x1, 32 + h, false);
+            if (h > 5) {
+                c.hline(x0 + 1, x1 - 1, 34 - h, false);
+                c.hline(x0 + 1, x1 - 1, 30 + h, false);
+            }
         }
     }
+    // a dark seam through the middle, a solid line across on a kick
+    c.hline(0, 127, 32, s.lvl[0] >= 7 * Q);
 }
 
 // -------------------------------------------------------------------- eq dots
