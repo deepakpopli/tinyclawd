@@ -1,4 +1,4 @@
-// music from the laptop: the song title, an equalizer, head banging
+// music from the laptop: the song title, head banging and full screen visualizers
 #include "anim.h"
 
 static const uint32_t BEAT = 470;   // about 128 bpm
@@ -126,11 +126,14 @@ static void a_headbang(Canvas& c, uint32_t t, const Ctx& x) {
     }
 }
 
-// ----------------------------------------------------------------- equalizer
+// ---------------------------------------------------------------- visualizers
+// full screen, no eyes, only the music. ints only: the C3 has no FPU
 
-// levels are kept in 1/64 of a step (0..9 steps), ints only: the C3 has no FPU
+// levels are kept in 1/64 of a step (0..9 steps)
 static const int Q = 64;
-static const int NB = 8;
+static const int TOP = 9 * Q;
+static const int NB = 8;      // bands from the laptop
+static const int MAXB = 32;   // most bars a visualizer draws
 
 // made up bars when the laptop sends no levels: a kick on the beat,
 // a hat on the off beat, the middle wanders. target level 0..9
@@ -148,36 +151,50 @@ static int fake_level(int i, uint32_t t, uint32_t seed) {
     return v < 0 ? 0 : (v > 9 ? 9 : v);
 }
 
-// smoothed bars: rise fast, fall slow, caps hold then drop
+// n bars from the 8 bands, bass first. a bar between two bands blends them
+// and wiggles a little, so the bars do not look like a ramp
+static void targets(int* out, int n, uint32_t t, const Ctx& x) {
+    int band[NB];
+    for (int i = 0; i < NB; i++) band[i] = (x.eq_live ? x.eq[i] : fake_level(i, t, x.seed)) * Q;
+    uint32_t step = t / (BEAT / 4);
+    for (int j = 0; j < n; j++) {
+        int pos = n > 1 ? j * (NB - 1) * 256 / (n - 1) : 0;
+        int i = pos >> 8, f = pos & 255;
+        int v = i < NB - 1 ? band[i] + (band[i + 1] - band[i]) * f / 256 : band[NB - 1];
+        v += ((int)(hash32(step * 41 + j * 7 + x.seed) % 33) - 16) * v / 128;
+        out[j] = v < 0 ? 0 : (v > TOP ? TOP : v);
+    }
+}
+
+// smoothed bars: rise fast, fall slow, caps hold a moment then drop slowly
 struct EqState {
     uint32_t last = 0;
     bool ok = false;
-    int lvl[NB], cap[NB];
-    uint32_t hold[NB];
-    bool vibe = false;
-    uint32_t vibe_at = 0;
+    int lvl[MAXB], cap[MAXB];
+    uint32_t hold[MAXB];
 
-    void step(uint32_t t, const Ctx& x) {
+    void step(uint32_t t, const Ctx& x, int n) {
+        int want[MAXB];
+        targets(want, n, t, x);
         int dt = ok && t >= last ? (int)(t - last) : -1;
-        if (dt > 400) dt = -1;   // a jump in time: start fresh
+        if (dt > 400) dt = -1;   // a jump in time (a new play): start fresh
         last = t;
-        for (int i = 0; i < NB; i++) {
-            int want = (x.eq_live ? x.eq[i] : fake_level(i, t, x.seed)) * Q;
+        for (int i = 0; i < n; i++) {
             if (dt < 0) {
-                lvl[i] = cap[i] = want;
+                lvl[i] = cap[i] = want[i];
                 hold[i] = t;
                 continue;
             }
-            if (want > lvl[i]) lvl[i] += (want - lvl[i]) * (dt > 40 ? 40 : dt) / 40;
+            if (want[i] > lvl[i]) lvl[i] += (want[i] - lvl[i]) * (dt > 40 ? 40 : dt) / 40;
             else {
                 lvl[i] -= dt * 14 * Q / 1000;   // 14 steps a second
-                if (lvl[i] < want) lvl[i] = want;
+                if (lvl[i] < want[i]) lvl[i] = want[i];
             }
             if (lvl[i] >= cap[i]) {
                 cap[i] = lvl[i];
-                hold[i] = t + 280;
+                hold[i] = t + 320;
             } else if (t > hold[i]) {
-                cap[i] -= dt * 6 * Q / 1000;
+                cap[i] -= dt * 5 * Q / 1000;
                 if (cap[i] < lvl[i]) cap[i] = lvl[i];
             }
         }
@@ -185,53 +202,108 @@ struct EqState {
     }
 };
 
-// lit segments for a level: one always on, ten at the top
-static int segs(int lvl) { return 1 + (lvl + Q / 2) / Q; }
+// a level as 0..max steps, rounded
+static int scale(int lvl, int max) { return (lvl * max + TOP / 2) / TOP; }
 
+// ------------------------------------------------------------------ equalizer
+
+// the old hifi look: 16 bars of chunky segments, caps that float and fall
 static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
-    s.step(t, x);
-    const int W = 13, GAP = 3, X0 = 1, BOT = 63;
-    int sum = 0;
-    for (int i = 0; i < NB; i++) {
-        int x0 = X0 + i * (W + GAP);
-        // chunky segments, 3 px on, 1 px off, like an old hifi
-        int n = segs(s.lvl[i]);
-        for (int k = 0; k < n; k++) c.fill_rect(x0, BOT - 4 * k - 2, x0 + W - 1, BOT - 4 * k);
-        // the cap floats one gap above the bar, a thin line
-        int cn = segs(s.cap[i]);
-        if (cn > n) c.hline(x0, x0 + W - 1, BOT - 4 * cn + 2);
-        else c.hline(x0, x0 + W - 1, BOT - 4 * n);
-        sum += s.lvl[i];
+    const int N = 16, ROWS = 16;
+    s.step(t, x, N);
+    for (int i = 0; i < N; i++) {
+        int x0 = 1 + i * 8;
+        // 3 px on, 1 px off, the bottom one is always lit
+        int n = 1 + scale(s.lvl[i], ROWS - 2);
+        for (int k = 0; k < n; k++) c.fill_rect(x0, 61 - 4 * k, x0 + 5, 63 - 4 * k);
+        // the cap sits in the slot above the bar, or higher while it falls
+        int cn = 1 + scale(s.cap[i], ROWS - 2);
+        if (cn < n) cn = n;
+        if (cn < ROWS) c.hline(x0, x0 + 5, 63 - 4 * cn);
     }
+}
 
-    // eyes on top, bobbing to the bass
-    int bass = (s.lvl[0] + s.lvl[1]) / 2;   // 0..9*Q
-    int avg = sum / NB;
-    // loud: shut the eyes and vibe. hysteresis + a short hold so they do not flicker
-    bool loud = s.vibe ? avg > 4 * Q : avg > 5 * Q + Q / 2;
-    if (loud != s.vibe && t - s.vibe_at > 700) {
-        s.vibe = loud;
-        s.vibe_at = t;
+// ------------------------------------------------------------------ eq mirror
+
+// bass in the middle, highs out to both sides, standing on a floor
+// with a dotted reflection under it
+static void a_eq_mirror(Canvas& c, uint32_t t, const Ctx& x) {
+    static EqState s;
+    const int N = 16, FLOOR = 44;
+    s.step(t, x, N);
+    for (int i = 0; i < N; i++) {
+        int h = 1 + scale(s.lvl[i], 40);
+        int cap = 1 + scale(s.cap[i], 40);
+        for (int side = 0; side < 2; side++) {
+            int x0 = side ? 65 + i * 4 : 60 - i * 4;
+            c.fill_rect(x0, FLOOR - h, x0 + 2, FLOOR - 1);
+            if (cap > h + 1) c.hline(x0, x0 + 2, FLOOR - cap - 1);
+            // the reflection: half as tall, every other row
+            for (int y = FLOOR + 2; y < FLOOR + 2 + h / 2 && y < 64; y += 2) c.hline(x0, x0 + 2, y);
+        }
     }
-    float b = bass / (9.0f * Q);
-    float sway = 2 * sinf(2 * (float)M_PI * t / (BEAT * 4.0f));
-    Eye e;
-    e.w = 8 + 2 * b;
-    e.h = 15 - 3 * b;
-    e.dx = sway;
-    e.dy = -22 + 3 * b;   // eyes sit up at y ~10
-    if (s.vibe) {
-        e.shape = HAPPY;
-        e.dy -= 1;
-        face(c, e);
-        return;
+}
+
+// -------------------------------------------------------------------- eq dots
+
+// an led matrix under the song title: dark cells are a dot, lit ones a block
+static void a_eq_dots(Canvas& c, uint32_t t, const Ctx& x) {
+    static EqState s;
+    const int N = 32, ROWS = 12, Y0 = 16;
+    s.step(t, x, N);
+    title_strip(c, 1, t, x.track);
+    for (int i = 0; i < N; i++) {
+        int x0 = i * 4;
+        int n = scale(s.lvl[i], ROWS);
+        int cn = scale(s.cap[i], ROWS);
+        for (int k = 0; k < ROWS; k++) {
+            int y0 = Y0 + (ROWS - 1 - k) * 4;
+            if (k < n || (k == cn - 1 && cn > n)) c.fill_rect(x0, y0, x0 + 2, y0 + 2);
+            else c.px(x0 + 1, y0 + 1);
+        }
     }
-    face_blink(c, t % 4100, 3500 + x.seed % 400, e);
+}
+
+// -------------------------------------------------------------------- eq ring
+
+// 24 spokes clockwise from the top, x256 (a table, no trig per frame)
+static const int16_t RAY[24][2] = {
+    {0, -256}, {66, -247}, {128, -222}, {181, -181}, {222, -128}, {247, -66},
+    {256, 0}, {247, 66}, {222, 128}, {181, 181}, {128, 222}, {66, 247},
+    {0, 256}, {-66, 247}, {-128, 222}, {-181, 181}, {-222, 128}, {-247, 66},
+    {-256, 0}, {-247, -66}, {-222, -128}, {-181, -181}, {-128, -222}, {-66, -247},
+};
+
+// a dot on a spoke at radius r, a bit wider than tall to fill the screen
+static void ray_dot(Canvas& c, int s, int r, int size) {
+    int px = 64 + RAY[s][0] * r * 3 / 512;
+    int py = 32 + RAY[s][1] * r / 256;
+    c.fill_rect(px - size / 2, py - size / 2, px - size / 2 + size - 1, py - size / 2 + size - 1);
+}
+
+// spokes of dots around a note, the bass at the bottom. the rim pumps with the bass
+static void a_eq_ring(Canvas& c, uint32_t t, const Ctx& x) {
+    static EqState s;
+    const int N = 13, R0 = 12, DOTS = 7;
+    s.step(t, x, N);
+    int rim = R0 - 4 + scale((s.lvl[0] + s.lvl[1]) / 2, 2);
+    for (int sp = 0; sp < 24; sp++) {
+        int i = sp <= 12 ? 12 - sp : sp - 12;   // both sides mirror
+        int n = scale(s.lvl[i], DOTS);
+        int cn = scale(s.cap[i], DOTS);
+        ray_dot(c, sp, rim, 1);
+        for (int k = 0; k < n; k++) ray_dot(c, sp, R0 + 3 * k, 2);
+        if (cn > n) ray_dot(c, sp, R0 + 3 * (cn - 1), 1);
+    }
+    c.glyph(59, 26, 0x266b, font_sym12);
 }
 
 static const Anim A_NOW_PLAYING = {"now_playing", a_now_playing, 5600, CALM};
 static const Anim A_HEADBANG = {"headbang", a_headbang, 3900, CALM};
-static const Anim A_EQUALIZER = {"equalizer", a_equalizer, 9400, LOOP};
+static const Anim A_EQUALIZER = {"equalizer", a_equalizer, 9400, LOOP | SCENE};
+static const Anim A_EQ_MIRROR = {"eq_mirror", a_eq_mirror, 9400, LOOP | SCENE};
+static const Anim A_EQ_DOTS = {"eq_dots", a_eq_dots, 9400, LOOP | SCENE};
+static const Anim A_EQ_RING = {"eq_ring", a_eq_ring, 9400, LOOP | SCENE};
 
-ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER);
+ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER, &A_EQ_MIRROR, &A_EQ_DOTS, &A_EQ_RING);
