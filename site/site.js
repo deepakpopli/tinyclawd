@@ -1,5 +1,5 @@
-// variant a: the hero turntable and the big OLED.
-// clawd3d.js is untouched. we only hook Scene.onBeforeRender, which three.js calls
+// the hero turntable and the big OLED.
+// we only hook Scene.onBeforeRender, which three.js calls
 // once per frame right before it draws, to add a slow turn.
 
 import * as THREE from './vendor/three.js';
