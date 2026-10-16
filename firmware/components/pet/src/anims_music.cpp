@@ -190,16 +190,26 @@ struct EqState {
 // a level as 0..max steps, rounded
 static int scale(int lvl, int max) { return (lvl * max + TOP / 2) / TOP; }
 
+// the song title across the top when we know it. returns the first row
+// the bars may use
+static int title_top(Canvas& c, uint32_t t, const Ctx& x) {
+    if (!x.track || !*x.track) return 0;
+    title_strip(c, 1, t, x.track);
+    return 14;
+}
+
 // ------------------------------------------------------------------ equalizer
 
-// solid bars standing on a floor
+// solid bars standing on a floor, under the song title
 static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
-    const int N = 10, FLOOR = 60, MAXH = 52;
+    const int N = 10, FLOOR = 60;
     s.step(t, x, N);
+    int top0 = title_top(c, t, x);
+    int maxh = FLOOR - (top0 ? top0 : 6) - 2;
     for (int i = 0; i < N; i++) {
         int x0 = i * 13, x1 = x0 + 10;
-        int h = 2 + scale(s.lvl[i], MAXH);   // never quite empty
+        int h = 2 + scale(s.lvl[i], maxh);   // never quite empty
         int top = FLOOR - h;
         c.fill_rect(x0, top, x1, FLOOR - 1);
         // soft corners and a dark line under the top, like a lit lip
@@ -218,26 +228,29 @@ static void a_equalizer(Canvas& c, uint32_t t, const Ctx& x) {
 // solid bars grow up and down from the middle, bass in the centre
 static void a_eq_mirror(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
-    const int N = 6, MAXH = 29;
+    const int N = 6;
     s.step(t, x, N);
+    int top0 = title_top(c, t, x);
+    // the middle sits halfway down what is left under the title
+    int mid = top0 ? 39 : 32, maxh = top0 ? 22 : 29;
     for (int i = 0; i < N; i++) {
-        int h = 2 + scale(s.lvl[i], MAXH);
+        int h = 2 + scale(s.lvl[i], maxh);
         for (int side = 0; side < 2; side++) {
             int x0 = side ? 65 + i * 11 : 55 - i * 11, x1 = x0 + 7;
-            c.fill_rect(x0, 32 - h, x1, 32 + h);
+            c.fill_rect(x0, mid - h, x1, mid + h);
             // soft corners and a dark line in from each end
-            c.px(x0, 32 - h, false);
-            c.px(x1, 32 - h, false);
-            c.px(x0, 32 + h, false);
-            c.px(x1, 32 + h, false);
+            c.px(x0, mid - h, false);
+            c.px(x1, mid - h, false);
+            c.px(x0, mid + h, false);
+            c.px(x1, mid + h, false);
             if (h > 5) {
-                c.hline(x0 + 1, x1 - 1, 34 - h, false);
-                c.hline(x0 + 1, x1 - 1, 30 + h, false);
+                c.hline(x0 + 1, x1 - 1, mid + 2 - h, false);
+                c.hline(x0 + 1, x1 - 1, mid - 2 + h, false);
             }
         }
     }
     // a dark seam through the middle, a solid line across on a kick
-    c.hline(0, 127, 32, s.lvl[0] >= 7 * Q);
+    c.hline(0, 127, mid, s.lvl[0] >= 7 * Q);
 }
 
 // ------------------------------------------------------------------- eq hills
