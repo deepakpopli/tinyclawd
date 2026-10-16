@@ -38,6 +38,7 @@ static const uint32_t SONG_MIN_MS = 30000;       // music on while claude works:
 static const uint32_t SONG_MAX_MS = 50000;       // every 30-50 s, for 6 s
 static const uint32_t SONG_MS = 6000;
 static const uint32_t TYPING_ROTATE_MS = 10000;  // long typing switches what watches you
+static const uint32_t GROOVE_ROTATE_MS = 20000;  // a new music visualizer now and then
 
 // -------------------------------------------------------------------- pools
 
@@ -158,7 +159,8 @@ static const Pick WAIT[] = {{"needs_you", 3, 0}, {"var_check", 2, 0}};
 static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
-static const Pick GROOVE[] = {{"equalizer", 1, 0}};
+// full screen music, takes turns while the music plays
+static const Pick GROOVE[] = {{"equalizer", 3, 0}, {"eq_mirror", 3, 0}, {"eq_dots", 3, 0}, {"eq_ring", 2, 0}};
 static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
 static const Pick YOU_TYPING[] = {
     {"you_typing", 4, 0}, {"typing_along", 3, 0}, {"letters_fly", 3, 0}, {"keyboard_peek", 3, 0},
@@ -433,10 +435,11 @@ struct Brain::Impl {
         if (!oneshot) show(base, now, false);
     }
 
-    // the idle base: watching you type, the equalizer while music plays, or the plain face
+    // the idle base: watching you type, a visualizer while music plays, or the plain face
     void idle_base(uint32_t now, bool force = false) {
         if (typing) set_base(POOL(YOU_TYPING), now, force);
-        else set_base(music ? GROOVE : IDLE, 1, now, force);
+        else if (music) set_base(POOL(GROOVE), now, force);
+        else set_base(IDLE, 1, now, force);
     }
 
     void go_mode(Mode m, uint32_t now) {
@@ -648,6 +651,7 @@ struct Brain::Impl {
         if (mode == WAIT_M) return WAIT_ROTATE_MS;
         if (mode == TOOL_M || mode == THINK_M) return TOOL_ROTATE_MS;
         if (mode == IDLE_M && base_pool == YOU_TYPING) return TYPING_ROTATE_MS;
+        if (mode == IDLE_M && base_pool == GROOVE) return GROOVE_ROTATE_MS;
         return 0;
     }
 
