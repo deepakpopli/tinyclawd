@@ -2,7 +2,8 @@
 //
 // The page gives us:
 //   <canvas id="clawd3d"> inside a sticky box
-//   sections with data-clawd-anim="name[,name...]", data-clawd-pose="front|three-quarter|side|back|top|close|exploded"
+//   sections with data-clawd-anim="name[,name...]", data-clawd-pose="front|three-quarter|side|back|top|close|exploded|
+//     quarter-right|near|low|top-front"
 // The canvas is its own box next to the text, so the model always fits inside it.
 // We give back window.Clawd3D = { play(name), pose(name) }
 
@@ -23,6 +24,11 @@ const POSES = {
   'top':           { yaw: -24,  pitch: 56, dist: 290, look: 0, explode: 0 },
   'close':         { yaw: -6,   pitch: 3,  dist: 125, look: 1, explode: 0 },
   'exploded':      { yaw: -38,  pitch: 16, dist: 320, look: 0, explode: 1 },
+  // softer angles that always keep the screen in view
+  'quarter-right': { yaw: 26,   pitch: 10, dist: 260, look: 0, explode: 0 },
+  'near':          { yaw: -18,  pitch: 9,  dist: 210, look: 0.4, explode: 0 },
+  'low':           { yaw: 14,   pitch: 1,  dist: 240, look: 0.2, explode: 0 },
+  'top-front':     { yaw: -10,  pitch: 34, dist: 270, look: 0, explode: 0 },
 };
 const KEYS = ['yaw', 'pitch', 'dist', 'look', 'explode'];
 const SAFE = 0.84;   // 8% margin on every side of the canvas
