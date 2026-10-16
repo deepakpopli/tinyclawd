@@ -80,7 +80,7 @@ static const Pick ASLEEP[] = {
 static const Pick MUSIC[] = {
     {"dance", 4, 60}, {"headbang", 3, 60}, {"now_playing", 3, 120}, {"content", 2, 90},
     {"wink", 1, 40}, {"spin", 1, 90}, {"music", 3, 60},
-    {"equalizer", 2, 90}, {"eq_mirror", 2, 90}, {"eq_dots", 2, 90}, {"eq_ring", 1, 90},
+    {"equalizer", 2, 90}, {"eq_mirror", 2, 90}, {"eq_hills", 2, 90}, {"eq_ring", 1, 90},
 };
 
 // celebrations, by how long claude worked on the turn
@@ -161,7 +161,7 @@ static const Pick SUBS[] = {{"subagents", 1, 0}};
 static const Pick IDLE[] = {{"idle", 1, 0}};
 static const Pick SLEEPING[] = {{"asleep", 1, 0}};
 // full screen music, takes turns while the music plays
-static const Pick GROOVE[] = {{"equalizer", 3, 0}, {"eq_mirror", 3, 0}, {"eq_dots", 3, 0}, {"eq_ring", 2, 0}};
+static const Pick GROOVE[] = {{"equalizer", 3, 0}, {"eq_mirror", 3, 0}, {"eq_hills", 3, 0}, {"eq_ring", 2, 0}};
 static const Pick NOW_PLAYING[] = {{"now_playing", 1, 0}};
 static const Pick YOU_TYPING[] = {
     {"you_typing", 4, 0}, {"typing_along", 3, 0}, {"letters_fly", 3, 0}, {"keyboard_peek", 3, 0},

@@ -259,23 +259,37 @@ static void a_eq_mirror(Canvas& c, uint32_t t, const Ctx& x) {
     c.hline(0, 127, 32, s.lvl[0] >= 7 * Q);
 }
 
-// -------------------------------------------------------------------- eq dots
+// ------------------------------------------------------------------- eq hills
 
-// an led matrix under the song title: dark cells are a dot, lit ones a block
-static void a_eq_dots(Canvas& c, uint32_t t, const Ctx& x) {
+// 0..255 eased, so the hills are round between two bands
+static int smooth(int f) { return f * f * (768 - 2 * f) >> 16; }
+
+// the height in px at column x, eased between the bars
+static int hill(const int* v, int n, int x, int max) {
+    int u = x * (n - 1) * 256 / 127;
+    int i = u >> 8, f = smooth(u & 255);
+    int a = scale(v[i], max), b = i < n - 1 ? scale(v[i + 1], max) : a;
+    return a + (b - a) * f / 256;
+}
+
+// a filled spectrum across the screen under the song title, the peaks
+// float as a thin line above it
+static void a_eq_hills(Canvas& c, uint32_t t, const Ctx& x) {
     static EqState s;
-    const int N = 32, ROWS = 12, Y0 = 16;
+    const int N = 12, MAXH = 44;
     s.step(t, x, N);
     title_strip(c, 1, t, x.track);
-    for (int i = 0; i < N; i++) {
-        int x0 = i * 4;
-        int n = scale(s.lvl[i], ROWS);
-        int cn = scale(s.cap[i], ROWS);
-        for (int k = 0; k < ROWS; k++) {
-            int y0 = Y0 + (ROWS - 1 - k) * 4;
-            if (k < n || (k == cn - 1 && cn > n)) c.fill_rect(x0, y0, x0 + 2, y0 + 2);
-            else c.px(x0 + 1, y0 + 1);
-        }
+    int last = -1;
+    for (int i = 0; i < 128; i++) {
+        int top = 61 - hill(s.lvl, N, i, MAXH);
+        c.vline(i, top, 63);
+        // the peak line, at least one dark row above the hill, joined
+        // to the last column so steep parts have no holes
+        int cap = 61 - hill(s.cap, N, i, MAXH) - 2;
+        if (cap > top - 2) cap = top - 2;
+        int a = last < 0 ? cap : last;
+        c.vline(i, a < cap ? a : cap, a < cap ? cap : a);
+        last = cap;
     }
 }
 
@@ -317,7 +331,7 @@ static const Anim A_NOW_PLAYING = {"now_playing", a_now_playing, 5600, CALM};
 static const Anim A_HEADBANG = {"headbang", a_headbang, 3900, CALM};
 static const Anim A_EQUALIZER = {"equalizer", a_equalizer, 9400, LOOP | SCENE};
 static const Anim A_EQ_MIRROR = {"eq_mirror", a_eq_mirror, 9400, LOOP | SCENE};
-static const Anim A_EQ_DOTS = {"eq_dots", a_eq_dots, 9400, LOOP | SCENE};
+static const Anim A_EQ_HILLS = {"eq_hills", a_eq_hills, 9400, LOOP | SCENE};
 static const Anim A_EQ_RING = {"eq_ring", a_eq_ring, 9400, LOOP | SCENE};
 
-ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER, &A_EQ_MIRROR, &A_EQ_DOTS, &A_EQ_RING);
+ANIM_LIST(anims_music, &A_NOW_PLAYING, &A_HEADBANG, &A_EQUALIZER, &A_EQ_MIRROR, &A_EQ_HILLS, &A_EQ_RING);
