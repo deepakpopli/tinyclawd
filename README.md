@@ -111,7 +111,7 @@ it asks before flashing. it backs up every file it touches. undo with
 2. on the laptop (python 3 + pyserial):
 
 ```bash
-git clone https://github.com/deepak61296/tinyclawd
+git clone https://github.com/deepakpopli/tinyclawd
 cd tinyclawd
 python3 -m pip install --user pyserial     # or: sudo apt install python3-serial
 python3 bridge/setup.py                    # background service + claude code hooks + usage line
@@ -124,7 +124,7 @@ log out and in. more in [`bridge/`](bridge).
 ### flash from the browser
 
 1. download `tinyclawd-esp32c3-v1.0.0.bin` from the
-   [releases page](https://github.com/deepak61296/tinyclawd/releases)
+   [releases page](https://github.com/deepakpopli/tinyclawd/releases)
 2. open [espressif's web flasher](https://espressif.github.io/esptool-js/) in chrome or edge
 3. connect, pick the file at address `0x0`, press program
 

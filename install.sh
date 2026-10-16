@@ -4,9 +4,9 @@
 # gets the code, the python bits, can flash the board, then hooks it into claude code.
 set -e
 
-REPO=${TINYCLAWD_REPO:-https://github.com/deepak61296/tinyclawd}
+REPO=${TINYCLAWD_REPO:-https://github.com/deepakpopli/tinyclawd}
 DIR=${TINYCLAWD_DIR:-$HOME/.tinyclawd}
-API=https://api.github.com/repos/deepak61296/tinyclawd/releases/latest
+API=https://api.github.com/repos/deepakpopli/tinyclawd/releases/latest
 
 say() { printf '\033[1;31m>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m!\033[0m %s\n' "$*"; exit 1; }
