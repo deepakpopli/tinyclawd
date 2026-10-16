@@ -23,11 +23,10 @@
 </svg>
 
 <!-- the 12 column grid, drawn. it multiplies, so it vanishes on the black bands -->
-<div class="grid-lines" aria-hidden="true"><div class="wrap"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#"><svg class="mark" aria-hidden="true"><use href="#clawd"/></svg>tiny clawd<span class="model-no">TC-01</span></a>
+    <a class="brand" href="#"><svg class="mark" aria-hidden="true"><use href="#clawd"/></svg>tiny clawd</a>
     <nav>
       <a class="wide" href="#think">how it works</a>
       <a class="wide" href="#screen">screen</a>
@@ -59,22 +58,12 @@
 
     <section class="scene hero" id="hero" data-clawd-anim="idle,wake_up" data-clawd-pose="front">
       <div class="wrap">
-        <p class="hero-meta label"><span>TC-01</span><span>rev 1, oct 2026</span><span>open hardware</span></p>
         <p class="lead">a 3D printed Clawd with a 1.3 inch OLED face. it plugs into your laptop
           over USB and shows what Claude Code is doing, as it happens.</p>
         <div class="hero-act">
-          <p class="actions"><a class="btn" href="#build">build one</a> <a href="https://github.com/deepak61296/tinyclawd">github -&gt;</a></p>
+          <p class="actions"><a class="btn" href="#build">build one</a> <a href="https://github.com/deepak61296/tinyclawd">github</a></p>
           <p class="small">fan-made, not affiliated with Anthropic.<br>not for sale, you build it.</p>
         </div>
-
-        <ol class="callouts label" aria-label="parts">
-          <li class="c-pad" data-part="pad"><b>01</b> touch pad<br><span>TTP223, on GPIO1</span></li>
-          <li class="c-screen" data-part="screen"><b>02</b> screen<br><span>SH1106, 1.3", 128 x 64</span></li>
-          <li class="c-brain" data-part="brain"><b>03</b> brain, inside<br><span>ESP32-C3 Super Mini</span></li>
-          <li class="c-usb" data-part="usb"><b>04</b> USB-C, at the back<br><span>power and data</span></li>
-        </ol>
-
-        <p class="status label" aria-live="off"><i class="led"></i><span class="st-time">00:00:00.0</span><span class="st-event">SessionStart</span><span class="st-arg">~/projects/api</span><span class="st-anim">-&gt; idle</span></p>
 
         <h1 class="wordmark">tiny clawd</h1>
       </div>
@@ -95,54 +84,25 @@
 
     <section class="scene" id="think" data-clawd-anim="thinking_words" data-clawd-pose="close">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">00:00:00.0</p>
-          <p class="ev">UserPromptSubmit</p>
-          <p>prompt: "fix the flaky login test"</p>
-        </div>
         <div class="copy">
           <h2>you hit enter.</h2>
           <p>it starts thinking with the same words the CLI uses: pondering, noodling, percolating, clauding.</p>
-          <table class="sheet">
-            <tr><th class="label">you type</th><td>it watches the keys go down. speed only, never which keys. you can switch it off.</td></tr>
-            <tr><th class="label">you press enter</th><td>thinking words, same as the CLI</td></tr>
-          </table>
+          <p>before that it watches you type. key speed only, never which keys.</p>
         </div>
       </div>
     </section>
 
     <section class="scene" id="tools" data-clawd-anim="terminal,searching,crane,test_tubes,git_graph" data-clawd-pose="three-quarter">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">00:00:03.4</p>
-          <p class="ev">PreToolUse</p>
-          <p>tool_name: Bash<br>command: npm test</p>
-        </div>
         <div class="copy">
           <h2>every tool gets its own look.</h2>
           <p>Bash commands are sorted by what they do, so a build looks different from a test run.</p>
-          <table class="sheet">
-            <tr><th class="label">tool or command</th><th class="label">what it shows</th></tr>
-            <tr><td class="key">Read</td><td>reading, a page flip</td></tr>
-            <tr><td class="key">Grep</td><td>searching, a radar sweep</td></tr>
-            <tr><td class="key">Edit</td><td>typing code</td></tr>
-            <tr><td class="key">WebSearch</td><td>a globe, a satellite</td></tr>
-            <tr><td class="key">make</td><td>a building crane</td></tr>
-            <tr><td class="key">npm test</td><td>bubbling test tubes</td></tr>
-            <tr><td class="key">git commit</td><td>a git graph, then a party</td></tr>
-            <tr><td class="key">pip install</td><td>packages coming down</td></tr>
-          </table>
         </div>
       </div>
     </section>
 
     <section class="scene" id="squad" data-clawd-anim="subagents_march,subagents" data-clawd-pose="side">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">00:00:41.9</p>
-          <p class="ev">SubagentStart</p>
-          <p>agent_id: a3f1, b07c, c912</p>
-        </div>
         <div class="copy">
           <h2>a squad for subagents.</h2>
           <p>when Claude Code starts subagents, mini Clawds march in, one for each, and pass a ball around.</p>
@@ -153,11 +113,6 @@
 
     <section class="scene" id="calls" data-clawd-anim="needs_you" data-clawd-pose="close">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">00:01:12.0</p>
-          <p class="ev">PermissionRequest</p>
-          <p>tool_name: Bash<br>command: npm install</p>
-        </div>
         <div class="copy">
           <h2>it calls you back.</h2>
           <p>a permission prompt or a question? the whole screen flashes the project name until you answer,
@@ -170,33 +125,15 @@
 
     <section class="scene" id="celebrate" data-clawd-anim="goal,bicycle_kick,yellow_card" data-clawd-pose="three-quarter">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">00:02:14.6</p>
-          <p class="ev">Stop</p>
-          <p>took 134.6 s<br>over 2 min</p>
-        </div>
         <div class="copy">
           <h2>it celebrates.</h2>
           <p>the longer the job took, the bigger the goal.</p>
-          <table class="sheet">
-            <tr><th class="label">time from enter to done</th><th class="label">what it plays</th></tr>
-            <tr><td class="key">under 20 s</td><td>a small win</td></tr>
-            <tr><td class="key">20 s to 2 min</td><td>goal, header, party</td></tr>
-            <tr><td class="key">over 2 min</td><td>goal, trophy, bicycle kick</td></tr>
-            <tr class="gap"><td class="key">test fails</td><td>yellow card</td></tr>
-            <tr><td class="key">fails again</td><td>red card</td></tr>
-          </table>
         </div>
       </div>
     </section>
 
     <section class="scene" id="limits" data-clawd-anim="usage" data-clawd-pose="front">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">every refresh</p>
-          <p class="ev">status line</p>
-          <p>rate_limits.five_hour<br>rate_limits.seven_day</p>
-        </div>
         <div class="copy">
           <h2>your 5 hour and weekly limits, on its face.</h2>
           <p>read from the Claude Code status line. running low and it gets tired, then stoppage time.
@@ -207,11 +144,6 @@
 
     <section class="scene" id="music" data-clawd-anim="now_playing,equalizer" data-clawd-pose="side">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">while it plays</p>
-          <p class="ev">laptop audio</p>
-          <p>parec -d @DEFAULT_MONITOR@</p>
-        </div>
         <div class="copy">
           <h2>music on.</h2>
           <p>play something on the laptop. the song name scrolls by, and the equalizer bars move
@@ -222,11 +154,6 @@
 
     <section class="scene" id="life" data-clawd-anim="coffee,juggle,dream,asleep" data-clawd-pose="three-quarter">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">--:--:--.-</p>
-          <p class="ev">nothing running</p>
-          <p>sleepier from 23:00 to 07:00</p>
-        </div>
         <div class="copy">
           <h2>nothing running? it has a coffee.</h2>
           <p>or it juggles, plays football, stares at the stars and naps. at night it falls asleep faster.</p>
@@ -237,20 +164,9 @@
 
     <section class="scene" id="pet" data-clawd-anim="petted,love" data-clawd-pose="top">
       <div class="wrap">
-        <div class="rail label">
-          <p class="t">on touch</p>
-          <p class="ev">touch pad</p>
-          <p>GPIO1 high</p>
-        </div>
         <div class="copy">
           <h2>pet it.</h2>
-          <p>one touch pad, on top of its head. that's the whole interface.</p>
-          <table class="sheet">
-            <tr><td class="key">tap</td><td>petted</td></tr>
-            <tr><td class="key">double tap</td><td>usage</td></tr>
-            <tr><td class="key">hold</td><td>love</td></tr>
-            <tr><td class="key">hold till the ring fills</td><td>menu</td></tr>
-          </table>
+          <p>one touch pad, on top of its head. tap it and it smiles. hold it and it loves you back. hold a bit longer for the games.</p>
           <button class="btn pet-btn" type="button" data-play="petted,love">pet it</button>
         </div>
       </div>
@@ -271,10 +187,7 @@
     <figure class="matrix" id="player">
       <div class="matrix-box">
         <canvas id="matrix" width="1024" height="512" aria-label="the OLED, playing an animation"></canvas>
-        <span class="mx tl label">SH1106 / I2C 0x3C</span>
-        <span class="mx tr label" id="mx-frame">frame 000 / 000</span>
         <span class="mx bl label" id="mx-name">thinking_words</span>
-        <span class="mx br label" id="mx-bytes">1024 bytes a frame</span>
       </div>
       <div class="picker" role="group" aria-label="pick an animation">
         <button type="button" class="label on" data-anim="thinking_words">thinking_words</button>
@@ -455,10 +368,6 @@
       <button class="copy-btn" type="button" data-copy="install">copy</button>
     </div>
     <p class="small by-hand">or <a href="https://github.com/deepak61296/tinyclawd#set-it-up">set it up by hand</a>.</p>
-    <div class="hooks">
-      <p class="label">hooks it adds to Claude Code</p>
-      <ul class="label"><li>SessionStart</li><li>UserPromptSubmit</li><li>PreToolUse</li><li>PostToolUse</li><li>PostToolUseFailure</li><li>PermissionRequest</li><li>Notification</li><li>SubagentStart</li><li>SubagentStop</li><li>PreCompact</li><li>Stop</li><li>StopFailure</li><li>SessionEnd</li></ul>
-    </div>
   </div>
 </section>
 
@@ -466,7 +375,6 @@
   <div class="wrap">
     <div class="foot-mark">
       <p class="foot-brand"><svg class="mark" aria-hidden="true"><use href="#clawd"/></svg>tiny clawd</p>
-      <p class="label">TC-01, rev 1</p>
     </div>
     <div>
       <p class="label">about</p>

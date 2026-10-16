@@ -1,6 +1,6 @@
-// variant a: the hero turntable, the part callouts, the status line and the big OLED.
+// variant a: the hero turntable and the big OLED.
 // clawd3d.js is untouched. we only hook Scene.onBeforeRender, which three.js calls
-// once per frame right before it draws, to add a slow turn and to find the parts on screen.
+// once per frame right before it draws, to add a slow turn.
 
 import * as THREE from './vendor/three.js';
 
@@ -17,50 +17,15 @@ addEventListener('resize', heroCheck);
 heroCheck();
 const atHero = () => root.classList.contains('at-hero');
 
-// ---------- turntable and callouts ----------
+// ---------- turntable ----------
 
 const TURN = 360 / 40;   // degrees a second, one turn in 40 s
 const fixed = new URLSearchParams(location.search).get('turn');   // ?turn=30 holds one angle, for screenshots
 let turn = fixed ? +fixed : 0, lastT = 0;
 
-const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-svg.setAttribute('class', 'leaders');
-svg.setAttribute('aria-hidden', 'true');
-document.body.appendChild(svg);
-
-const callouts = [...document.querySelectorAll('.callouts li')].map(li => {
-  const line = document.createElementNS(svg.namespaceURI, 'polyline');
-  const dot = document.createElementNS(svg.namespaceURI, 'rect');
-  dot.setAttribute('width', 7);
-  dot.setAttribute('height', 7);
-  svg.append(line, dot);
-  return { li, part: li.dataset.part, line, dot, right: li.matches('.c-brain, .c-usb') };
-});
-
-let parts = null;
-const v = new THREE.Vector3(), n = new THREE.Vector3(), cam = new THREE.Vector3();
-
-// the anchor points, in the model's own space, from the real meshes
-function findParts(lift) {
-  const meshes = lift.children;
-  const body = meshes[0], plate = meshes[2], face = meshes[4];
-  body.geometry.computeBoundingBox();
-  plate.geometry.computeBoundingBox();
-  const b = body.geometry.boundingBox, p = plate.geometry.boundingBox;
-  const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
-  return {
-    pad: { at: new THREE.Vector3(cx, b.max.y, cz - 2), normal: new THREE.Vector3(0, 1, 0) },
-    screen: { at: face.position.clone(), normal: new THREE.Vector3(0, 0, 1) },
-    brain: { at: new THREE.Vector3(cx + 14, (b.min.y + b.max.y) * 0.5, cz - 8), normal: null },
-    usb: { at: new THREE.Vector3(cx, p.min.y + (p.max.y - p.min.y) * 0.22, p.min.z), normal: new THREE.Vector3(0, 0, -1) },
-  };
-}
-
 THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera) {
   const model = scene.children.find(o => o.isGroup && o.children[0] && o.children[0].isGroup);
   if (!model) return;
-  const lift = model.children[0];
-  if (!parts && lift.children.length > 4) parts = findParts(lift);
 
   const now = performance.now() / 1000;
   const dt = lastT ? Math.min(0.1, now - lastT) : 0;
@@ -70,75 +35,7 @@ THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera) {
   else turn += (Math.round(turn / 360) * 360 - turn) * (1 - Math.exp(-dt * 3));
   model.rotation.y += THREE.MathUtils.degToRad(turn);
   model.updateMatrixWorld(true);
-
-  if (atHero() && parts) drawLeaders(lift, camera, renderer.domElement);
 };
-
-function drawLeaders(lift, camera, canvas) {
-  const r = canvas.getBoundingClientRect();
-  camera.getWorldPosition(cam);
-  for (const c of callouts) {
-    const p = parts[c.part];
-    v.copy(p.at).applyMatrix4(lift.matrixWorld);
-    let behind = true;
-    if (p.normal) {
-      n.copy(p.normal).transformDirection(lift.matrixWorld);
-      behind = n.dot(cam.clone().sub(v)) <= 0;
-    }
-    v.project(camera);
-    const x = r.left + (v.x + 1) / 2 * r.width;
-    const y = r.top + (1 - v.y) / 2 * r.height;
-    const l = c.li.getBoundingClientRect();
-    const sx = c.right ? l.left : l.right, sy = l.top + 0.5;
-    const ex = sx + (c.right ? -16 : 16);
-    c.line.setAttribute('points', `${sx},${sy} ${ex},${sy} ${x},${y}`);
-    c.line.classList.toggle('behind', behind);
-    c.dot.setAttribute('x', Math.round(x) - 3.5);
-    c.dot.setAttribute('y', Math.round(y) - 3.5);
-    c.dot.classList.toggle('behind-dot', behind);
-    c.li.classList.toggle('hidden-part', behind);
-  }
-}
-
-// ---------- the status line under the hero: one short session, on a loop ----------
-
-const SCRIPT = [
-  [0.0, 'SessionStart', '~/projects/api', 'idle'],
-  [2.0, 'UserPromptSubmit', '"fix the flaky login test"', 'thinking_words'],
-  [6.5, 'PreToolUse', 'Grep "login"', 'searching'],
-  [10.0, 'PreToolUse', 'Bash npm test', 'test_tubes'],
-  [14.0, 'PostToolUseFailure', 'Bash npm test', 'yellow_card'],
-  [17.0, 'PreToolUse', 'Edit src/auth.ts', 'typing'],
-  [20.5, 'Stop', 'took 18.5 s', 'done'],
-];
-const LOOP = 25;
-const status = document.querySelector('.status');
-if (status) {
-  const el = k => status.querySelector('.st-' + k);
-  let step = -1, t0 = performance.now();
-  const fmt = s => {
-    const m = Math.floor(s / 60), r = s - m * 60;
-    return '00:' + String(m).padStart(2, '0') + ':' + r.toFixed(1).padStart(4, '0');
-  };
-  const tick = () => {
-    if (!atHero()) { t0 = performance.now() - (SCRIPT[Math.max(0, step)][0]) * 1000; return; }
-    let s = (performance.now() - t0) / 1000;
-    if (s >= LOOP) { t0 = performance.now(); s = 0; step = -1; }
-    el('time').textContent = fmt(s);
-    let i = 0;
-    while (i + 1 < SCRIPT.length && SCRIPT[i + 1][0] <= s) i++;
-    if (i !== step) {
-      step = i;
-      const [, ev, arg, anim] = SCRIPT[i];
-      el('event').textContent = ev;
-      el('arg').textContent = arg;
-      el('anim').textContent = '-> ' + anim;
-      if (window.Clawd3D && !window.Clawd3D.fallback) window.Clawd3D.play(anim);
-    }
-  };
-  if (!still) setInterval(tick, 100);
-  addEventListener('clawd3d:ready', () => { step = -1; });
-}
 
 // ---------- the big OLED: real frame data, one square per pixel ----------
 
@@ -147,7 +44,6 @@ if (matrix) {
   const ctx = matrix.getContext('2d');
   const cache = new Map();
   const nameEl = document.getElementById('mx-name');
-  const frameEl = document.getElementById('mx-frame');
   let anim = null, start = 0, last = -1, visible = false, scale = 8;
 
   const load = name => {
@@ -192,7 +88,6 @@ if (matrix) {
         }
       }
     }
-    frameEl.textContent = 'frame ' + String(k + 1).padStart(3, '0') + ' / ' + String(f.count).padStart(3, '0');
   };
 
   const loop = now => {
@@ -208,7 +103,7 @@ if (matrix) {
     anim = f;
     start = performance.now();
     last = -1;
-    nameEl.textContent = name + ', ' + (f.ms / 1000).toFixed(2) + ' s';
+    nameEl.textContent = name.replace(/_/g, ' ');
     size();
     if (still || !visible) draw(f, Math.min(f.count - 1, 20));
     else requestAnimationFrame(loop);

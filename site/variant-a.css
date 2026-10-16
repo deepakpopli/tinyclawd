@@ -118,17 +118,6 @@ img { image-rendering: pixelated; }
 
 /* the grid, drawn as hairlines over everything. multiply keeps it off the black */
 
-.grid-lines {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  mix-blend-mode: multiply;
-}
-.grid-lines .wrap { height: 100%; }
-.grid-lines i { border-left: 1px solid rgba(21, 21, 21, 0.06); border-right: 1px solid rgba(21, 21, 21, 0.06); }
-@media (max-width: 899px) { .grid-lines i:nth-child(n + 9) { display: none; } }
-@media (max-width: 599px) { .grid-lines i:nth-child(n + 5) { display: none; } }
 
 .mark { display: block; width: 16px; height: 16px; shape-rendering: crispEdges; }
 
@@ -155,7 +144,6 @@ img { image-rendering: pixelated; }
   white-space: nowrap;
 }
 .brand:hover { color: var(--ink); }
-.model-no { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--grey); margin-left: 4px; }
 
 .top nav {
   grid-column: 5 / -1;
@@ -277,21 +265,10 @@ html:not(.js) .fallback,
   grid-template-rows: auto auto 1fr auto auto;
 }
 
-.hero-meta {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
-  border-bottom: 1px solid var(--rule);
-  padding: 8px 0;
-}
-.hero-meta span:nth-child(1) { grid-column: 1 / 4; color: var(--ink); }
-.hero-meta span:nth-child(2) { grid-column: 4 / 7; }
-.hero-meta span:nth-child(3) { grid-column: 10 / -1; text-align: right; }
-
 .lead {
   grid-column: 1 / 6;
   grid-row: 2;
-  margin-top: 24px;
+  margin-top: 56px;
   font-size: 1.25rem;
   line-height: 1.45;
 }
@@ -299,64 +276,12 @@ html:not(.js) .fallback,
 .hero-act {
   grid-column: 10 / -1;
   grid-row: 2;
-  margin-top: 24px;
+  margin-top: 56px;
   justify-self: end;
   text-align: right;
 }
 .actions { display: flex; align-items: center; justify-content: flex-end; gap: 24px; }
 .hero-act .small { margin-top: 12px; }
-
-.callouts {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  position: relative;
-  pointer-events: none;
-}
-.callouts li {
-  position: absolute;
-  width: calc((100% - 11 * var(--gut)) / 12 * 2 + var(--gut));
-  border-top: 1px solid var(--ink);
-  padding-top: 4px;
-  color: var(--ink);
-}
-.callouts li span { color: var(--grey); }
-.callouts b { font-weight: 400; color: var(--red); margin-right: 6px; }
-.c-pad { left: 0; top: 6%; }
-.c-screen { left: 0; top: 34%; }
-.c-brain { right: 0; top: 18%; text-align: right; }
-.c-usb { right: 0; top: 52%; text-align: right; }
-.callouts .hidden-part { color: var(--grey); }
-
-.leaders {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 3;
-  pointer-events: none;
-  overflow: visible;
-}
-.leaders line, .leaders polyline { stroke: var(--ink); stroke-width: 1; fill: none; shape-rendering: crispEdges; }
-.leaders .behind { stroke-dasharray: 3 3; stroke: var(--grey); }
-.leaders rect { fill: var(--ink); stroke: var(--paper); stroke-width: 1; }
-.leaders .behind-dot { fill: var(--paper); stroke: var(--grey); }
-html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; }
-
-.status {
-  grid-column: 3 / 11;
-  grid-row: 4;
-  justify-self: center;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  color: var(--ink);
-  white-space: nowrap;
-  padding-bottom: 8px;
-}
-.status .led { display: block; width: 6px; height: 6px; background: var(--red); }
-.status .st-time { color: var(--grey); }
-.status .st-arg { color: var(--grey); }
-.status .st-anim { color: var(--grey); }
 
 .wordmark {
   grid-column: 1 / -1;
@@ -385,7 +310,7 @@ html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; 
 .strip dl div:first-child { border-left: 0; padding-left: 0; }
 .strip dd { font-family: var(--mono); font-size: 22px; line-height: 33px; }
 
-/* the story sections: an event log on the left, the words, then the model */
+/* the story sections: the words on the left, the model on the right */
 
 .scene:not(.hero) {
   position: relative;
@@ -397,31 +322,7 @@ html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; 
 }
 .scene:not(.hero) > .wrap { width: 100%; align-items: start; }
 
-/* one hairline runs down the whole log, a square marks each event */
-.scenes::before {
-  content: "";
-  position: absolute;
-  top: calc(100svh - var(--top) + 64px);
-  bottom: 0;
-  left: max(var(--side), calc((100% - 1200px) / 2));
-  border-left: 1px solid var(--ink);
-}
-
-.rail { grid-column: 1 / 3; padding-left: 16px; padding-top: 10px; }
-.rail p { overflow-wrap: anywhere; }
-.rail .t { position: relative; color: var(--grey); }
-.rail .t::before {
-  content: "";
-  position: absolute;
-  left: -20px;
-  top: 8px;
-  width: 7px;
-  height: 7px;
-  background: var(--ink);
-}
-.rail .ev { color: var(--ink); }
-
-.copy { grid-column: 3 / 7; }
+.copy { grid-column: 1 / 6; }
 .copy > h2 + p { margin-top: 24px; }
 .copy > p + p { margin-top: 16px; }
 .copy > p { max-width: 34em; }
@@ -489,10 +390,7 @@ html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; 
   display: block;
   image-rendering: pixelated;
 }
-.mx.tl { grid-row: 1; }
-.mx.tr { grid-row: 1; text-align: right; }
 .mx.bl { grid-row: 3; color: var(--lit); }
-.mx.br { grid-row: 3; text-align: right; }
 
 .picker {
   display: flex;
@@ -626,13 +524,6 @@ html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; 
   padding: 4px 12px;
 }
 .by-hand { grid-column: 1 / 9; margin-top: 16px; }
-.hooks { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; margin-top: 64px; border-top: 1px solid var(--ink); padding-top: 12px; }
-.hooks > p.label { grid-column: 1 / 3; }
-.hooks ul { grid-column: 3 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--gut); color: var(--ink); }
-@media (max-width: 899px) {
-  .hooks > p.label, .hooks ul { grid-column: 1 / -1; }
-  .hooks ul { grid-template-columns: 1fr 1fr; margin-top: 8px; }
-}
 
 /* footer: a colophon */
 
@@ -661,11 +552,6 @@ html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; 
 
 /* tablets and phones: the model sits on top, the text scrolls under it */
 
-@media (max-width: 1199px) {
-  .rail { grid-column: 1 / 3; }
-  .copy { grid-column: 3 / 7; }
-}
-
 @media (max-width: 899px) {
   .stage {
     height: 42vh;
@@ -679,26 +565,17 @@ html:not(.at-hero) .leaders, html:not(.clawd3d-ready) .leaders { display: none; 
 
   .hero { height: auto; min-height: 0; overflow: visible; }
   .hero > .wrap { grid-template-rows: none; }
-  .hero-meta { grid-row: auto; }
-  .hero-meta span:nth-child(2) { display: none; }
-  .hero-meta span:nth-child(3) { grid-column: 3 / -1; }
   .wordmark { grid-row: 2; font-size: calc((100vw - 2 * var(--side)) * 0.19); margin: 32px 0 0; text-align: left; }
-  .lead { grid-row: 3; grid-column: 1 / -1; font-size: 1.1875rem; }
-  .hero-act { grid-row: 4; grid-column: 1 / -1; justify-self: start; text-align: left; }
+  .lead { grid-row: 3; grid-column: 1 / -1; font-size: 1.1875rem; margin-top: 24px; }
+  .hero-act { grid-row: 4; grid-column: 1 / -1; justify-self: start; text-align: left; margin-top: 24px; }
   .actions { justify-content: flex-start; }
-  .callouts { display: none; }
-  .status { grid-row: 5; grid-column: 1 / -1; justify-self: start; margin: 32px 0; flex-wrap: wrap; gap: 0 12px; white-space: normal; }
-  .leaders { display: none; }
 
   .strip { z-index: 5; }
   .strip dl div { grid-column: span 4; border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); }
   .strip dl div:nth-child(-n + 2) { border-top: 0; }
   .strip dd { font-size: 11px; line-height: 22px; }
 
-  .scenes::before { display: none; }
   .scene:not(.hero) { display: block; min-height: 0; padding: 64px 0 32px; }
-  .rail { grid-column: 1 / -1; padding: 0 0 0 12px; border-left: 1px solid var(--ink); margin-bottom: 16px; }
-  .rail .t::before { display: none; }
   .copy { grid-column: 1 / -1; }
 
   .band, .oled { z-index: 5; padding: 64px 0; }
