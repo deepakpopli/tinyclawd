@@ -22,7 +22,7 @@ struct Game {
     // a little bot: true while it would hold the button. used for demo gifs
     // and when Clawd plays on his own while bored.
     bool (*bot)(uint32_t now);
-    // the logo in the games menu, about 28 x 24 px centred on cx, cy.
+    // the logo in the games menu, fits 52 x 26 px centred on cx, cy (see icons.h).
     // nullptr = the plain play icon
     void (*icon)(Canvas& c, int cx, int cy, uint32_t now);
 };
