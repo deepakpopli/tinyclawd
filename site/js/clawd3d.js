@@ -61,7 +61,8 @@ function hasWebGL() {
 
 function fallback(canvas) {
   // the desk photo if it is there, else the flat Clawd drawn in css (.fallback)
-  if (!FALLBACK_PHOTO) {
+  const photo = canvas.dataset.fallback || FALLBACK_PHOTO;
+  if (!photo) {
     canvas.remove();
     document.getElementById('stage').classList.add('empty');
     window.Clawd3D = { play() {}, pose() {}, fallback: true };
@@ -74,7 +75,7 @@ function fallback(canvas) {
     img.remove();
     document.getElementById('stage').classList.add('empty');
   };
-  img.src = new URL(FALLBACK_PHOTO, document.baseURI).href;
+  img.src = new URL(photo, document.baseURI).href;
   img.id = 'clawd3d';
   canvas.replaceWith(img);
   window.Clawd3D = { play() {}, pose() {}, fallback: true };
@@ -89,8 +90,8 @@ async function inflate(url) {
 
 // ---------- model ----------
 
-async function loadModel() {
-  const buf = await inflate(MODEL_URL);
+async function loadModel(url = MODEL_URL) {
+  const buf = await inflate(url);
   const headLen = new DataView(buf).getUint32(0, true);
   const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, headLen)));
   let off = 4 + headLen;
@@ -305,6 +306,11 @@ async function init(canvas) {
   glow.position.set(sx, sy, sz + 0.3);
   lift.add(glow);
 
+  // laptop.html: Clawd on his stand next to a laptop, see desk3d.js
+  const desk = canvas.dataset.desk ? await import('./desk3d.js').then(m => m.setup({
+    THREE, scene, camera, renderer, model, key, floor, blob, loadModel, radialTexture, play: list => playList(list),
+  })) : null;
+
   const bodyLook = new THREE.Vector3(0, head.size[1] * 0.48, 0);
   const screenLook = new THREE.Vector3(sx, sy, sz);
 
@@ -472,7 +478,8 @@ async function init(canvas) {
 
   function applyState(now) {
     const sway = Math.sin(now / 2600) * 2.5;
-    model.rotation.y = THREE.MathUtils.degToRad(state.yaw + sway + px * 2);
+    const yaw = THREE.MathUtils.degToRad(state.yaw + sway + px * 2);
+    model.rotation.y = desk ? 0 : yaw;
     lift.position.y = (Math.sin(now / 1700) * 0.6 + 0.6) * (1 - state.explode);
 
     const e = state.explode;
@@ -491,8 +498,11 @@ async function init(canvas) {
     const room = 0.92 + 0.08 * state.look;
     let dist = state.dist;
     for (let i = 0; i < 4; i++) {
-      camera.position.copy(look).addScaledVector(dir, dist);
-      camera.lookAt(look);
+      if (desk) desk.place(look, pitch, yaw, dist);
+      else {
+        camera.position.copy(look).addScaledVector(dir, dist);
+        camera.lookAt(look);
+      }
       const s = spill() / room;
       if (s <= 1.001) break;
       dist *= s;
@@ -529,6 +539,7 @@ async function init(canvas) {
     py += (pointerY - py) * (1 - Math.exp(-dt * 3));
 
     applyState(now);
+    if (desk) desk.after(now, dt, px);
     tickScreen(now);
     renderer.render(scene, camera);
   }

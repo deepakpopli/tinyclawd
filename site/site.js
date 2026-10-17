@@ -28,7 +28,7 @@ let turn = fixed ? +fixed : 0, lastT = 0;
 if (!still && window.WebGLRenderingContext) import('./vendor/three.js').then(THREE => {
   THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera) {
     const model = scene.children.find(o => o.isGroup && o.children[0] && o.children[0].isGroup);
-    if (!model) return;
+    if (!model || scene.userData.desk) return;   // laptop.html: Clawd stays on his stand
 
     const now = performance.now() / 1000;
     const dt = lastT ? Math.min(0.1, now - lastT) : 0;
