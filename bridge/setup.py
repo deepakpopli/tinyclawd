@@ -3,6 +3,9 @@
   python3 setup.py                  background service + hooks + usage from the status line
   python3 setup.py --dry-run        only print what it would change
   python3 setup.py --port /dev/X    the service uses this port (default: finds the pet itself)
+  python3 setup.py --statusline visible|hidden|none
+                                    with no status line yet: add one that shows usage, a hidden
+                                    one that only feeds the pet, or none (default: ask)
   python3 setup.py --remove         undo all of it
 safe to run again (that is also how you update). every file it changes gets a backup first."""
 import argparse
@@ -81,12 +84,76 @@ def service(remove, dry, port=None):
 
 # ---------------------------------------------------------------- status line
 
+KINDS = {"visible": "statusline", "hidden": "usage"}   # our status line commands
+
+
 def usage_cmd():
     return ih.command("usage")
 
 
+def our_kind(cmd):
+    """'visible' or 'hidden' when the status line command is one we added, else None"""
+    if ih.MARK not in cmd:
+        return None
+    for kind, what in KINDS.items():
+        if cmd.rstrip().endswith(" " + what):
+            return kind
+    return None
+
+
 def is_ours(cmd):
-    return ih.MARK in cmd and cmd.rstrip().endswith(" usage")
+    return our_kind(cmd) is not None
+
+
+def later_cmd():
+    path = os.path.abspath(__file__)
+    home = str(Path.home())
+    if path.startswith(home + "/") and " " not in path:
+        path = "~" + path[len(home):]
+    else:
+        path = shlex.quote(path)
+    return "python3 %s --statusline visible" % path
+
+
+QUESTION = """you have no Claude Code status line. tiny clawd reads your usage from it.
+  1. add a visible one: shows ctx, 5h and week usage at the bottom of Claude Code, and feeds Clawd
+  2. add a hidden one: shows nothing, only feeds Clawd
+  3. skip: Clawd won't show usage (add it later with: %s)
+"""
+ANSWERS = {"": "visible", "1": "visible", "visible": "visible",
+           "2": "hidden", "hidden": "hidden",
+           "3": "none", "skip": "none", "none": "none"}
+
+
+def ask_statusline(tin, tout):
+    """asks which status line to add. Enter alone = visible, no answer = none"""
+    tout.write(QUESTION % later_cmd())
+    for _ in range(3):
+        tout.write("pick 1, 2 or 3 [1]: ")
+        tout.flush()
+        a = tin.readline()
+        if not a:
+            tout.write("\n")
+            return "none"
+        a = a.strip().lower()
+        if a in ANSWERS:
+            return ANSWERS[a]
+    return "none"
+
+
+def ask_on_terminal():
+    """only when stdin is a terminal, so a script or an agent running setup never hangs.
+    install.sh gives us the terminal under curl | bash"""
+    try:
+        if not sys.stdin.isatty():
+            return None
+    except (AttributeError, ValueError):
+        return None
+    try:
+        with open("/dev/tty", "r+") as tty:
+            return ask_statusline(tty, tty)
+    except OSError:
+        return ask_statusline(sys.stdin, sys.stderr)
 
 
 def find_script(cmd):
@@ -127,25 +194,42 @@ def patch_script(text, remove):
     return None
 
 
-def status_line(settings, remove, dry):
+def status_line(settings, remove, dry, want=None):
     """usage comes from the status line json. three cases:
-    no status line: we add a quiet one that only sends usage and prints nothing
-    our quiet one: refresh or remove it
+    no status line: ask (or take --statusline) and add a visible one, a hidden one, or none
+    one of ours: refresh it, switch it to --statusline, or remove it
     yours: add one line to your script, or tell you what to add"""
     sl = settings.get("statusLine")
     cmd = sl.get("command") if isinstance(sl, dict) else None
     def did(now, later):
         return later if dry else now
+    what = {"visible": "a status line that shows ctx, 5h and week usage and feeds Clawd",
+            "hidden": "a hidden status line that only feeds Clawd (it shows nothing)"}
     if not isinstance(cmd, str) or not cmd.strip():
         if remove:
             return ""
-        settings["statusLine"] = {"type": "command", "command": usage_cmd()}
-        return did("added", "would add") + " a status line that only sends usage to the pet (it shows nothing)"
-    if is_ours(cmd):
-        if remove:
+        if want is None and dry:
+            return ("you have no claude code status line. pick one with --statusline visible|hidden|none\n"
+                    "    (in a terminal setup asks you)")
+        if want is None:
+            want = ask_on_terminal()
+        if want in KINDS:
+            settings["statusLine"] = {"type": "command", "command": ih.command(KINDS[want])}
+            return did("added ", "would add ") + what[want]
+        if want is None:
+            return "no claude code status line, so Clawd won't show usage. add one later with:\n    " + later_cmd()
+        return "no status line added, Clawd won't show usage. add one later with:\n    " + later_cmd()
+    kind = our_kind(cmd)
+    if kind:
+        if remove or want == "none":
             del settings["statusLine"]
-            return did("removed", "would remove") + " the usage status line"
-        sl["command"] = usage_cmd()
+            return did("removed", "would remove") + " our status line"
+        kind = want or kind
+        new = ih.command(KINDS[kind])
+        if new != cmd:
+            sl["command"] = new
+            if want and want != our_kind(cmd):
+                return did("switched", "would switch") + " to " + what[kind]
         return ""
     script = find_script(cmd)
     by_hand = ("add this to your status line script, right after it reads stdin into $input:\n"
@@ -198,13 +282,15 @@ def main(argv=None):
     p.add_argument("--remove", action="store_true", help="undo everything")
     p.add_argument("--dry-run", action="store_true", help="print what would change, change nothing")
     p.add_argument("--port", help="serial port for the service, default: find the pet")
+    p.add_argument("--statusline", choices=["visible", "hidden", "none"],
+                   help="with no status line yet: what to add (default: ask)")
     a = p.parse_args(argv)
     remove, dry = a.remove, a.dry_run
 
     settings, old = ih.load()
     n = ih.merge_hooks(settings, remove)
     out = [service(remove, dry, a.port)]
-    out.append(status_line(settings, remove, dry))
+    out.append(status_line(settings, remove, dry, a.statusline))
     if dry:
         same = json.loads(old) == settings if old.strip() else not settings
         out.append("%s needs no change" % ih.SETTINGS if same else

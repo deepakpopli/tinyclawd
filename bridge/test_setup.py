@@ -2,6 +2,7 @@
 # tests for setup.py and install_hooks.py: python3 bridge/test_setup.py
 # everything runs in a throwaway HOME with a fake systemctl, your real ~/.claude is never read
 
+import io
 import json
 import os
 import shutil
@@ -58,8 +59,10 @@ class Home:
         return env
 
     def run(self, *args, ok=True):
+        # no terminal on stdin and a new session, so setup can never sit waiting for an answer
         p = subprocess.run([sys.executable, os.path.join(HERE, "setup.py")] + list(args),
-                           capture_output=True, text=True, env=self.env(), timeout=30)
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, env=self.env(),
+                           timeout=30, start_new_session=True)
         if ok and p.returncode != 0:
             raise AssertionError(p.stdout + p.stderr)
         return p
@@ -203,6 +206,43 @@ class StatusScript(unittest.TestCase):
         self.assertNotIn("@", text)
 
 
+class Question(unittest.TestCase):
+    def ask(self, typed):
+        out = io.StringIO()
+        kind = setup.ask_statusline(io.StringIO(typed), out)
+        return kind, out.getvalue()
+
+    def test_answers(self):
+        for typed, want in (("\n", "visible"), ("1\n", "visible"), ("2\n", "hidden"),
+                            (" 3 \n", "none"), ("skip\n", "none"), ("x\n2\n", "hidden"),
+                            ("", "none"), ("x\ny\nz\n", "none")):
+            self.assertEqual(self.ask(typed)[0], want, typed)
+
+    def test_text(self):
+        text = self.ask("\n")[1]
+        self.assertTrue(text.startswith("you have no Claude Code status line. tiny clawd reads your usage from it.\n"))
+        self.assertIn("  1. add a visible one: shows ctx, 5h and week usage at the bottom of Claude Code, "
+                      "and feeds Clawd\n", text)
+        self.assertIn("  2. add a hidden one: shows nothing, only feeds Clawd\n", text)
+        self.assertIn("  3. skip: Clawd won't show usage (add it later with: python3 ", text)
+        self.assertIn("setup.py --statusline visible)\n", text)
+
+    def test_status_line_asks_only_with_no_status_line(self):
+        asked = []
+        old = setup.ask_on_terminal
+        setup.ask_on_terminal = lambda: asked.append(1) or "visible"
+        try:
+            s = {}
+            self.assertIn("added a status line", setup.status_line(s, remove=False, dry=False))
+            self.assertEqual(setup.our_kind(s["statusLine"]["command"]), "visible")
+            setup.status_line({"statusLine": {"command": "echo hi"}}, remove=False, dry=False)
+            setup.status_line({}, remove=False, dry=True)
+            setup.status_line({}, remove=False, dry=False, want="hidden")
+            self.assertEqual(len(asked), 1)
+        finally:
+            setup.ask_on_terminal = old
+
+
 class SetupInAFakeHome(unittest.TestCase):
     def setUp(self):
         self.h = Home()
@@ -215,7 +255,7 @@ class SetupInAFakeHome(unittest.TestCase):
         out = h.run("--dry-run").stdout
         self.assertIn("nothing was changed", out)
         self.assertEqual(h.files(), set())
-        h.run()
+        h.run("--statusline", "hidden")
         s = h.read_settings()
         self.assertEqual(len(our_commands(s)), len(ih.EVENTS) + len(ih.SYNC))
         self.assertTrue(setup.is_ours(s["statusLine"]["command"]))
@@ -270,6 +310,88 @@ class SetupInAFakeHome(unittest.TestCase):
         self.assertEqual(h.read_settings(), original)
         with open(script) as f:
             self.assertEqual(f.read(), STATUS_SCRIPT)
+
+    def test_visible_status_line(self):
+        h = self.h
+        out = h.run("--statusline", "visible", "--dry-run").stdout
+        self.assertIn("would add a status line that shows", out)
+        self.assertEqual(h.files(), set())
+        out = h.run("--statusline", "visible").stdout
+        self.assertIn("added a status line that shows ctx, 5h and week", out)
+        cmd = h.read_settings()["statusLine"]["command"]
+        self.assertTrue(cmd.endswith("tinyclawd.py' statusline") or cmd.endswith("tinyclawd.py statusline"))
+        self.assertEqual(setup.our_kind(cmd), "visible")
+        # a plain re-run keeps it visible
+        h.run()
+        self.assertEqual(h.read_settings()["statusLine"]["command"], cmd)
+        out = h.run("--remove", "--dry-run").stdout
+        self.assertIn("would remove our status line", out)
+        h.run("--remove")
+        self.assertEqual(h.read_settings(), {})
+
+    def test_hidden_status_line(self):
+        h = self.h
+        out = h.run("--statusline", "hidden").stdout
+        self.assertIn("added a hidden status line", out)
+        cmd = h.read_settings()["statusLine"]["command"]
+        self.assertEqual(setup.our_kind(cmd), "hidden")
+        self.assertTrue(cmd.rstrip().endswith(" usage"))
+        out = h.run("--statusline", "visible").stdout   # change your mind later
+        self.assertIn("switched to a status line that shows", out)
+        self.assertEqual(setup.our_kind(h.read_settings()["statusLine"]["command"]), "visible")
+        h.run("--statusline", "none")
+        self.assertNotIn("statusLine", h.read_settings())
+        h.run("--remove")
+        self.assertEqual(h.read_settings(), {})
+
+    def test_none_status_line(self):
+        h = self.h
+        out = h.run("--statusline", "none").stdout
+        self.assertIn("no status line added", out)
+        self.assertIn("--statusline visible", out)
+        s = h.read_settings()
+        self.assertNotIn("statusLine", s)
+        self.assertTrue(our_commands(s))   # the hooks still go in
+        h.run("--remove")
+        self.assertEqual(h.read_settings(), {})
+
+    def test_no_terminal_skips_and_says_so(self):
+        h = self.h
+        out = h.run("--dry-run").stdout
+        self.assertIn("no claude code status line", out)
+        self.assertIn("--statusline visible|hidden|none", out)
+        out = h.run().stdout
+        self.assertIn("Clawd won't show usage", out)
+        self.assertIn("--statusline visible", out)
+        self.assertNotIn("pick 1, 2 or 3", out)
+        self.assertNotIn("statusLine", h.read_settings())
+
+    def test_question_on_a_terminal(self):
+        import pty
+        h = self.h
+        master, slave = pty.openpty()
+        try:
+            os.write(master, b"2\n")
+            p = subprocess.run([sys.executable, os.path.join(HERE, "setup.py")], stdin=slave,
+                               capture_output=True, text=True, env=h.env(), timeout=30,
+                               start_new_session=True)
+        finally:
+            os.close(slave)
+            os.close(master)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn("you have no Claude Code status line", p.stderr)
+        self.assertIn("added a hidden status line", p.stdout)
+        self.assertEqual(setup.our_kind(h.read_settings()["statusLine"]["command"]), "hidden")
+
+    def test_existing_status_line_ignores_the_flag(self):
+        h = self.h
+        original = {"statusLine": {"type": "command", "command": "echo hello", "padding": 1}}
+        h.write_settings(original)
+        for kind in ("visible", "hidden", "none"):
+            h.run("--statusline", kind)
+            self.assertEqual(h.read_settings()["statusLine"], original["statusLine"])
+        h.run("--remove")
+        self.assertEqual(h.read_settings(), original)
 
     def test_status_line_we_can_not_patch(self):
         h = self.h
