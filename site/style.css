@@ -601,9 +601,18 @@ html:not(.js) .fallback,
   font-size: 0.9375rem;
   line-height: 1.5;
 }
-.foot .wrap > div { grid-column: span 3; }
+.foot-mark { grid-column: 1 / 4; }
+.maker { grid-column: 5 / 9; }
+.credits { grid-column: 9 / -1; }
 .foot-brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 1.0625rem; }
+.foot-mark .small { margin-top: 12px; }
 .foot .label { margin-bottom: 8px; }
+.maker-name { font-size: 2rem; font-weight: 650; font-stretch: 112%; letter-spacing: -0.015em; line-height: 1.1; }
+.maker-name a { text-decoration: none; }
+.maker-name a:hover { text-decoration: underline; text-decoration-color: var(--red); }
+.maker-links { display: flex; flex-wrap: wrap; gap: 0 20px; margin-top: 12px; }
+.maker-links.label { margin-bottom: 0; }
+.maker .small { margin-top: 8px; }
 .foot-line {
   grid-column: 1 / -1;
   display: flex;
@@ -672,7 +681,7 @@ html:not(.js) .fallback,
   .code.prompt pre { font-size: 11px; padding: 56px 16px 16px; }
   .copy-btn { top: 16px; right: 16px; }
 
-  .foot .wrap > div { grid-column: 1 / -1; margin-top: 24px; }
+  .foot .wrap > div { grid-column: 1 / -1; margin-top: 32px; }
   .foot .wrap > div:first-child { margin-top: 0; }
   .foot-line { flex-direction: column; gap: 0; }
 }
