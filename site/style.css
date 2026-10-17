@@ -102,6 +102,10 @@ img { image-rendering: pixelated; }
   transition: background-color 120ms linear;
 }
 .btn:hover { background: #b0301f; color: #fff; }
+.btn.line { background: transparent; color: var(--ink); padding: 13px 21px; border: 1px solid var(--ink); }
+.btn.line:hover { background: var(--ink); color: var(--paper); }
+.actions .btn { display: inline-flex; align-items: center; gap: 10px; }
+.gh { width: 18px; height: 18px; flex: none; }
 
 /* the grid: 12 columns, 8 on tablets, 4 on phones */
 
@@ -287,7 +291,7 @@ html:not(.js) .fallback,
   justify-self: end;
   text-align: right;
 }
-.actions { display: flex; align-items: center; justify-content: flex-end; gap: 24px; }
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .hero-act .small { margin-top: 12px; }
 
 .wordmark {
