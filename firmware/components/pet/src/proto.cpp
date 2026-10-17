@@ -73,7 +73,7 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
     }
     if (!strcmp(line, "time")) {
         int h = -1, m = 0;
-        if (sscanf(rest, "%d:%d", &h, &m) >= 1 && h >= 0 && h < 24) {
+        if (sscanf(rest, "%d:%d", &h, &m) >= 1 && h >= 0 && h < 24 && m >= 0 && m < 60) {
             b.clock(h, m, now);
             snprintf(reply, len, "ok");
             return true;
@@ -82,7 +82,7 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         return false;
     }
     if (!strcmp(line, "music")) {
-        if (*rest != '0' && *rest != '1') {
+        if ((*rest != '0' && *rest != '1') || (rest[1] && rest[1] != ' ')) {
             snprintf(reply, len, "err want music 0 or music 1 <title>");
             return false;
         }
@@ -114,11 +114,16 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         return true;
     }
     if (!strcmp(line, "touch")) {
-        Touch t = TOUCH_TAP;
-        if (!strcmp(rest, "double")) t = TOUCH_DOUBLE;
+        Touch t;
+        if (!strcmp(rest, "tap")) t = TOUCH_TAP;
+        else if (!strcmp(rest, "double")) t = TOUCH_DOUBLE;
         else if (!strcmp(rest, "long")) t = TOUCH_LONG;
         else if (!strcmp(rest, "down")) t = TOUCH_DOWN;
         else if (!strcmp(rest, "up")) t = TOUCH_UP;
+        else {
+            snprintf(reply, len, "err want touch tap|double|long|down|up");
+            return false;
+        }
         b.touch(t, now);
         snprintf(reply, len, "ok");
         return true;
@@ -133,6 +138,10 @@ bool proto_line(Brain& b, char* line, uint32_t now, char* reply, int len) {
         return true;
     }
     if (!strcmp(line, "tune")) {
+        if (strcmp(rest, "fast") && strcmp(rest, "normal")) {
+            snprintf(reply, len, "err want tune fast|normal");
+            return false;
+        }
         b.tune(!strcmp(rest, "fast"));
         snprintf(reply, len, "ok");
         return true;
