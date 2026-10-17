@@ -57,6 +57,20 @@ brain: a base loop per mode (idle, thinking, tool, waiting, asleep) plus one-sho
 pools (`Pick {name, weight, cooldown_s}`) that never repeat the last two. tool names map to
 pools in `TOOLS`. `tune fast` over serial shortens the idle timings for testing.
 
+## bridge
+
+python 3.8+, standard library only, plus pyserial for the daemon. hooks must stay fast, silent
+and exit 0 even with no daemon (only `screen` prints, and only for `/clawd`).
+
+```bash
+python3 bridge/test_bridge.py   # hooks, daemon state, music, typing, eq, a daemon on a pty
+python3 bridge/test_setup.py    # setup.py and install_hooks.py in a throwaway HOME
+```
+
+never try setup.py against the real `~/.claude` or `~/.config/systemd`: use a temp `HOME` and a
+fake `systemctl` on `PATH`, like `test_setup.py` does. `install.sh` at the top is the one line
+installer the site serves.
+
 ## animations
 
 `animations/eyes.py` is the spec. every animation is plain shapes (rects, lines, small glyphs) on a
