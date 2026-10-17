@@ -1,0 +1,98 @@
+/* the hero opens on a laptop running Claude Code, plugged into Clawd.
+   only the hero changes, the rest is style.css. the words go in the left column,
+   the desk scene takes columns 5 to 12 above the wordmark */
+
+.story { --wm: calc(min(100vw - 2 * var(--side), 1200px) * 0.1915 * 0.92 + 16px); }
+
+.lead { grid-column: 1 / 5; }
+.hero-act {
+  grid-column: 1 / 5;
+  grid-row: 3;
+  align-self: start;
+  justify-self: start;
+  text-align: left;
+  margin-top: 32px;
+}
+.actions { justify-content: flex-start; }
+
+/* the canvas fills the whole stage, edge to edge, so the laptop is never cut off at a canvas edge.
+   the shot is framed for .desk-frame, which moves like the canvas does on index.html */
+.story { overflow-x: clip; }
+#clawd3d[data-desk],
+.at-hero #clawd3d[data-desk] {
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  top: 0;
+  height: 100%;
+  transition: opacity 0.6s linear;
+}
+.desk-frame {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  top: 0;
+  height: 100%;
+  left: calc(5 * (var(--colw) + var(--gut)));
+  width: calc(7 * var(--colw) + 6 * var(--gut));
+  transition: left 0.7s cubic-bezier(0.65, 0, 0.35, 1), width 0.7s cubic-bezier(0.65, 0, 0.35, 1), top 0.7s cubic-bezier(0.65, 0, 0.35, 1), height 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@media (min-width: 900px) {
+  .at-hero .desk-frame {
+    left: calc(4 * (var(--colw) + var(--gut)));
+    width: calc(8 * var(--colw) + 7 * var(--gut));
+    top: 16px;
+    height: calc(100% - 16px - var(--wm));
+  }
+  .at-hero .stage.empty .fallback { display: none; }
+}
+@media (max-width: 899px) {
+  .desk-frame { left: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-frame { transition: none; }
+}
+
+/* no 3D (reduced motion, no WebGL): a still of the same scene */
+.desk-still { display: none; }
+.story:has(.stage.empty) .desk-still,
+html:not(.js) .desk-still {
+  display: block;
+  grid-column: 5 / -1;
+  grid-row: 1 / 5;
+  align-self: start;
+  justify-self: center;
+  margin-top: 16px;
+}
+.desk-still img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100vh - var(--top) - var(--wm) - 32px);
+  max-height: calc(100svh - var(--top) - var(--wm) - 32px);
+  image-rendering: auto;
+}
+
+.desk-still-top { display: none; }
+
+@media (max-width: 899px) {
+  .lead, .hero-act { grid-column: 1 / -1; }
+  .lead { grid-row: 3; }
+  .hero-act { grid-row: 4; margin-top: 24px; }
+  /* phones: the still goes in the box on top, in place of the flat Clawd, while in the hero */
+  .story:has(.stage.empty) .desk-still,
+  html:not(.js) .desk-still { display: none; }
+  .at-hero .stage.empty .fallback,
+  html:not(.js).at-hero .stage .fallback { display: none; }
+  .at-hero .stage.empty .desk-still-top,
+  html:not(.js) .desk-still-top {
+    display: block;
+    position: absolute;
+    inset: 12px 0;
+    width: 100%;
+    height: calc(100% - 24px);
+    object-fit: contain;
+    image-rendering: auto;
+  }
+}

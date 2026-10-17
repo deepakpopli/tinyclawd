@@ -1,0 +1,262 @@
+{
+ "idle": {
+  "ms": 10000,
+  "frames": 87,
+  "bytes": 823
+ },
+ "wake_up": {
+  "ms": 3480,
+  "frames": 43,
+  "bytes": 427
+ },
+ "thinking_words": {
+  "ms": 10400,
+  "frames": 311,
+  "bytes": 4401
+ },
+ "terminal": {
+  "ms": 12000,
+  "frames": 198,
+  "bytes": 3469
+ },
+ "searching": {
+  "ms": 9000,
+  "frames": 406,
+  "bytes": 10828
+ },
+ "crane": {
+  "ms": 15060,
+  "frames": 617,
+  "bytes": 12482
+ },
+ "test_tubes": {
+  "ms": 16400,
+  "frames": 600,
+  "bytes": 8915
+ },
+ "git_graph": {
+  "ms": 14400,
+  "frames": 488,
+  "bytes": 17938
+ },
+ "subagents_march": {
+  "ms": 3000,
+  "frames": 149,
+  "bytes": 1763
+ },
+ "subagents": {
+  "ms": 6000,
+  "frames": 255,
+  "bytes": 6155
+ },
+ "needs_you": {
+  "ms": 8640,
+  "frames": 117,
+  "bytes": 1170
+ },
+ "goal": {
+  "ms": 3880,
+  "frames": 113,
+  "bytes": 2140
+ },
+ "bicycle_kick": {
+  "ms": 2160,
+  "frames": 84,
+  "bytes": 3655
+ },
+ "yellow_card": {
+  "ms": 3160,
+  "frames": 60,
+  "bytes": 1400
+ },
+ "usage": {
+  "ms": 6000,
+  "frames": 39,
+  "bytes": 1029
+ },
+ "now_playing": {
+  "ms": 5600,
+  "frames": 216,
+  "bytes": 4180
+ },
+ "equalizer": {
+  "ms": 9400,
+  "frames": 465,
+  "bytes": 12699
+ },
+ "coffee": {
+  "ms": 5800,
+  "frames": 123,
+  "bytes": 3040
+ },
+ "juggle": {
+  "ms": 7000,
+  "frames": 177,
+  "bytes": 2880
+ },
+ "dream": {
+  "ms": 9600,
+  "frames": 298,
+  "bytes": 6019
+ },
+ "asleep": {
+  "ms": 9000,
+  "frames": 95,
+  "bytes": 1406
+ },
+ "petted": {
+  "ms": 2700,
+  "frames": 89,
+  "bytes": 2242
+ },
+ "love": {
+  "ms": 6300,
+  "frames": 315,
+  "bytes": 9667
+ },
+ "thinking": {
+  "ms": 3960,
+  "frames": 66,
+  "bytes": 1358
+ },
+ "lightbulb": {
+  "ms": 4600,
+  "frames": 93,
+  "bytes": 1358
+ },
+ "reading": {
+  "ms": 10000,
+  "frames": 238,
+  "bytes": 5328
+ },
+ "typing": {
+  "ms": 10000,
+  "frames": 172,
+  "bytes": 3340
+ },
+ "typing_along": {
+  "ms": 4000,
+  "frames": 75,
+  "bytes": 1677
+ },
+ "keyboard_peek": {
+  "ms": 5400,
+  "frames": 65,
+  "bytes": 1364
+ },
+ "letters_fly": {
+  "ms": 4800,
+  "frames": 149,
+  "bytes": 2989
+ },
+ "web": {
+  "ms": 11100,
+  "frames": 555,
+  "bytes": 17158
+ },
+ "git_branch": {
+  "ms": 5200,
+  "frames": 159,
+  "bytes": 2275
+ },
+ "package": {
+  "ms": 11600,
+  "frames": 400,
+  "bytes": 8261
+ },
+ "rubber_duck": {
+  "ms": 6200,
+  "frames": 120,
+  "bytes": 2289
+ },
+ "trophy": {
+  "ms": 2400,
+  "frames": 120,
+  "bytes": 5574
+ },
+ "bug_squash": {
+  "ms": 5800,
+  "frames": 139,
+  "bytes": 2193
+ },
+ "red_card": {
+  "ms": 3160,
+  "frames": 95,
+  "bytes": 1606
+ },
+ "var_check": {
+  "ms": 4000,
+  "frames": 199,
+  "bytes": 3219
+ },
+ "context": {
+  "ms": 5400,
+  "frames": 83,
+  "bytes": 1280
+ },
+ "limit_hit": {
+  "ms": 8000,
+  "frames": 262,
+  "bytes": 2925
+ },
+ "music": {
+  "ms": 8960,
+  "frames": 448,
+  "bytes": 8106
+ },
+ "headbang": {
+  "ms": 3900,
+  "frames": 169,
+  "bytes": 2481
+ },
+ "dance": {
+  "ms": 4600,
+  "frames": 192,
+  "bytes": 4156
+ },
+ "paper_plane": {
+  "ms": 5000,
+  "frames": 158,
+  "bytes": 3368
+ },
+ "stargaze": {
+  "ms": 7000,
+  "frames": 136,
+  "bytes": 2150
+ },
+ "game_run": {
+  "ms": 10000,
+  "frames": 493,
+  "bytes": 8351
+ },
+ "game_panic": {
+  "ms": 10000,
+  "frames": 193,
+  "bytes": 5099
+ },
+ "game_flappy": {
+  "ms": 10000,
+  "frames": 453,
+  "bytes": 8830
+ },
+ "game_keepy": {
+  "ms": 10000,
+  "frames": 493,
+  "bytes": 8795
+ },
+ "game_penalty": {
+  "ms": 10000,
+  "frames": 343,
+  "bytes": 9968
+ },
+ "game_catch": {
+  "ms": 10000,
+  "frames": 417,
+  "bytes": 4768
+ },
+ "game_whack": {
+  "ms": 10000,
+  "frames": 255,
+  "bytes": 3780
+ }
+}
