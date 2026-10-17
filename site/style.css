@@ -573,7 +573,7 @@ html:not(.js) .fallback,
 
 /* the prompt is words, not a shell line: paper, ink, a hairline box */
 .code.prompt { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
-.code.prompt pre { font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55; word-break: normal; }
+.code.prompt pre { font-family: var(--mono); font-size: 13px; line-height: 22px; word-break: normal; overflow-wrap: anywhere; }
 .code.prompt pre code::before { content: none; }
 .code.prompt .copy-btn { color: var(--ink); background: var(--paper); border-color: var(--ink); }
 .code.prompt .copy-btn:hover { color: var(--red); border-color: var(--red); }
@@ -639,6 +639,8 @@ html:not(.js) .fallback,
 
   .wall-grid { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
   .wall-grid img, .wall-grid canvas { width: 100%; height: auto; }
+  /* scaled down, so blend the dots instead of dropping every other one */
+  .wall-grid img, .wall-grid canvas, .plates img, .plates canvas { image-rendering: auto; }
   .plates { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
 
   .play-mark { left: 16px; bottom: 16px; width: 56px; height: 56px; }
@@ -655,7 +657,7 @@ html:not(.js) .fallback,
   .steps li { grid-column: 1 / -1; margin-bottom: 32px; }
   .install { margin-top: 32px; }
   .code pre { font-size: 11px; line-height: 22px; padding: 16px 80px 16px 16px; }
-  .code.prompt pre { font-size: 0.9375rem; padding: 56px 16px 16px; }
+  .code.prompt pre { font-size: 11px; padding: 56px 16px 16px; }
   .copy-btn { top: 16px; right: 16px; }
 
   .foot .wrap > div { grid-column: 1 / -1; margin-top: 24px; }
