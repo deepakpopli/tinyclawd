@@ -1,0 +1,11 @@
+# a permission for the Task tool, then a subagent asks for one too.
+# both asks must show needs_you (12 s), not the squad
+0 ev prompt
+1000 ev tool Task
+1200 ev perm
+4000 ev tool Task
+4500 ev sub 1
+12000 ev perm
+18000 ev tool Bash
+22000 ev sub 0
+26000 ev done
