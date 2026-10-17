@@ -430,6 +430,54 @@ html:not(.js) .fallback,
 .plate-note { border-top: 2px solid var(--ink); padding-top: 12px; }
 .plate-note p:not(.label) { margin-top: 12px; font-size: 1.375rem; line-height: 1.35; font-weight: 500; font-stretch: 112%; }
 
+/* film: a still with a play button. the YouTube player only loads on click */
+
+.player {
+  grid-column: 1 / -1;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--screen);
+}
+.player iframe, .film-play {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.film-play { padding: 0; background: var(--screen); }
+.film-play img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: auto; }
+.play-mark {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  width: 72px;
+  height: 72px;
+  background: var(--red);
+  transition: background-color 120ms linear;
+}
+.play-mark::after {
+  content: "";
+  position: absolute;
+  left: 29px;
+  top: 24px;
+  border-style: solid;
+  border-width: 12px 0 12px 18px;
+  border-color: transparent transparent transparent #fff;
+}
+.film-play:hover .play-mark { background: #b0301f; }
+.play-text {
+  position: absolute;
+  left: 112px;
+  bottom: 49px;
+  line-height: 22px;
+  padding: 0 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.film-note { grid-column: 1 / -1; margin-top: 16px; }
+
 /* photos. until a file is there, a crossed box says what goes in it */
 
 .photo { display: flex; flex-direction: column; }
@@ -581,6 +629,9 @@ html:not(.js) .fallback,
   .wall-grid img, .wall-grid canvas { width: 100%; height: auto; }
   .plates { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
 
+  .play-mark { left: 16px; bottom: 16px; width: 56px; height: 56px; }
+  .play-mark::after { left: 22px; top: 18px; border-width: 10px 0 10px 15px; }
+  .play-text { left: 84px; bottom: 33px; }
   .photos .photo.big { grid-column: 1 / -1; margin-bottom: 24px; }
   .photos .photo { grid-column: 1 / 5; }
   .photos .photo:last-child { grid-column: 5 / -1; }

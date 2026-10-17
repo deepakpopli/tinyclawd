@@ -4,6 +4,9 @@
 
 import * as THREE from './vendor/three.js';
 
+// the YouTube id of the film, like 'dQw4w9WgXcQ'. the film band stays hidden while this is empty
+const VIDEO_ID = '';
+
 const root = document.documentElement;
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -193,6 +196,24 @@ if (!still) {
     const m = { name: img.dataset.frames, el: img, visible: false };
     minis.push(m);
     seen.observe(img);
+  });
+}
+
+// ---------- the film: a still until you press play, then the YouTube player ----------
+
+const filmId = VIDEO_ID || new URLSearchParams(location.search).get('video');   // ?video=id, test only
+const film = document.getElementById('film');
+if (film && filmId) {
+  film.hidden = false;
+  const btn = film.querySelector('.film-play');
+  btn.addEventListener('click', () => {
+    const f = document.createElement('iframe');
+    f.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(filmId) + '?autoplay=1&rel=0&playsinline=1';
+    f.title = 'tiny clawd, the film';
+    f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    f.allowFullscreen = true;
+    btn.replaceWith(f);
+    f.focus();
   });
 }
 
