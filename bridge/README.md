@@ -22,6 +22,7 @@ sudo apt install python3-serial      # fedora: python3-pyserial, arch: python-py
 python3 setup.py --dry-run   # what it would change, changes nothing
 python3 setup.py             # service + hooks + /clawd + usage from the status line
 python3 setup.py --port /dev/ttyUSB0   # only if the pet is not found on its own
+python3 setup.py --statusline visible  # no status line yet: visible, hidden or none (default: ask)
 python3 setup.py --remove    # undo all of it
 ```
 
@@ -30,8 +31,11 @@ python3 setup.py --remove    # undo all of it
 - hooks go in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`). your own hooks stay where they
   are, only entries that run `tinyclawd.py` are touched. running it again fixes the paths, for
   example after you moved the folder. `install_hooks.py` does only this part
-- usage: with no status line it adds a quiet one (`tinyclawd.py usage`, prints nothing). with a
-  shell script status line it adds this after the line that reads stdin (`input=$(cat)`):
+- usage: with no status line it asks (in a terminal) or takes `--statusline`. visible =
+  `tinyclawd.py statusline`, prints `ctx 37% · 5h 42% · week 18%` with the parts claude code sends.
+  hidden = `tinyclawd.py usage`, prints nothing. none = nothing, it prints how to add one later.
+  no terminal and no flag counts as none. with a shell script status line it adds this after the
+  line that reads stdin (`input=$(cat)`):
   ```bash
   printf '%s' "$input" | /usr/bin/python3 /path/to/bridge/tinyclawd.py usage >/dev/null 2>&1 &
   ```
@@ -40,9 +44,10 @@ python3 setup.py --remove    # undo all of it
   a bad settings.json is never touched, it tells you instead
 
 the hooks are `async`, so claude never waits for them. `hook` and `usage` never print anything and
-always exit 0, if the daemon is down the event is just dropped. the one sync hook is `screen` on
-`UserPromptExpansion`: it only prints for `/clawd`, to stop that prompt before claude sees it. the
-daemon is not started by the hooks, run it yourself or use the service.
+`statusline` only prints its line. all three always exit 0, if the daemon is down the event is
+just dropped. the one sync hook is `screen` on `UserPromptExpansion`: it only prints for `/clawd`,
+to stop that prompt before claude sees it. the daemon is not started by the hooks, run it yourself
+or use the service.
 
 ## commands
 

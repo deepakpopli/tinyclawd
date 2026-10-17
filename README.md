@@ -125,7 +125,9 @@ Before each step, say what you will do and wait for my OK. Never run sudo: show 
 3. Ask if I want to flash the board. Only if I say yes: find it by its Espressif USB id, get the .bin from
    the latest GitHub release and flash it at 0x0 with esptool (stop tinyclawd-daemon first if it runs).
    If the port is not writable, tell me how to join the dialout group.
-4. Run python3 ~/.tinyclawd/bridge/setup.py --dry-run, show me what it would change, then run it for real.
+4. Run python3 ~/.tinyclawd/bridge/setup.py --dry-run and show me what it would change. If it says I have
+   no status line, ask me which one I want: visible (shows usage), hidden (only feeds Clawd) or none.
+   Then run setup.py for real, with --statusline <my answer> if you asked.
 5. Test it: python3 ~/.tinyclawd/bridge/tinyclawd.py send ev done should make Clawd celebrate.
 6. Tell me to restart Claude Code, and how to undo: python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd
 ```
@@ -141,6 +143,7 @@ cd tinyclawd
 sudo apt install python3-serial            # fedora: python3-pyserial, arch: python-pyserial
 python3 bridge/setup.py --dry-run          # shows what it would change, changes nothing
 python3 bridge/setup.py                    # background service + claude code hooks + usage
+python3 bridge/setup.py --statusline visible   # no status line yet: add one that shows usage
 python3 bridge/setup.py --remove           # undo it all
 ```
 
@@ -154,8 +157,10 @@ the group is `uucp`), then log out and in. more in [`bridge/`](bridge).
   `tinyclawd.py`
 - `/clawd` in claude code shows your usage on the pet, `/clawd context` the context window. it
   never reaches claude, so it costs nothing
-- usage comes from claude code's status line. no status line yet: it adds a quiet one that only
-  passes usage to the pet and shows nothing. a shell script that reads stdin with `input=$(cat)`:
+- usage comes from claude code's status line. no status line yet: it asks if you want a visible
+  one (`ctx 37% · 5h 42% · week 18%` at the bottom of claude code), a hidden one that only feeds
+  the pet, or none. `--statusline visible|hidden|none` (or `TINYCLAWD_STATUSLINE` for install.sh)
+  answers it ahead of time. a shell script that reads stdin with `input=$(cat)`:
   it adds one line after that. anything else: it prints the line for you to add. the 5 hour and
   weekly limits only show when claude code puts them in the status line data (a claude
   subscription login), context works either way
