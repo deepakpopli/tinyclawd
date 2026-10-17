@@ -33,11 +33,11 @@ fan-made project, not affiliated with Anthropic.
 | music playing (spotify, youtube...) | now playing with the song name, three full screen visualizers, headbanging |
 | you typing | it watches the keys go down |
 | nothing going on | looks around, coffee, juggling, football, naps and dreams |
-| touch the head | petted, usage screen, love |
+| touch the head | tap: petted (sometimes shy or a wink), double tap: usage, hold: love |
 
 ## animations
 
-105 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
+107 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
 uses the same block art as the Claude Code banner. these gifs come straight from the firmware
 running in the desktop sim.
 
@@ -60,8 +60,8 @@ the first designs were sketched in python: [`animations/`](animations).
 there is only one button, the touch pad on its head. so everything works with tap, double tap
 and hold:
 
-- hold the head: a ring fills around the screen. let go early and it's love, hold until it's
-  full and the menu opens
+- hold the head: a ring fills around the screen. let go after about a second and it's love,
+  keep holding until the ring is full and the menu opens
 - in the menu: tap = next, hold = open, double tap = back
 - in a game: press = jump / kick / allow, hold the full ring to leave
 
@@ -81,9 +81,9 @@ and hold:
 | ESP32-C3 Super Mini | ~$2 |
 | 1.3" SH1106 128x64 OLED, I2C | ~$2 |
 | TTP223 touch pad | ~$0.2 |
-| PLA, red + black, ~40 g | ~$0.5 |
+| PLA, red + black, ~40 g | ~$1 |
 | a USB-C cable that carries data | you have one |
-| **total** | **~$5** |
+| **total** | **about $5, plus shipping** |
 
 wiring: OLED SDA to GPIO 20, SCL to GPIO 21, touch pad output to GPIO 1.
 
@@ -148,8 +148,9 @@ cooldowns, so it rarely does the same thing twice in a row. at night it falls as
 nothing leaves the laptop except the short lines that go to the pet over USB. the daemon has no
 network code and there are no accounts.
 
-- typing: it only counts how fast keys go down. which key you pressed is never read, stored or
-  sent. off with `TINYCLAWD_NO_KEYS=1`
+- typing: it counts key presses in every window (X11 only, off on Wayland). the key codes
+  come through the `xinput` pipe but are never parsed, kept or sent, only the keys per second
+  go to the pet. off with `TINYCLAWD_NO_KEYS=1`
 - music: the song name comes from `playerctl`. the equalizer levels are worked out on the laptop
   from what it is playing, the sound itself is never stored or sent. off with `TINYCLAWD_NO_EQ=1`
 - claude code: the pet gets the event, the tool name (for Bash only the kind, like build or test),
