@@ -1,4 +1,4 @@
-// The desk for laptop.html: a laptop running Claude Code, the USB-C cable, Clawd on his stand.
+// The desk in the hero: a laptop running Claude Code, the USB-C cable, Clawd on his stand.
 // clawd3d.js loads this when the canvas has data-desk. In the hero the camera starts on the laptop,
 // then follows the cable to Clawd as the page scrolls. After the hero the laptop fades out and the
 // poses work like on index.html, with Clawd still on his stand.

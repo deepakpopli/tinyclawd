@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Web model of the 30 deg Clawd stand, for laptop.html.
+"""Web model of the 30 deg Clawd stand, for the desk in the hero.
   .venv/bin/python site/tools/export_desk.py   -> site/assets/3d/desk.bin
 
 Same file format as clawd.bin (see export_model.py). The stand is level: y up, front +z,

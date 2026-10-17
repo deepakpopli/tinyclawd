@@ -306,7 +306,7 @@ async function init(canvas) {
   glow.position.set(sx, sy, sz + 0.3);
   lift.add(glow);
 
-  // laptop.html: Clawd on his stand next to a laptop, see desk3d.js
+  // the hero desk: Clawd on his stand next to a laptop, see desk3d.js
   const desk = canvas.dataset.desk ? await import('./desk3d.js').then(m => m.setup({
     THREE, scene, camera, renderer, model, key, floor, blob, loadModel, radialTexture, play: list => playList(list),
   })) : null;
