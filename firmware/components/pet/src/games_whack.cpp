@@ -4,6 +4,7 @@
 
 #include "clawd.h"
 #include "game.h"
+#include "icons.h"
 #include "motion.h"
 
 static const int HOLES = 3;
@@ -271,25 +272,4 @@ static bool whack_bot(uint32_t now) {
     return false;
 }
 
-// menu logo: the hammer right over a bug
-static void whack_icon(Canvas& c, int cx, int cy, uint32_t now) {
-    int lift = (now / 300) % 4 == 0 ? 2 : 0;
-    bug(c, cx - 3, cy - 1);
-    // a mallet: fat head, handle up to the right from its middle
-    int hy = cy - 8 - lift;
-    c.line(cx - 2, hy, cx + 7, hy - 9, 2);
-    c.fill_rect(cx - 9, hy, cx + 5, hy + 5);
-    c.vline(cx - 7, hy + 1, hy + 4, false);
-    c.vline(cx + 3, hy + 1, hy + 4, false);
-    c.px(cx - 9, hy, false);
-    c.px(cx + 5, hy, false);
-    c.px(cx - 9, hy + 5, false);
-    c.px(cx + 5, hy + 5, false);
-    // bonk marks
-    if (!lift) {
-        c.hline(cx + 8, cx + 10, hy + 7);
-        c.hline(cx - 16, cx - 14, hy + 7);
-    }
-}
-
-extern const Game game_whack = {"whack", "whack a bug", whack_start, whack_input, whack_draw, whack_score, whack_bot, whack_icon};
+extern const Game game_whack = {"whack", "whack a bug", whack_start, whack_input, whack_draw, whack_score, whack_bot, icon_whack};

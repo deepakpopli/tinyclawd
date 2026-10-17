@@ -6,6 +6,7 @@
 
 #include "clawd.h"
 #include "game.h"
+#include "icons.h"
 
 namespace {
 
@@ -188,28 +189,6 @@ bool bot(uint32_t now) {
     return false;
 }
 
-// menu logo: a tiny terminal asking for permission
-void icon(Canvas& c, int cx, int cy, uint32_t now) {
-    // the question, then the panic: the window shakes
-    bool scary = (now / 700) % 3 == 2;
-    if (scary) cx += (now / 60) & 1 ? 1 : -1;
-    int l = cx - 15, r = cx + 15, top = cy - 11, bot = cy + 11;
-    c.rect(l, top, r, bot);
-    c.rect(l + 1, top + 1, r - 1, bot - 1);
-    c.fill_rect(l, top, r, top + 4);   // title bar with three dots
-    for (int i = 0; i < 3; i++) c.fill_rect(l + 3 + i * 4, top + 2, l + 4 + i * 4, top + 3, false);
-    c.text(l + 4, top + 8, "$", font_6x10);
-    const char* q = scary ? "!" : "?";
-    c.text(cx - 1, top + 8, q, font_6x10);
-    c.text(cx, top + 8, q, font_6x10);
-    if (scary) {
-        c.text(cx + 6, top + 8, q, font_6x10);
-        c.text(cx + 7, top + 8, q, font_6x10);
-    } else if ((now / 350) & 1) {
-        c.fill_rect(cx + 7, top + 9, cx + 10, top + 16);   // the cursor
-    }
-}
-
 }  // namespace
 
-extern const Game game_panic = {"panic", "permission panic", start, input, draw, score, bot, icon};
+extern const Game game_panic = {"panic", "permission panic", start, input, draw, score, bot, icon_panic};

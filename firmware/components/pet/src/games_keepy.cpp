@@ -5,6 +5,7 @@
 #include "clawd.h"
 #include "face.h"
 #include "game.h"
+#include "icons.h"
 #include "motion.h"
 
 static const int GROUND = 63;
@@ -168,23 +169,4 @@ static bool keepy_bot(uint32_t now) {
     return false;
 }
 
-// menu logo: the ball bouncing on his head
-static void keepy_icon(Canvas& c, int cx, int cy, uint32_t now) {
-    int up = (now / 250) % 4;
-    int by = cy - 6 - (up == 1 || up == 3 ? 2 : (up == 2 ? 3 : 0));
-    // a football: round, a patch in the middle and bits of the others at the edge
-    c.ellipse(cx - 4, by - 4, cx + 4, by + 4);
-    c.fill_rect(cx - 1, by - 1, cx + 1, by + 1);
-    c.hline(cx - 1, cx + 1, by - 3);
-    c.px(cx - 3, by + 1);
-    c.px(cx + 3, by + 1);
-    c.hline(cx - 1, cx + 1, by + 3);
-    clawd(c, cx - 9, cy + 1, pose(EYES_OPEN, ARMS_UP, FEET_BOTH), 0.5f);
-    // a bump mark when the ball is down on his head
-    if (up == 0) {
-        c.px(cx - 6, by + 4);
-        c.px(cx + 6, by + 4);
-    }
-}
-
-extern const Game game_keepy = {"keepy", "keepy uppy", keepy_start, keepy_input, keepy_draw, keepy_score, keepy_bot, keepy_icon};
+extern const Game game_keepy = {"keepy", "keepy uppy", keepy_start, keepy_input, keepy_draw, keepy_score, keepy_bot, icon_keepy};
