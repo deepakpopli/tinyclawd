@@ -628,7 +628,7 @@ struct Brain::Impl {
             next_micro = now + gap();
             return;
         }
-        if (quiet > timing->sleep && !waiting_for_you()) {
+        if (quiet > timing->sleep) {
             mode = SLEEP_M;
             base = find_anim("asleep");
             base_pool = SLEEPING;
@@ -652,8 +652,6 @@ struct Brain::Impl {
         play_name(name, now);
         next_micro = now + gap();
     }
-
-    bool waiting_for_you() { return mode == WAIT_M; }
 
     uint32_t rotate_every() {
         if (mode == WAIT_M) return WAIT_ROTATE_MS;
