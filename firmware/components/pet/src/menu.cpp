@@ -12,6 +12,7 @@ static const uint32_t RING_SHOW_MS = 250;   // hold this long before the ring sh
 static const uint32_t LOVE_MS = 700;        // let go after this = love
 static const uint32_t OPEN_MS = 1500;       // ring full = open
 static const uint32_t IDLE_MS = 10000;      // untouched menu goes back to the pet
+static const uint32_t PLAY_IDLE_MS = 120000;   // so does a game left waiting for a tap
 
 enum State : uint8_t { PET, ITEMS, GAMES, PLAY };
 
@@ -145,6 +146,7 @@ Act update(uint32_t now) {
         fired = true;
         return open(now);
     }
+    if (state == PLAY && !holding && now - last_touch > PLAY_IDLE_MS) end_game();
     if ((state == ITEMS || state == GAMES) && !holding && now - last_touch > IDLE_MS) close();
     return USED;
 }
