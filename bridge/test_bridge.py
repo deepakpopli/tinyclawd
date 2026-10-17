@@ -171,6 +171,22 @@ class HookMapping(unittest.TestCase):
         self.assertEqual(line, "play context")
         self.assertIsNone(tc.screen_reply(hook("UserPromptExpansion", command_name="review")))
         self.assertIsNone(tc.screen_reply(hook("UserPromptSubmit", prompt="fix it")))
+        _, stop = tc.screen_reply(hook("UserPromptExpansion", command_name="clawd"), sent=False)
+        self.assertIn("not running", stop["reason"])
+
+    def test_screen_cli(self):
+        # no daemon: /clawd is still stopped, anything else passes with no output at all
+        env = dict(os.environ, TINYCLAWD_SOCK="/tmp/tinyclawd-test-nothing-here.sock")
+        tc_py = os.path.join(HERE, "tinyclawd.py")
+        for d, blocked in ((hook("UserPromptExpansion", command_name="clawd"), True),
+                           (hook("UserPromptExpansion", command_name="review"), False)):
+            p = subprocess.run([sys.executable, tc_py, "screen"], input=json.dumps(d).encode(),
+                               capture_output=True, env=env, timeout=5)
+            self.assertEqual(p.returncode, 0)
+            if blocked:
+                self.assertEqual(json.loads(p.stdout)["decision"], "block")
+            else:
+                self.assertEqual(p.stdout, b"")
 
     def test_hook_cli_is_silent(self):
         env = dict(os.environ, TINYCLAWD_SOCK="/tmp/tinyclawd-test-nothing-here.sock")

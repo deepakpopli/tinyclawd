@@ -301,13 +301,14 @@ def hook_message(d):
     })
 
 
-def screen_reply(d):
+def screen_reply(d, sent=True):
     """/clawd [usage|context] -> (protocol line, hook json that stops the prompt), else None"""
     if slash(d) != PET_CMD:
         return None
     arg = str(d.get("command_args") or "").strip().lower()
     what = "context" if arg.startswith("context") or arg.startswith("ctx") else "usage"
-    stop = {"decision": "block", "reason": "%s is on tiny clawd" % what,
+    reason = "%s is on tiny clawd" % what if sent else "tiny clawd is not running"
+    stop = {"decision": "block", "reason": reason,
             "hookSpecificOutput": {"hookEventName": d.get("hook_event_name") or "UserPromptExpansion",
                                    "suppressOriginalPrompt": True}}
     return "play " + what, stop
@@ -320,8 +321,8 @@ def cmd_screen(args):
         d = json.loads(raw) if raw.strip() else {}
         r = screen_reply(d) if isinstance(d, dict) else None
         if r:
-            send_to_daemon(r[0], timeout=0.2, path=args.sock)
-            print(json.dumps(r[1]), flush=True)
+            sent = send_to_daemon(r[0], timeout=0.2, path=args.sock)
+            print(json.dumps(screen_reply(d, sent)[1]), flush=True)
     except BaseException:
         pass
     os._exit(0)

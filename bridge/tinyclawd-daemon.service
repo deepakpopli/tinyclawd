@@ -2,9 +2,10 @@
 Description=tiny clawd bridge (claude code -> usb pet)
 
 [Service]
-ExecStart=@PY@ @DIR@/tinyclawd.py daemon
+ExecStart=@EXEC@
 Restart=on-failure
 RestartSec=3
+RestartPreventExitStatus=2
 
 [Install]
 WantedBy=default.target
