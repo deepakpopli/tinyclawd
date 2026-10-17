@@ -15,15 +15,23 @@ here = Path(__file__).resolve().parent
 sim = here / "../../firmware/sim"
 out = here / "../assets/frames"
 
-ANIMS = [
-    "thinking_words", "typing", "terminal", "searching", "subagents", "subagents_march",
-    "needs_you", "goal", "bicycle_kick", "yellow_card", "now_playing", "equalizer",
-    "coffee", "juggle", "dream", "asleep", "petted", "love", "idle", "wake_up",
-    "git_graph", "crane", "test_tubes", "usage",
-    "blink", "wave", "party", "trophy", "thinking", "working", "done", "music",
-    "knee_slide", "headbang", "rubber_duck", "bug_squash", "context", "limit_hit",
+# the 3D model and the big OLED
+STORY = [
+    "idle", "wake_up", "thinking_words", "terminal", "searching", "crane", "test_tubes", "git_graph",
+    "subagents_march", "subagents", "needs_you", "goal", "bicycle_kick", "yellow_card", "usage",
+    "now_playing", "equalizer", "coffee", "juggle", "dream", "asleep", "petted", "love",
 ]
-GAMES = ["run", "panic", "flappy"]
+# the wall of small screens
+WALL = [
+    "thinking_words", "thinking", "lightbulb", "reading", "typing", "typing_along", "keyboard_peek",
+    "letters_fly", "terminal", "searching", "web", "crane", "test_tubes", "git_graph", "git_branch",
+    "package", "subagents_march", "subagents", "needs_you", "rubber_duck", "goal", "bicycle_kick",
+    "trophy", "bug_squash", "yellow_card", "red_card", "var_check", "context", "usage", "limit_hit",
+    "now_playing", "equalizer", "music", "headbang", "dance", "coffee", "juggle", "paper_plane",
+    "stargaze", "dream", "petted", "love",
+]
+ANIMS = list(dict.fromkeys(STORY + WALL))
+GAMES = ["run", "panic", "flappy", "keepy", "penalty", "catch", "whack"]
 MAX_MS = 17000      # loops are recorded once through, capped here
 GAME_MS = 10000
 
