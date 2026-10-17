@@ -230,10 +230,10 @@ document.querySelectorAll('.copy-btn').forEach(b => b.addEventListener('click', 
     b.textContent = text;
     setTimeout(() => { b.textContent = 'copy'; }, 1500);
   };
-  // no clipboard (plain http, old browser): select the text so ctrl+c works
+  // no clipboard (plain http, old browser): select the text so it can be copied by hand
   const select = () => {
     getSelection().selectAllChildren(el);
-    done('press ctrl+c');
+    done('selected');
   };
   if (navigator.clipboard) navigator.clipboard.writeText(el.textContent).then(() => done('copied'), select);
   else select();
