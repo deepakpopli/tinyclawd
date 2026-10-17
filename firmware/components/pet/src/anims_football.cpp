@@ -116,7 +116,7 @@ static void a_keepy_uppy(Canvas& c, uint32_t t, const Ctx& x) {
     u -= 350;
     if (balance) {
         // lands on the head and stays there, a little wobble to keep it up
-        float d = expf(-u / 500.0f);
+        float d = expf(-(float)u / 500.0f);
         float wob = 3 * sinf(u / 90.0f) * d;
         bool wink = u > 900 && u < 1200;
         clawd(c, X + iround(wob * 0.4f), Y, pose(wink ? EYES_WINK : EYES_OPEN, u > 400 ? ARMS_UP : ARMS_DOWN));
