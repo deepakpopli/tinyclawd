@@ -97,12 +97,7 @@ get_pyserial() {
     say "installing pyserial (the daemon talks to the board with it)"
     "$PY" -m pip install --user -q pyserial 2>/dev/null && has_py serial && return
     offer_packages pyserial "$(pkg pyserial)" && has_py serial && return
-    say "no pyserial yet. the hooks still go in, but the daemon waits for it:"
-    if [ -n "$(install_cmd)" ]; then
-        note "$(install_cmd) $(pkg pyserial)"
-    else
-        note "$PY -m pip install --user pyserial"
-    fi
+    say "no pyserial yet. the hooks still go in, the setup below says how to get it"
 }
 
 extras() {
