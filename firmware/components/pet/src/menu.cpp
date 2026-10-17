@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "game.h"
+#include "icons.h"
 
 namespace menu {
 
@@ -177,35 +178,6 @@ void ring(Canvas& c, uint32_t now) {
     if (len > 0) c.fill_rect(0, 0, len - 1, 2);   // top, left to the middle
 }
 
-// ------------------------------------------------------------------ icons
-
-static void icon_games(Canvas& c, int cx, int cy) {
-    c.fill_ellipse(cx - 18, cy - 9, cx + 18, cy + 9);
-    c.fill_rect(cx - 11, cy - 1, cx - 5, cy + 1, false);   // d-pad
-    c.fill_rect(cx - 9, cy - 3, cx - 7, cy + 3, false);
-    c.fill_circle(cx + 7, cy + 2, 2, false);               // buttons
-    c.fill_circle(cx + 11, cy - 2, 2, false);
-}
-
-static void icon_usage(Canvas& c, int cx, int cy) {
-    c.hline(cx - 16, cx + 16, cy + 9);
-    c.fill_rect(cx - 13, cy + 1, cx - 7, cy + 8);
-    c.fill_rect(cx - 3, cy - 5, cx + 3, cy + 8);
-    c.fill_rect(cx + 7, cy - 10, cx + 13, cy + 8);
-}
-
-static void icon_back(Canvas& c, int cx, int cy) {
-    const float tri[] = {(float)cx - 16, (float)cy, (float)cx - 4, (float)cy - 10, (float)cx - 4, (float)cy + 10};
-    c.fill_poly(tri, 3);
-    c.fill_rect(cx - 4, cy - 3, cx + 14, cy + 3);
-}
-
-static void icon_play(Canvas& c, int cx, int cy) {
-    c.ellipse(cx - 12, cy - 12, cx + 12, cy + 12, 2);
-    const float tri[] = {(float)cx - 4, (float)cy - 7, (float)cx + 8, (float)cy, (float)cx - 4, (float)cy + 7};
-    c.fill_poly(tri, 3);
-}
-
 // the big fonts only have capitals
 static void big_text(Canvas& c, int y, const char* s, const Font& f) {
     char up[24];
@@ -217,11 +189,32 @@ static void big_text(Canvas& c, int y, const char* s, const Font& f) {
     c.text_center(64, use.h < f.h ? y + (f.h - use.h) / 2 : y, up, use);
 }
 
+// the logo sits on a card with round corners, 56 x 30
+static const int CX = 64, CY = 15;
+static void card(Canvas& c) {
+    c.rect(CX - 28, CY - 15, CX + 27, CY + 14);
+    c.px(CX - 28, CY - 15, false);
+    c.px(CX + 27, CY - 15, false);
+    c.px(CX - 28, CY + 14, false);
+    c.px(CX + 27, CY + 14, false);
+    c.px(CX - 27, CY - 14);
+    c.px(CX + 26, CY - 14);
+    c.px(CX - 27, CY + 13);
+    c.px(CX + 26, CY + 13);
+}
+
+// where we are: small squares, a long one for this page
 static void dots(Canvas& c, int n, int at) {
-    int x = 64 - (n - 1) * 4;
-    for (int i = 0; i < n; i++, x += 8) {
-        if (i == at) c.fill_circle(x, 59, 2);
-        else c.ellipse(x - 2, 57, x + 2, 61);
+    int w = (n - 1) * 5 + 8;
+    int x = 64 - w / 2;
+    for (int i = 0; i < n; i++) {
+        if (i == at) {
+            c.fill_rect(x, 59, x + 7, 60);
+            x += 11;
+        } else {
+            c.fill_rect(x, 59, x + 1, 60);
+            x += 5;
+        }
     }
 }
 
@@ -237,9 +230,10 @@ void draw(Canvas& c, uint32_t now) {
     c.clear();
     if (state == ITEMS) {
         const Entry& e = ITEMS_LIST[sel];
-        if (e.id == I_GAMES) icon_games(c, 64, 17);
-        else if (e.id == I_USAGE) icon_usage(c, 64, 17);
-        else icon_back(c, 64, 17);
+        card(c);
+        if (e.id == I_GAMES) icon_games(c, CX, CY, now);
+        else if (e.id == I_USAGE) icon_usage(c, CX, CY, now);
+        else icon_back(c, CX, CY, now);
         big_text(c, 34, e.name, font_bold16);
         dots(c, N_ITEMS, sel);
         return;
@@ -252,13 +246,18 @@ void draw(Canvas& c, uint32_t now) {
         return;
     }
     const Game* g = game_at(sel);
-    if (g->icon) g->icon(c, 64, 14, now);
-    else icon_play(c, 64, 14);
-    big_text(c, 31, g->name, font_bold12);
+    card(c);
+    if (g->icon) g->icon(c, CX, CY, now);
+    else icon_play(c, CX, CY, now);
+    big_text(c, 33, g->name, font_bold12);
     if (sel < MAX_GAMES && best[sel] > 0) {
+        // a tiny crown, then the score
         char line[20];
         snprintf(line, sizeof(line), "best %d", best[sel]);
-        c.text_center(64, 45, line, font_5x7);
+        int x = 64 - (c.text_width(line, font_5x7) + 10) / 2;
+        static const char* const CROWN[] = {"#  #  #", "## # ##", "#######", "#######"};
+        art(c, x, 49, CROWN, 4);
+        c.text(x + 10, 47, line, font_5x7);
     }
     dots(c, n, sel);
 }
