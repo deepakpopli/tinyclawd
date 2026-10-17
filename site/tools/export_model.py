@@ -58,7 +58,8 @@ def electronics():
     return out
 
 
-def main():
+def printed():
+    # the printed parts in web coords, and the shift that puts them centred on the floor
     meshes = []
     for name, path, color, matrix in PARTS:
         m = trimesh.load(hw / path)
@@ -66,16 +67,13 @@ def main():
             m.apply_transform(matrix)
         m.apply_transform(TO_WEB)
         meshes.append((name, color, m, {}))
-
     lo = np.min([m.bounds[0] for _, _, m, _ in meshes], axis=0)
     hi = np.max([m.bounds[1] for _, _, m, _ in meshes], axis=0)
-    meshes += electronics()
     shift = np.array([-(lo[0] + hi[0]) / 2, -lo[1], -(lo[2] + hi[2]) / 2])
+    return meshes, lo, hi, shift
 
-    header = {"parts": [], "size": (hi - lo).round(2).tolist()}
-    screen = TO_WEB[:3, :3] @ np.array(SCREEN) + shift
-    header["screen"] = {"pos": screen.round(3).tolist(), "w": 32, "h": 16}
 
+def write(meshes, header, shift, out):
     chunks = []
     for name, color, m, extra in meshes:
         m.apply_translation(shift)
@@ -99,6 +97,15 @@ def main():
     print(f"wrote {out.name} {out.stat().st_size / 1024:.0f} KB (raw {len(raw) / 1024:.0f} KB)")
     print(json.dumps(header))
 
+
+def main():
+    meshes, lo, hi, shift = printed()
+    meshes += electronics()
+
+    header = {"parts": [], "size": (hi - lo).round(2).tolist()}
+    screen = TO_WEB[:3, :3] @ np.array(SCREEN) + shift
+    header["screen"] = {"pos": screen.round(3).tolist(), "w": 32, "h": 16}
+    write(meshes, header, shift, out)
 
 if __name__ == "__main__":
     main()
