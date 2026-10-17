@@ -33,8 +33,9 @@ DEMO_FILE = os.path.join(HERE, "..", "firmware", "sim", "scripts", "demo.txt")
 def sock_path():
     if os.environ.get("TINYCLAWD_SOCK"):
         return os.environ["TINYCLAWD_SOCK"]
-    run = os.environ.get("XDG_RUNTIME_DIR")
-    if run and os.path.isdir(run):
+    # hooks and the service must agree even when one of them has no XDG_RUNTIME_DIR
+    run = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+    if os.path.isdir(run) and os.access(run, os.W_OK):
         return os.path.join(run, "tinyclawd.sock")
     return "/tmp/tinyclawd-%d.sock" % os.getuid()
 
