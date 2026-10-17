@@ -2,8 +2,6 @@
 // we only hook Scene.onBeforeRender, which three.js calls
 // once per frame right before it draws, to add a slow turn.
 
-import * as THREE from './vendor/three.js';
-
 // the YouTube id of the film, like 'dQw4w9WgXcQ'. the film band stays hidden while this is empty
 const VIDEO_ID = '';
 
@@ -26,19 +24,22 @@ const TURN = 360 / 40;   // degrees a second, one turn in 40 s
 const fixed = new URLSearchParams(location.search).get('turn');   // ?turn=30 holds one angle, for screenshots
 let turn = fixed ? +fixed : 0, lastT = 0;
 
-THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera) {
-  const model = scene.children.find(o => o.isGroup && o.children[0] && o.children[0].isGroup);
-  if (!model) return;
+// three.js is only fetched when the 3D model will run, same check as js/clawd3d.js
+if (!still && window.WebGLRenderingContext) import('./vendor/three.js').then(THREE => {
+  THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera) {
+    const model = scene.children.find(o => o.isGroup && o.children[0] && o.children[0].isGroup);
+    if (!model) return;
 
-  const now = performance.now() / 1000;
-  const dt = lastT ? Math.min(0.1, now - lastT) : 0;
-  lastT = now;
-  if (atHero() && fixed) turn = +fixed;
-  else if (atHero() && !still) turn += TURN * dt;
-  else turn += (Math.round(turn / 360) * 360 - turn) * (1 - Math.exp(-dt * 3));
-  model.rotation.y += THREE.MathUtils.degToRad(turn);
-  model.updateMatrixWorld(true);
-};
+    const now = performance.now() / 1000;
+    const dt = lastT ? Math.min(0.1, now - lastT) : 0;
+    lastT = now;
+    if (atHero() && fixed) turn = +fixed;
+    else if (atHero() && !still) turn += TURN * dt;
+    else turn += (Math.round(turn / 360) * 360 - turn) * (1 - Math.exp(-dt * 3));
+    model.rotation.y += THREE.MathUtils.degToRad(turn);
+    model.updateMatrixWorld(true);
+  };
+}).catch(() => {});
 
 // ---------- frame data, recorded from the firmware sim (tools/export_frames.py) ----------
 

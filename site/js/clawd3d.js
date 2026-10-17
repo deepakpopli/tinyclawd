@@ -7,7 +7,7 @@
 // The canvas is its own box next to the text, so the model always fits inside it.
 // We give back window.Clawd3D = { play(name), pose(name) }
 
-import * as THREE from '../vendor/three.js';
+let THREE;   // three.js, loaded only when there is WebGL and motion is fine
 
 const MODEL_URL = new URL('../assets/3d/clawd.bin', import.meta.url);
 const FRAMES_URL = new URL('../assets/frames/', import.meta.url);
@@ -41,7 +41,10 @@ if (canvas) start(canvas);
 function start(canvas) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce || !hasWebGL()) return fallback(canvas);
-  init(canvas).catch(err => {
+  import('../vendor/three.js').then(m => {
+    THREE = m;
+    return init(canvas);
+  }).catch(err => {
     console.warn('clawd3d:', err);
     fallback(canvas);
   });
