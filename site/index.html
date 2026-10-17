@@ -376,7 +376,8 @@
     <div class="band-head">
       <p class="label">build</p>
       <h2>build one.</h2>
-      <p>print it, flash it, run one command on the laptop.</p>
+      <p>you need a 3D printer, the parts above, a USB-C cable that carries data and a Linux laptop
+        with Claude Code.</p>
     </div>
     <ol class="steps">
       <li>
@@ -390,20 +391,35 @@
         <h3>flash the board</h3>
         <p>get the <code>.bin</code> from the <a href="https://github.com/deepakpopli/tinyclawd/releases">releases page</a>.
           open <a href="https://espressif.github.io/esptool-js/">espressif's web flasher</a> in Chrome,
-          pick the file at address <code>0x0</code>, press program.</p>
+          pick the file at address <code>0x0</code>, press program. or let the command below do it.</p>
       </li>
       <li>
         <p class="num">03</p>
         <h3>set up the laptop</h3>
-        <p>the bridge, the Claude Code hooks and the usage line, in one go. it backs up every file it touches.
-          restart Claude Code and say hi.</p>
+        <p>one command installs the bridge and adds the Claude Code hooks, the <code>/clawd</code> command
+          and the usage line. restart Claude Code and say hi.</p>
       </li>
     </ol>
-    <div class="code">
-      <pre><code id="install">curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash</code></pre>
-      <button class="copy-btn" type="button" data-copy="install">copy</button>
+
+    <div class="install">
+      <p class="label">one command</p>
+      <div class="code">
+        <pre><code id="install">curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash</code></pre>
+        <button class="copy-btn" type="button" data-copy="install">copy</button>
+      </div>
+      <p class="small">asks before it flashes anything. backs up your Claude Code settings and status line
+        script before it changes them. the usage line goes into your status line script, if you have one.</p>
     </div>
-    <p class="small by-hand">or <a href="https://github.com/deepakpopli/tinyclawd#by-hand">set it up by hand</a>.</p>
+
+    <div class="install">
+      <p class="label">or let Claude Code set it up</p>
+      <div class="code prompt">
+        <!-- the setup prompt. this is the only copy on the site, swap in the text from docs/setup-prompt.md -->
+        <pre><code id="setup-prompt">Set up Tiny Clawd for me from github.com/deepakpopli/tinyclawd: clone it, install what the bridge needs, ask me before flashing my ESP32-C3, then add the Claude Code hooks and the usage status line. Ask before changing any file.</code></pre>
+        <button class="copy-btn" type="button" data-copy="setup-prompt">copy</button>
+      </div>
+      <p class="small">paste it into Claude Code. or <a href="https://github.com/deepakpopli/tinyclawd#by-hand">set it up by hand</a>.</p>
+    </div>
   </div>
 </section>
 

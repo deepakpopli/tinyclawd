@@ -533,10 +533,13 @@ html:not(.js) .fallback,
 .steps h3 { margin-top: 24px; }
 .steps h3 + p { margin-top: 12px; font-size: 1rem; line-height: 1.55; }
 
+.install { grid-column: 1 / -1; margin-top: 64px; }
+.install + .install { margin-top: 48px; }
+.install > .label { border-top: 2px solid var(--ink); padding-top: 12px; margin-bottom: 16px; }
+.install > .small { margin-top: 16px; max-width: 46em; }
+
 .code {
-  grid-column: 1 / -1;
   position: relative;
-  margin-top: 64px;
   background: var(--screen);
   color: var(--lit);
 }
@@ -564,7 +567,14 @@ html:not(.js) .fallback,
   border-radius: 0;
   padding: 4px 12px;
 }
-.by-hand { grid-column: 1 / 9; margin-top: 16px; }
+.copy-btn:hover { border-color: var(--paper); }
+
+/* the prompt is words, not a shell line: paper, ink, a hairline box */
+.code.prompt { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+.code.prompt pre { font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55; word-break: normal; }
+.code.prompt pre code::before { content: none; }
+.code.prompt .copy-btn { color: var(--ink); background: var(--paper); border-color: var(--ink); }
+.code.prompt .copy-btn:hover { color: var(--red); border-color: var(--red); }
 
 /* footer: a colophon */
 
@@ -641,9 +651,10 @@ html:not(.js) .fallback,
   .spec-l, .spec-r { grid-column: 1 / -1; }
   .spec-r { margin-top: 48px; }
   .steps li { grid-column: 1 / -1; margin-bottom: 32px; }
+  .install { margin-top: 32px; }
   .code pre { font-size: 11px; line-height: 22px; padding: 16px 80px 16px 16px; }
+  .code.prompt pre { font-size: 0.9375rem; padding: 56px 16px 16px; }
   .copy-btn { top: 16px; right: 16px; }
-  .by-hand { grid-column: 1 / -1; }
 
   .foot .wrap > div { grid-column: 1 / -1; margin-top: 24px; }
   .foot .wrap > div:first-child { margin-top: 0; }

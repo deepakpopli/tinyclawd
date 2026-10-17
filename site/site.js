@@ -224,10 +224,18 @@ document.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click'
 }));
 
 document.querySelectorAll('.copy-btn').forEach(b => b.addEventListener('click', () => {
-  navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent).then(() => {
-    b.textContent = 'copied';
+  const el = document.getElementById(b.dataset.copy);
+  const done = text => {
+    b.textContent = text;
     setTimeout(() => { b.textContent = 'copy'; }, 1500);
-  });
+  };
+  // no clipboard (plain http, old browser): select the text so ctrl+c works
+  const select = () => {
+    getSelection().selectAllChildren(el);
+    done('press ctrl+c');
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(el.textContent).then(() => done('copied'), select);
+  else select();
 }));
 
 // footer clock, local time, like a status line
