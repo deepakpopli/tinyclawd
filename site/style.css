@@ -220,13 +220,6 @@ img.clawd3d-fallback {
   image-rendering: auto;
 }
 .at-hero img.clawd3d-fallback { top: 42%; left: 50%; transform: translate(-50%, -50%); }
-img.clawd3d-fallback.gif {
-  aspect-ratio: 2 / 1;
-  background: var(--screen);
-  border: 20px solid var(--red);
-  image-rendering: pixelated;
-}
-
 .fallback {
   position: absolute;
   top: 44%;
@@ -245,7 +238,7 @@ html:not(.js) .fallback,
 .fallback .body::before { left: -8%; }
 .fallback .body::after { right: -8%; }
 .fallback .screen { background: var(--screen); padding: 4%; }
-.fallback .screen img { display: block; width: 100%; height: auto; }
+.fallback .screen img, .fallback .screen canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 .fallback .legs { display: flex; justify-content: space-between; padding: 0 12%; }
 .fallback .legs i { width: 7%; aspect-ratio: 1 / 2.4; background: var(--red); }
 
@@ -421,7 +414,7 @@ html:not(.js) .fallback,
   gap: 32px 24px;
 }
 .wall-grid figure, .plates figure { margin: 0; }
-.wall-grid img { display: block; width: 256px; height: 128px; background: var(--screen); }
+.wall-grid img, .wall-grid canvas { display: block; width: 256px; height: 128px; background: var(--screen); image-rendering: pixelated; }
 .wall-grid figcaption, .plates figcaption { margin-top: 8px; }
 
 /* games: 7 plates and the one rule worth knowing */
@@ -432,7 +425,7 @@ html:not(.js) .fallback,
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 40px var(--gut);
 }
-.plates img { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; background: var(--screen); }
+.plates img, .plates canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; background: var(--screen); image-rendering: pixelated; }
 .plates b { font-weight: 400; color: var(--ink); margin-right: 6px; }
 .plate-note { border-top: 2px solid var(--ink); padding-top: 12px; }
 .plate-note p:not(.label) { margin-top: 12px; font-size: 1.375rem; line-height: 1.35; font-weight: 500; font-stretch: 112%; }
@@ -585,7 +578,7 @@ html:not(.js) .fallback,
   .band-head.sub { margin-top: 64px; }
 
   .wall-grid { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
-  .wall-grid img { width: 100%; height: auto; }
+  .wall-grid img, .wall-grid canvas { width: 100%; height: auto; }
   .plates { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
 
   .photos .photo.big { grid-column: 1 / -1; margin-bottom: 24px; }

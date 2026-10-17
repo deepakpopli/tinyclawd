@@ -37,30 +37,37 @@ THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera) {
   model.updateMatrixWorld(true);
 };
 
+// ---------- frame data, recorded from the firmware sim (tools/export_frames.py) ----------
+
+const cache = new Map();
+const load = name => {
+  if (!cache.has(name)) {
+    cache.set(name, fetch('assets/frames/' + name + '.bin')
+      .then(r => new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer())
+      .then(buf => {
+        const bytes = new Uint8Array(buf);
+        const count = bytes[0] | bytes[1] << 8;
+        const ends = [];
+        let ms = 0;
+        for (let i = 0; i < count; i++) { ms += (bytes[2 + i * 2] | bytes[3 + i * 2] << 8) * 20; ends.push(ms); }
+        return { name, bytes, count, ends, ms };
+      }));
+  }
+  return cache.get(name);
+};
+const frameAt = (f, t) => {
+  let k = 0;
+  while (k < f.count - 1 && f.ends[k] <= t) k++;
+  return k;
+};
+
 // ---------- the big OLED: real frame data, one square per pixel ----------
 
 const matrix = document.getElementById('matrix');
 if (matrix) {
   const ctx = matrix.getContext('2d');
-  const cache = new Map();
   const nameEl = document.getElementById('mx-name');
   let anim = null, start = 0, last = -1, visible = false, scale = 8;
-
-  const load = name => {
-    if (!cache.has(name)) {
-      cache.set(name, fetch('assets/frames/' + name + '.bin')
-        .then(r => new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer())
-        .then(buf => {
-          const bytes = new Uint8Array(buf);
-          const count = bytes[0] | bytes[1] << 8;
-          const ends = [];
-          let ms = 0;
-          for (let i = 0; i < count; i++) { ms += (bytes[2 + i * 2] | bytes[3 + i * 2] << 8) * 20; ends.push(ms); }
-          return { name, bytes, count, ends, ms };
-        }));
-    }
-    return cache.get(name);
-  };
 
   const size = () => {
     const w = matrix.clientWidth * Math.min(devicePixelRatio || 1, 2);
@@ -93,9 +100,7 @@ if (matrix) {
   const loop = now => {
     if (!visible || !anim) return;
     requestAnimationFrame(loop);
-    let t = (now - start) % anim.ms;
-    let k = 0;
-    while (k < anim.count - 1 && anim.ends[k] <= t) k++;
+    const k = frameAt(anim, (now - start) % anim.ms);
     if (k !== last) { last = k; draw(anim, k); }
   };
 
@@ -124,6 +129,73 @@ if (matrix) {
   pick('thinking_words');
 }
 
+// ---------- the small screens: each OLED pixel is one dot with a gap, like on the real panel ----------
+
+const minis = [];
+let miniRunning = false, seen = null;
+
+function miniLoop(now) {
+  const live = minis.filter(m => m.visible && m.f);
+  if (!live.length) { miniRunning = false; return; }
+  requestAnimationFrame(miniLoop);
+  for (const m of live) {
+    const k = frameAt(m.f, (now - m.start) % m.f.ms);
+    if (k !== m.last) { m.last = k; drawMini(m, k); }
+  }
+}
+
+function drawMini(m, k) {
+  const b = m.f.bytes, base = 2 + m.f.count * 2 + k * 1024, px = m.px;
+  for (let y = 0; y < 64; y++) {
+    const row = base + (y >> 3) * 128, bit = y & 7, o = y * 512;
+    for (let x = 0; x < 128; x++) px[o + x * 2] = (b[row + x] >> bit) & 1 ? m.on : m.off;
+  }
+  m.ctx.putImageData(m.img, 0, 0);
+}
+
+function startMini(m) {
+  load(m.name).then(f => {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 128;
+    c.setAttribute('aria-hidden', 'true');
+    m.ctx = c.getContext('2d');
+    m.img = m.ctx.createImageData(256, 128);
+    m.px = new Uint32Array(m.img.data.buffer);
+    const le = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+    const pack = (r, g, b) => (le ? (255 << 24 | b << 16 | g << 8 | r) : (r << 24 | g << 16 | b << 8 | 255)) >>> 0;
+    m.on = pack(232, 240, 255);
+    m.off = pack(10, 12, 16);
+    m.px.fill(m.off);
+    m.f = f;
+    m.start = performance.now();
+    m.last = -1;
+    drawMini(m, 0);
+    seen.unobserve(m.el);
+    m.el.replaceWith(c);
+    m.el = c;
+    seen.observe(c);
+    if (!miniRunning) { miniRunning = true; requestAnimationFrame(miniLoop); }
+  }).catch(() => {});   // the still frame stays
+}
+
+if (!still) {
+  seen = new IntersectionObserver(es => {
+    for (const e of es) {
+      const m = minis.find(m => m.el === e.target);
+      if (!m) continue;
+      m.visible = e.isIntersecting;
+      if (m.visible && !m.asked) { m.asked = true; startMini(m); }
+      if (m.visible && m.f && !miniRunning) { miniRunning = true; requestAnimationFrame(miniLoop); }
+    }
+  }, { rootMargin: '200px 0px' });
+  document.querySelectorAll('img[data-frames]').forEach(img => {
+    const m = { name: img.dataset.frames, el: img, visible: false };
+    minis.push(m);
+    seen.observe(img);
+  });
+}
+
 // ---------- small things ----------
 
 document.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => {
@@ -136,10 +208,6 @@ document.querySelectorAll('.copy-btn').forEach(b => b.addEventListener('click', 
     setTimeout(() => { b.textContent = 'copy'; }, 1500);
   });
 }));
-
-if (still) document.querySelectorAll('img[src$=".gif"]').forEach(g => {
-  g.src = g.getAttribute('src').replace('assets/', 'assets/still/').replace('.gif', '.png');
-});
 
 // footer clock, local time, like a status line
 const clock = document.getElementById('clock');
