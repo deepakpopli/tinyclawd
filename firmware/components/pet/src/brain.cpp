@@ -846,7 +846,10 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
             }
             break;
         }
-        if (!strcmp(arg, "Task") || !strcmp(arg, "Agent")) break;   // EV_SUB handles these
+        if (!strcmp(arg, "Task") || !strcmp(arg, "Agent")) {   // EV_SUB shows the squad
+            if (s.mode == WAIT_M) s.go_mode(THINK_M, now);   // you answered, claude goes on
+            break;
+        }
         int n;
         const Pick* pool = s.tool_pool(arg, n);
         if (s.mode != TOOL_M) {
@@ -917,6 +920,7 @@ void Brain::event(Ev e, const char* arg, uint32_t now) {
         int was = s.subagents;
         s.subagents = n;
         s.cur.ctx.subagents = n;
+        if (s.mode == WAIT_M) break;   // needs you beats the squad, it shows once you answer
         if (n > 0 && was == 0) {
             if (s.mode == IDLE_M || s.mode == SLEEP_M) s.mode = TOOL_M;
             s.set_base(SUBS, 1, now, true);
