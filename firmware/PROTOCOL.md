@@ -2,8 +2,9 @@
 
 plain text lines over the USB serial port (115200, but USB-Serial-JTAG ignores baud).
 one message per line, `\n` at the end, max 120 chars. the pet answers every line with
-`ok ...` or `err ...`. the pet never needs the laptop: with nothing connected it just lives
-on its own.
+`ok ...` or `err ...`: a longer line gets `err too long`, and `err busy` if the pet is too far
+behind to take it. empty lines are ignored. the pet never needs the laptop: with nothing
+connected it just lives on its own.
 
 ## laptop -> pet
 
@@ -16,30 +17,31 @@ on its own.
 | `ev prompt` | you sent a prompt, claude is thinking |
 | `ev tool <Name>` | a tool started: `Bash`, `Read`, `Edit`, `Write`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, `Task`, `TodoWrite`, `mcp__x__y`... a Bash command can also come as what it does: `Build`, `Test`, `Git`, `Install`, `Grep`, `Read`, `WebFetch` |
 | `ev toolfail <Name>` | that tool returned an error |
-| `ev perm` | claude is waiting for you (permission or a question) |
+| `ev perm` | claude is waiting for you (permission or a question). it stays until claude goes on (start, prompt, tool, done, end, interrupt) or 30 minutes pass. a new `ev perm` while it waits only changes the name |
 | `ev perm <project>` | same, and which project is waiting (ascii, up to 16 chars), shown small at the bottom |
 | `ev perm +<n>` | n sessions are waiting, shown as `2 waiting` |
 | `ev done` | claude finished its turn |
 | `ev done small` | one session finished while others still work: a short party, the next line is what the others do (`ev prompt` or `ev tool <Name>`) |
-| `ev sub <n>` | n subagents are running now (0 when they are all back) |
+| `ev sub <n>` | n subagents are running now (0 when they are all back). the squad shows up to 8 |
 | `ev test pass` / `ev test fail` | a test command finished |
 | `ev commit` | a git commit went through |
 | `ev interrupt` | you pressed esc |
 | `ev compact` | the context was compacted |
 | `sessions <n>` | n claude code sessions are busy. 2 or more: small dots in the corner while working. only sent when 2+ were involved, so `sessions 1` / `sessions 0` end it |
 | `usage 5h=42 wk=18 ctx=37 reset=135` | usage in %, `reset` = minutes until the 5 hour window resets. any field can be left out |
-| `music 1 <artist - title>` | music started or the track changed. title is ascii, up to 48 chars, may be empty |
+| `music 1 <artist - title>` | music started or the track changed. title is ascii, up to 48 chars (longer is cut), may be empty |
 | `music 0` | music stopped |
 | `typing <n>` | you are typing on the laptop, n = keys per second (1-15). `typing 0` = stopped. sent when it changes, and again every 5 s while it goes on. only a count, never which keys |
 | `eq 13579753` | music levels, 8 digits 0-9, bass on the left. only while music plays, up to ~12 a second and only when they changed. the laptop sends levels, never sound. no `eq` for 500 ms and the pet makes up its own bars |
-| `time 23:15` | local time, so it knows when it is night |
-| `touch tap` / `touch double` / `touch long` | fake a touch (testing) |
+| `time 23:15` | local time, so it knows when it is night (23:00 to 7:00) |
+| `touch tap` / `touch double` / `touch long` | fake a touch (testing). a double tap always shows the usage screen |
 | `touch down` / `touch up` | fake the pad edges, hold to open the menu (testing) |
 | `play <anim>` | play one animation now (testing) |
 | `now` | pet answers `ok <anim playing>`, or where the menu is: `ok menu usage`, `ok games keepy`, `ok game run` |
 | `tune fast` / `tune normal` | short idle timings (bored after 30 s, asleep after 3 min) for testing |
 
-unknown lines get `err unknown`, the pet keeps going.
+unknown lines get `err unknown`, an unknown event `err unknown event`. a bad argument gets
+`err bad time`, `err no anim` or `err want ...` saying what it wanted. the pet keeps going.
 
 ### hw lines (bring up and tuning)
 
@@ -56,9 +58,14 @@ unknown lines get `err unknown`, the pet keeps going.
 | `hw touchraw <0/1>` | print `raw 1` / `raw 0` on every touch pin change |
 | `hw stats` | `ok fps=40.0 draw=310/900 flush=4100/22800 us avg/max pages=1.6`, since the last `hw stats` |
 | `hw scan` | `ok found 1 0x3C`, i2c addresses that answer |
-| `hw save` / `hw defaults` | keep the settings in flash / go back to the built-in ones (not saved) |
+| `hw temp` | `ok temp=41.5C`, the chip's own temperature sensor |
+| `hw shot` | the frame on screen as 32 lines `shot <nn> <64 hex digits>`, then `ok shot`. the bytes are the 8 pages of 128 columns the SH1106 gets, bit 0 on top |
+| `hw save` / `hw defaults` | keep the settings in flash (`ok saved`) / go back to the built-in ones (`ok defaults (not saved)`) |
 
-the setting lines answer with the full `hw` line, so you see what changed. a bad value gets `err want 0..4`.
+the setting lines (offset, flip, mirror, contrast, i2c, double, long) answer with the full `hw`
+line, so you see what changed. `hw test` and `hw touchraw` answer `ok`. a bad value gets
+`err want 0..4`, an unknown key `err unknown hw`. saved settings that are out of range are
+ignored at boot.
 
 ## pet -> laptop
 
@@ -69,6 +76,7 @@ the setting lines answer with the full `hw` line, so you see what changed. a bad
 | `touch tap` / `touch double` / `touch long` | the head was touched (down / up edges are not printed) |
 | `boot tinyclawd 1` | printed once at start |
 | `raw 1` / `raw 0` | touch pin changed (only after `hw touchraw 1`) |
+| `shot <nn> <hex>` | one line of a screenshot (only after `hw shot`) |
 
 ## example
 
