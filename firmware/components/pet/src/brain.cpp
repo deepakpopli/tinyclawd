@@ -474,6 +474,7 @@ struct Brain::Impl {
         if (dozing()) {
             mode = IDLE_M;
             base_pool = nullptr;
+            qn = 0;   // the rest of a nap story too
             idle_base(now);
             show(find_anim("wake_up"), now, true);
         }
