@@ -22,10 +22,10 @@ bool active();                         // true while the menu or a game owns the
 void draw(Canvas& c, uint32_t now);    // full screen, only while active()
 void ring(Canvas& c, uint32_t now);    // the hold ring, drawn over whatever is on screen
 void close();                          // claude needs you: back to the pet
-const char* where();
+const char* where();                   // "menu usage", "games keepy", "game run" (for `now`)
 
 // best score per game (index = game_at), the firmware keeps them in flash
 int best_of(int game);
-void set_best(int game, int score);                   // "menu usage", "games keepy", "game run" (for `now`)
+void set_best(int game, int score);
 
 }

@@ -19,8 +19,7 @@ struct Game {
     // with no input, the menu then takes over again.
     bool (*draw)(Canvas& c, uint32_t now);
     int (*score)();      // current / final score, the menu keeps the best
-    // a little bot: true while it would hold the button. used for demo gifs
-    // and when Clawd plays on his own while bored.
+    // a little bot: true while it would hold the button. the sim uses it for the demo gifs
     bool (*bot)(uint32_t now);
     // the logo in the games menu, fits 52 x 26 px centred on cx, cy (see icons.h).
     // nullptr = the plain play icon
