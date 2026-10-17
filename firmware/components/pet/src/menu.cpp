@@ -16,7 +16,7 @@ static const uint32_t PLAY_IDLE_MS = 120000;   // so does a game left waiting fo
 
 enum State : uint8_t { PET, ITEMS, GAMES, PLAY };
 
-// the top level. add focus / clock / settings here later
+// the top level
 enum Item : uint8_t { I_GAMES, I_USAGE, I_BACK };
 struct Entry {
     Item id;
