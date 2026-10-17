@@ -8,6 +8,9 @@
 #   TINYCLAWD_DIR=~/somewhere   where the code goes (default ~/.tinyclawd)
 #   TINYCLAWD_PORT=/dev/ttyX    the board's port, if it is not found on its own
 #   TINYCLAWD_FLASH=yes|no      flash without asking (yes) or never (no)
+#   TINYCLAWD_STATUSLINE=visible|hidden|none   if you have no claude code status line: add one
+#                               that shows usage, a hidden one that only feeds Clawd, or none
+#                               (default: it asks)
 #   TINYCLAWD_SKIP_SETUP=1      only get the code and flash, leave claude code alone
 
 if [ -z "$BASH_VERSION" ]; then
@@ -226,7 +229,15 @@ main() {
         say "hooking it into claude code"
         local args=()
         [ -n "$TINYCLAWD_PORT" ] && args=(--port "$TINYCLAWD_PORT")
-        "$PY" "$DIR/bridge/setup.py" "${args[@]}" | sed -e '/^undo: /d' -e '/^done\. /d' -e 's/^/  /'
+        case "${TINYCLAWD_STATUSLINE:-}" in
+            "") ;;
+            visible|hidden|none) args+=(--statusline "$TINYCLAWD_STATUSLINE") ;;
+            *) die "TINYCLAWD_STATUSLINE must be visible, hidden or none" ;;
+        esac
+        # under curl | bash our stdin is the script, so setup gets the terminal to ask its question
+        local tty=/dev/null
+        { : </dev/tty; } 2>/dev/null && tty=/dev/tty
+        "$PY" "$DIR/bridge/setup.py" "${args[@]}" <"$tty" | sed -e '/^undo: /d' -e '/^done\. /d' -e 's/^/  /'
         [ "${PIPESTATUS[0]}" -eq 0 ] || die "setup did not finish, see above"
     fi
 
