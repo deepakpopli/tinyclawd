@@ -94,32 +94,82 @@ frame fits without changes. there is also a small Macintosh style version.
 print files are in [`hardware/print/`](hardware/print), each folder has a README with what to
 print. no supports needed.
 
-## quick start
+## set it up
 
-linux for now. one command gets the code, can flash the board and hooks it into claude code:
+linux for now (ubuntu, debian, fedora, arch and friends). mac and windows: not yet, but you can
+still flash the board from the browser (below). pick one of three ways.
+
+### one command
 
 ```bash
 curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash
 ```
 
-it asks before flashing. it backs up every file it touches. undo with
-`python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd`.
+it puts the code in `~/.tinyclawd`, gets pyserial, offers the optional extras, can flash the board
+and then hooks it into claude code. it asks before it flashes and before it uses sudo. flashing
+replaces what is on the board, so its saved settings and best scores reset. it backs up your
+claude code settings and your status line script before it changes them. run it again to update.
+
+undo: `python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd`
+
+### let claude code do it
+
+paste this into claude code, it asks before every change (also in
+[`docs/setup-prompt.md`](docs/setup-prompt.md)):
+
+```text
+Set up Tiny Clawd (https://github.com/deepakpopli/tinyclawd) on this Linux machine for me.
+Before each step, say what you will do and wait for my OK. Never run sudo: show me the command and I run it.
+1. Clone the repo to ~/.tinyclawd (git pull if it is already there). Read README.md and bridge/README.md.
+2. Check that /usr/bin/python3 (or python3) can import serial. If not, tell me the package for my distro.
+3. Ask if I want to flash the board. Only if I say yes: find it by its Espressif USB id, get the .bin from
+   the latest GitHub release and flash it at 0x0 with esptool (stop tinyclawd-daemon first if it runs).
+   If the port is not writable, tell me how to join the dialout group.
+4. Run python3 ~/.tinyclawd/bridge/setup.py --dry-run, show me what it would change, then run it for real.
+5. Test it: python3 ~/.tinyclawd/bridge/tinyclawd.py send ev done should make Clawd celebrate.
+6. Tell me to restart Claude Code, and how to undo: python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd
+```
 
 ### by hand
 
 1. flash the board (see below)
-2. on the laptop (python 3 + pyserial):
+2. on the laptop (python 3.8+ and pyserial):
 
 ```bash
 git clone https://github.com/deepakpopli/tinyclawd
 cd tinyclawd
-python3 -m pip install --user pyserial     # or: sudo apt install python3-serial
-python3 bridge/setup.py                    # background service + claude code hooks + usage line
+sudo apt install python3-serial            # fedora: python3-pyserial, arch: python-pyserial
+python3 bridge/setup.py --dry-run          # shows what it would change, changes nothing
+python3 bridge/setup.py                    # background service + claude code hooks + usage
 python3 bridge/setup.py --remove           # undo it all
 ```
 
-restart claude code after. if the port can't be opened: `sudo usermod -aG dialout $USER`, then
-log out and in. more in [`bridge/`](bridge).
+restart claude code after. if the port can't be opened: `sudo usermod -aG dialout $USER` (on arch
+the group is `uucp`), then log out and in. more in [`bridge/`](bridge).
+
+### what setup changes
+
+- a user service, `tinyclawd-daemon`, that talks to the board (`journalctl --user -u tinyclawd-daemon`)
+- hooks in `~/.claude/settings.json`. yours stay as they are, it only touches entries that run
+  `tinyclawd.py`
+- `/clawd` in claude code shows your usage on the pet, `/clawd context` the context window. it
+  never reaches claude, so it costs nothing
+- usage comes from claude code's status line. no status line yet: it adds a quiet one that only
+  passes usage to the pet and shows nothing. a shell script that reads stdin with `input=$(cat)`:
+  it adds one line after that. anything else: it prints the line for you to add. the 5 hour and
+  weekly limits only show when claude code puts them in the status line data (a claude
+  subscription login), context works either way
+
+### optional extras
+
+without them that feature just stays off:
+
+| package (ubuntu name) | gives you |
+|---|---|
+| `playerctl` | the song name in music mode |
+| `pulseaudio-utils` (`parec`) | the equalizer from what the laptop plays |
+| `xinput` | typing reactions (X11 only) |
+| `python3-numpy` | a nicer equalizer |
 
 ### flash from the browser
 
