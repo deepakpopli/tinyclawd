@@ -2,15 +2,29 @@
 
 <p align="center"><img src="docs/gifs/hero.gif" width="70%"></p>
 
+<p align="center">
+<b><a href="https://tinyclawd.deepakpopli.in">website</a></b> ·
+<b><a href="https://youtu.be/aFLVqkyy6DE">watch the film</a></b> ·
+<b><a href="https://github.com/deepakpopli/tinyclawd/releases/latest">download the firmware</a></b> ·
+<b><a href="#set-it-up">set it up</a></b>
+</p>
+
 a tiny 3D printed Clawd with an OLED face that shows what Claude Code is doing.
 
 it lives on my desk, plugged into the laptop over USB. it thinks when claude thinks, types when
 claude edits, calls me back when a session is waiting, shows how much of my usage limits are
 left and celebrates when the work is done. when nothing is going on it just plays football.
 
-about $5 of parts. site: **[tinyclawd.deepakpopli.in](https://tinyclawd.deepakpopli.in)**
+about $5 of parts, 100+ animations, 7+ games, one touch pad. open source.
 
 fan-made project, not affiliated with Anthropic.
+
+## the film
+
+[![tiny clawd, the 55 second film](docs/film.jpg)](https://youtu.be/aFLVqkyy6DE)
+
+55 seconds, rendered in Blender from the real print files. the screen in it plays the real
+firmware, frame by frame.
 
 ## what it reacts to
 
@@ -37,7 +51,7 @@ fan-made project, not affiliated with Anthropic.
 
 ## animations
 
-107 of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
+100+ of them, drawn on the real 128x64 grid. the eyes are Clawd's pixel slits, the mini Clawd
 uses the same block art as the Claude Code banner. these gifs come straight from the firmware
 running in the desktop sim.
 
@@ -65,7 +79,7 @@ and hold:
 - in the menu: tap = next, hold = open, double tap = back
 - in a game: press = jump / kick / allow, hold the full ring to leave
 
-7 games. they're meant to be easy, it's a desk toy. best scores stay after unplugging.
+7+ games. they're meant to be easy, it's a desk toy. best scores stay after unplugging.
 
 | | |
 |---|---|
@@ -85,7 +99,7 @@ and hold:
 | a USB-C cable that carries data | you have one |
 | **total** | **about $5, plus shipping** |
 
-wiring: OLED SDA to GPIO 20, SCL to GPIO 21, touch pad output to GPIO 1.
+wiring is in [set it up](#set-it-up).
 
 the inside of the body is the [Mochi housing by Dave0616](https://makerworld.com/en/models/1844353-the-mochi-housing-and-inner-frame-dasai-mochi)
 (inner frame, OLED holder, back plate). i only redesigned the outside, so the original electronics
@@ -96,23 +110,38 @@ print. no supports needed.
 
 ## set it up
 
-linux for now (ubuntu, debian, fedora, arch and friends). mac and windows: not yet, but you can
-still flash the board from the browser (below). pick one of three ways.
+you need the printed body, the parts above, a USB-C cable that carries data, and a linux laptop
+with claude code (ubuntu, debian, fedora, arch and friends). on mac or windows you can still
+flash the board from the browser, the laptop side is linux only for now.
 
-### one command
+**1. print it.** body, back plate and stand are in [`hardware/print/`](hardware/print), each folder
+has a README. no supports.
+
+**2. wire it.**
+
+| from | to the ESP32-C3 |
+|---|---|
+| OLED SDA | GPIO 20 |
+| OLED SCL | GPIO 21 |
+| touch pad OUT | GPIO 1 |
+| OLED and touch pad VCC | 3V3 |
+| OLED and touch pad GND | GND |
+
+**3. plug it in and run one command.**
 
 ```bash
 curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash
 ```
 
-it puts the code in `~/.tinyclawd`, gets pyserial, offers the optional extras, can flash the board
-and then hooks it into claude code. it asks before it flashes and before it uses sudo. flashing
-replaces what is on the board, so its saved settings and best scores reset. it backs up your
-claude code settings and your status line script before it changes them. run it again to update.
+it flashes the latest firmware (it asks first), sets up the laptop side and hooks it into claude
+code. it asks before it uses sudo and backs up your claude code settings and status line script
+before it changes them. flashing resets the pet's saved settings and best scores. run it again
+to update. restart claude code and say hi.
 
 undo: `python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd`
 
-### let claude code do it
+<details>
+<summary><b>or let claude code set it up</b></summary>
 
 paste this into claude code, it asks before every change (also in
 [`docs/setup-prompt.md`](docs/setup-prompt.md)):
@@ -132,9 +161,12 @@ Before each step, say what you will do and wait for my OK. Never run sudo: show 
 6. Tell me to restart Claude Code, and how to undo: python3 ~/.tinyclawd/bridge/setup.py --remove && rm -rf ~/.tinyclawd
 ```
 
-### by hand
+</details>
 
-1. flash the board (see below)
+<details>
+<summary><b>or set it up by hand</b></summary>
+
+1. flash the board (from the browser, below)
 2. on the laptop (python 3.8+ and pyserial):
 
 ```bash
@@ -150,7 +182,22 @@ python3 bridge/setup.py --remove           # undo it all
 restart claude code after. if the port can't be opened: `sudo usermod -aG dialout $USER` (on arch
 the group is `uucp`), then log out and in. more in [`bridge/`](bridge).
 
-### what setup changes
+</details>
+
+<details>
+<summary><b>flash from the browser (mac, windows, linux)</b></summary>
+
+1. download `tinyclawd-esp32c3-v1.0.0.bin` from the
+   [releases page](https://github.com/deepakpopli/tinyclawd/releases)
+2. open [espressif's web flasher](https://espressif.github.io/esptool-js/) in chrome or edge
+3. connect, pick the file at address `0x0`, press program
+
+or build it yourself with esp-idf, see [`firmware/`](firmware).
+
+</details>
+
+<details>
+<summary><b>what setup changes</b></summary>
 
 - a user service, `tinyclawd-daemon`, that talks to the board (`journalctl --user -u tinyclawd-daemon`)
 - hooks in `~/.claude/settings.json`. yours stay as they are, it only touches entries that run
@@ -165,7 +212,10 @@ the group is `uucp`), then log out and in. more in [`bridge/`](bridge).
   weekly limits only show when claude code puts them in the status line data (a claude
   subscription login), context works either way
 
-### optional extras
+</details>
+
+<details>
+<summary><b>optional extras</b></summary>
 
 without them that feature just stays off:
 
@@ -176,14 +226,7 @@ without them that feature just stays off:
 | `xinput` | typing reactions (X11 only) |
 | `python3-numpy` | a nicer equalizer |
 
-### flash from the browser
-
-1. download `tinyclawd-esp32c3-v1.0.0.bin` from the
-   [releases page](https://github.com/deepakpopli/tinyclawd/releases)
-2. open [espressif's web flasher](https://espressif.github.io/esptool-js/) in chrome or edge
-3. connect, pick the file at address `0x0`, press program
-
-or build it yourself with esp-idf, see [`firmware/`](firmware).
+</details>
 
 ## how it works
 
@@ -242,3 +285,8 @@ link above, they are not in this repo).
   licence files sit next to them
 
 fan-made, not affiliated with Anthropic. Clawd and Claude Code belong to them.
+
+## made by
+
+Deepak Popli: [deepakpopli.in](https://deepakpopli.in) · [X @DeepakPopli02](https://x.com/DeepakPopli02) ·
+[LinkedIn](https://www.linkedin.com/in/deepakpopli/). built one? show me on X.
