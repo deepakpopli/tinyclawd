@@ -1204,7 +1204,7 @@ class Daemon:
     def listen(self):
         if daemon_running(self.path):
             log("already running on", self.path)
-            return None
+            return None   # not an error, so systemd does not keep restarting us
         try:
             os.unlink(self.path)
         except OSError:
@@ -1221,7 +1221,7 @@ class Daemon:
     def run(self, until=None):
         srv = self.listen()
         if srv is None:
-            return 1
+            return 0
         log("listening on", self.path)
         t = threading.Thread(target=self.link.run, daemon=True)
         t.start()
@@ -1264,8 +1264,8 @@ def cmd_daemon(args):
         try:
             import serial  # noqa: F401
         except ImportError:
-            log("pyserial missing: pip install --user pyserial")
-            return 1
+            log("pyserial missing for %s, see the install notes in bridge/README.md" % sys.executable)
+            return 2   # the service does not restart on 2, it would only fail again
     # systemd stops us with SIGTERM, clean up the socket like on ctrl-c
     signal.signal(signal.SIGTERM, on_term)
     return Daemon(args.port, args.stdout, args.sock, no_keys=args.no_keys).run()
