@@ -13,6 +13,9 @@
 
 bool idle_at_rest(uint32_t t, uint32_t seed);
 
+// ms times wrap after 49 days, so compare them by their difference
+static bool before(uint32_t a, uint32_t b) { return (int32_t)(a - b) < 0; }
+
 // ------------------------------------------------------------------- tuning
 
 struct Timing {
@@ -579,7 +582,7 @@ struct Brain::Impl {
         }
 
         // one-shot finished: next in the queue, or back to the base
-        if (oneshot && (cur_finished(now) || (until && now >= until))) {
+        if (oneshot && (cur_finished(now) || (until && !before(now, until)))) {
             if (qn) next_from_queue(now);
             else {
                 oneshot = false;
@@ -605,7 +608,7 @@ struct Brain::Impl {
 
         work_breaks(now);
         if (mode == IDLE_M && !oneshot) idle_tick(now);
-        if (mode == SLEEP_M && !oneshot && now >= next_micro) {
+        if (mode == SLEEP_M && !oneshot && !before(now, next_micro)) {
             // dreams now and then
             play_name(pick(ASLEEP, sizeof(ASLEEP) / sizeof(Pick), now), now);
             next_micro = now + 25000 + rand() % 35000;
@@ -620,7 +623,7 @@ struct Brain::Impl {
         }
         uint32_t quiet = music ? 0 : now - last_activity;   // music is company
         // usage limit reached: show it now and then
-        if (pct5h >= 100 && now >= next_micro && rand() % 3 == 0) {
+        if (pct5h >= 100 && !before(now, next_micro) && rand() % 3 == 0) {
             play_name("limit_hit", now);
             next_micro = now + gap();
             return;
@@ -633,10 +636,10 @@ struct Brain::Impl {
             next_micro = now + 30000;
             return;
         }
-        if (now < next_micro) return;
+        if (before(now, next_micro)) return;
         // start micro behaviours only on a calm idle frame so the cut is invisible
         if (cur.a && !strcmp(cur.a->name, "idle") && !idle_at_rest(now - cur.start, cur.ctx.seed) &&
-            now < next_micro + 600)
+            before(now, next_micro + 600))
             return;
         const char* name;
         if (music) name = pick(MUSIC, sizeof(MUSIC) / sizeof(Pick), now);
@@ -675,18 +678,18 @@ struct Brain::Impl {
         if (!music) next_song = 0;
         else if (!next_song) next_song = now + span(8000, 15000);   // first one soon
         if (oneshot) return;
-        if (next_song && now >= next_song) {
+        if (next_song && !before(now, next_song)) {
             // listening along for a moment, then back to work
             next_song = now + span(SONG_MIN_MS, SONG_MAX_MS);
-            if (next_break < now + 12000) next_break = now + 12000;
+            if (before(next_break, now + 12000)) next_break = now + 12000;
             const char* name = pick(POOL(GROOVE), now);
             show(find_anim(name ? name : "equalizer"), now, true);
             on_break = true;
             until = now + SONG_MS;
             return;
         }
-        if (now < next_break) return;
-        if (next_song && next_song < now + 12000) next_song = now + 12000;
+        if (before(now, next_break)) return;
+        if (next_song && before(next_song, now + 12000)) next_song = now + 12000;
         next_break = now + span(BREAK_MIN_MS, BREAK_MAX_MS);
         const char* name = pick(POOL(WORK_BREAK), now);
         if (!name) return;
