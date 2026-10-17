@@ -16,7 +16,7 @@ const FALLBACK_PHOTO = '';   // 'assets/photos/p1-desk.jpg' once that photo is i
 // yaw = model turn, pitch = camera height angle, dist = camera distance in mm,
 // look = what the camera looks at ('body' or 'screen'), explode = 0..1
 const POSES = {
-  'front':         { yaw: 0,    pitch: 7,  dist: 270, look: 0, explode: 0 },
+  'front':         { yaw: 0,    pitch: 7,  dist: 245, look: 0, explode: 0 },
   'three-quarter': { yaw: -32,  pitch: 14, dist: 280, look: 0, explode: 0 },
   'side':          { yaw: -74,  pitch: 9,  dist: 280, look: 0, explode: 0 },
   'back':          { yaw: -180, pitch: 14, dist: 280, look: 0, explode: 0 },
@@ -30,7 +30,7 @@ const POSES = {
   'top-front':     { yaw: -10,  pitch: 34, dist: 270, look: 0, explode: 0 },
 };
 const KEYS = ['yaw', 'pitch', 'dist', 'look', 'explode'];
-const SAFE = 0.84;   // 8% margin on every side of the canvas
+let SAFE = 0.84;     // 8% margin on every side of the canvas, 5% on phones (set in resize)
 
 const ON = [232, 240, 255];   // lit pixel, like the gifs
 const OFF = [10, 12, 16];
@@ -437,6 +437,7 @@ async function init(canvas) {
     renderer.setPixelRatio(dprCap);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    SAFE = innerWidth < 600 ? 0.9 : 0.84;
     camera.updateProjectionMatrix();
   }
 
@@ -487,7 +488,7 @@ async function init(canvas) {
     const pitch = THREE.MathUtils.degToRad(state.pitch + py);
     const dir = new THREE.Vector3(0, Math.sin(pitch), Math.cos(pitch));
     // the close up may fill the safe box, the other poses leave some air
-    const room = 0.85 + 0.15 * state.look;
+    const room = 0.92 + 0.08 * state.look;
     let dist = state.dist;
     for (let i = 0; i < 4; i++) {
       camera.position.copy(look).addScaledVector(dir, dist);

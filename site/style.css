@@ -188,7 +188,7 @@ img { image-rendering: pixelated; }
 }
 
 /* the story. the stage holds the 3D Clawd. it sits above the text so in the hero
-   the model stands in front of the big type. after the hero it moves to columns 7 to 12 */
+   the model stands in front of the big type. after the hero it moves to columns 6 to 12 */
 
 .story { position: relative; }
 
@@ -212,8 +212,8 @@ img { image-rendering: pixelated; }
   position: absolute;
   top: 0;
   height: 100%;
-  left: calc(6 * (var(--colw) + var(--gut)));
-  width: calc(6 * var(--colw) + 5 * var(--gut));
+  left: calc(5 * (var(--colw) + var(--gut)));
+  width: calc(7 * var(--colw) + 6 * var(--gut));
   display: block;
   opacity: 0;
   transition: opacity 0.6s linear, left 0.7s cubic-bezier(0.65, 0, 0.35, 1), width 0.7s cubic-bezier(0.65, 0, 0.35, 1), top 0.7s cubic-bezier(0.65, 0, 0.35, 1), height 0.7s cubic-bezier(0.65, 0, 0.35, 1);
@@ -260,7 +260,7 @@ html:not(.js) .fallback,
 .fallback .legs { display: flex; justify-content: space-between; padding: 0 12%; }
 .fallback .legs i { width: 7%; aspect-ratio: 1 / 2.4; background: var(--red); }
 
-.scenes { position: relative; z-index: 1; margin-top: calc(var(--top) - 100vh); margin-top: calc(var(--top) - 100svh); }
+.scenes { position: relative; margin-top: calc(var(--top) - 100vh); margin-top: calc(var(--top) - 100svh); }
 
 /* hero */
 
@@ -639,7 +639,7 @@ html:not(.js) .fallback,
     border-bottom: 1px solid var(--rule);
   }
   #clawd3d, .at-hero #clawd3d { left: 0; width: 100%; top: 0; height: 100%; }
-  .scenes { margin-top: 0; }
+  .scenes { margin-top: 0; z-index: 1; }
 
   .hero { height: auto; min-height: 0; overflow: visible; }
   .hero > .wrap { grid-template-rows: none; }
