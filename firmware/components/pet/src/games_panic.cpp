@@ -93,7 +93,7 @@ void input(Btn b, uint32_t now) {
         if (bad) result("nope!", false, true, now);
         else result("allowed", true, false, now);
     } else if (phase == OVER && now - phase_t > 600) {
-        start(now, rnd(), best);
+        start(now, rnd(), points > best ? points : best);   // keep a new best for the next run
     }
 }
 

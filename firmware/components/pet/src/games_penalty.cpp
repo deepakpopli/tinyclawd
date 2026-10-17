@@ -111,7 +111,7 @@ void input(Btn b, uint32_t now) {
         }
         break;
     case OVER:
-        if (now - phase_t > 600) start(now, rnd(), best);
+        if (now - phase_t > 600) start(now, rnd(), you + saves > best ? you + saves : best);   // keep a new best
         break;
     default:
         break;
