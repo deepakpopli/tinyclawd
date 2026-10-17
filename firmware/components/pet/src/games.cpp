@@ -13,26 +13,16 @@ extern const Game game_flappy;
 extern const Game game_catch;
 extern const Game game_whack;
 
-static const Game* all(int i) {
-    const Game* list[] = {&game_run, &game_keepy, &game_penalty, &game_panic, &game_flappy, &game_catch, &game_whack};
-    int n = 0;
-    for (const Game* g : list) {
-        if (!g) continue;
-        if (n++ == i) return g;
-    }
-    return nullptr;
-}
+static const Game* const GAMES[] = {&game_run,    &game_keepy, &game_penalty, &game_panic,
+                                    &game_flappy, &game_catch, &game_whack};
+static const int N_GAMES = sizeof(GAMES) / sizeof(GAMES[0]);
 
-int game_count() {
-    int n = 0;
-    while (all(n)) n++;
-    return n;
-}
+int game_count() { return N_GAMES; }
 
-const Game* game_at(int i) { return all(i); }
+const Game* game_at(int i) { return i >= 0 && i < N_GAMES ? GAMES[i] : nullptr; }
 
 const Game* find_game(const char* id) {
-    for (int i = 0; const Game* g = all(i); i++)
+    for (const Game* g : GAMES)
         if (!strcmp(g->id, id)) return g;
     return nullptr;
 }
