@@ -22,7 +22,6 @@ static uint8_t s_last[Canvas::PAGES][Canvas::W];
 static bool s_ready = false;      // init sequence went through
 static bool s_full = true;        // next flush sends every page
 static bool s_logged = false;     // only log the first error in a row
-static bool s_want_on = true;     // set_on() state
 static bool s_need_on = false;    // send display-on after the next good flush
 static uint32_t s_retry_at = 0;
 static sh1106::Conf s_conf;
@@ -161,7 +160,7 @@ int sh1106::flush(const Canvas& c) {
         sent++;
     }
     s_full = false;
-    if (s_need_on && s_want_on) {
+    if (s_need_on) {
         const uint8_t on = 0xAF;
         if (!cmds(&on, 1)) return sent;
     }
@@ -185,20 +184,6 @@ void sh1106::configure(const Conf& c) {
         return;  // next flush runs bus_setup + init_seq with the new settings
     }
     if (s_ready) init_seq();  // offset, flip, mirror, contrast, then a full redraw
-}
-
-void sh1106::set_contrast(uint8_t v) {
-    s_conf.contrast = v;
-    if (!s_ready) return;
-    const uint8_t c[] = {0x81, v};
-    cmds(c, sizeof(c));
-}
-
-void sh1106::set_on(bool on) {
-    s_want_on = on;
-    if (!s_ready) return;
-    const uint8_t c = on ? 0xAF : 0xAE;
-    cmds(&c, 1);
 }
 
 bool sh1106::ok() { return s_ready; }

@@ -19,8 +19,6 @@ struct Conf {
 void configure(const Conf& c);    // call before init, or any time later (applies live)
 bool init();                      // false if the screen did not answer (will retry in flush)
 int flush(const Canvas& c);       // returns how many pages went out
-void set_contrast(uint8_t v);     // 0..255
-void set_on(bool on);
 bool ok();                        // last transfer worked
 int scan(uint8_t* found, int max);  // addresses that answer on the bus
 

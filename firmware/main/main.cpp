@@ -19,7 +19,6 @@
 //   render (prio 5)  owns the Brain, 40 fps, drains both queues, draws, flushes
 //   touch  (prio 6)  polls the pad every 10 ms, pushes Touch events
 //   link   (prio 4)  reads usb serial, pushes complete lines
-// wifi / ota go here later (own task, talks to render through a queue too)
 
 static const uint32_t FRAME_MS = 25;
 
