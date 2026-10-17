@@ -405,15 +405,28 @@ def cmd_usage(args):
 # ---------------------------------------------------------------- serial link
 
 def find_port():
+    """the pet's port by its espressif usb id. other serial devices (a flight controller, an
+    arduino) are never opened, use --port or TINYCLAWD_PORT for anything unusual"""
+    if os.environ.get("TINYCLAWD_PORT"):
+        return os.environ["TINYCLAWD_PORT"]
     try:
         from serial.tools import list_ports
-        for p in list_ports.comports():
-            if p.vid == ESPRESSIF_VID:
-                return p.device
+        ports = list_ports.comports()
     except Exception:
-        pass
-    ports = sorted(glob.glob("/dev/ttyACM*"))
-    return ports[0] if ports else None
+        ports = None
+    if ports is not None:
+        return next((p.device for p in ports if p.vid == ESPRESSIF_VID), None)
+    acm = sorted(glob.glob("/dev/ttyACM*"))   # no usb info at all, best guess
+    return acm[0] if acm else None
+
+
+def port_group(port):
+    """dialout on debian and fedora, uucp on arch"""
+    try:
+        import grp
+        return grp.getgrgid(os.stat(port).st_gid).gr_name
+    except (OSError, KeyError):
+        return "dialout"
 
 
 class Link:
@@ -427,6 +440,7 @@ class Link:
         self.ser = None
         self.lock = threading.Lock()
         self.stop = False
+        self.why = None   # last reason the port did not open, logged once
 
     def connected(self):
         return self.stdout or self.ser is not None
@@ -460,15 +474,27 @@ class Link:
         import serial
         port = self.port or find_port()
         if not port:
+            self.waiting("no pet plugged in (looking for an espressif usb device), waiting")
             return False
         try:
-            s = serial.Serial(port, 115200, timeout=0.5)
-        except Exception:
+            # write_timeout: a stuck board must not freeze the daemon
+            s = serial.Serial(port, 115200, timeout=0.5, write_timeout=2)
+        except Exception as e:
+            hint = ""
+            if "ermission" in str(e):
+                hint = ", add yourself to the %s group and log in again" % port_group(port)
+            self.waiting("can't open %s: %s%s" % (port, e, hint))
             return False
         with self.lock:
             self.ser = s
+        self.why = None
         log("connected", port)
         return True
+
+    def waiting(self, why):
+        if why != self.why:
+            log(why)
+        self.why = why
 
     def run(self):
         if self.stdout:
