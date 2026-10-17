@@ -536,6 +536,14 @@ class Typing(unittest.TestCase):
         self.assertTrue(d.keys.why_off())
         self.assertEqual(self.out, [])
 
+    def test_display_from_the_session(self):
+        # the service started before the desktop shared DISPLAY
+        env = {}
+        k = tc.Keys(self.out.append, source=None, env=env)
+        k.find_session = lambda e: e.update(DISPLAY=":1")
+        k.wait_for_display()
+        self.assertIsNone(k.why_off())
+
     def test_missing_xinput(self):
         def gone(on_press):
             raise FileNotFoundError("xinput")

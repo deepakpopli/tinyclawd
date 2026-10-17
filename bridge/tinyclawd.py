@@ -1031,6 +1031,23 @@ def xinput_keys(on_press):
         p.wait()
 
 
+SESSION_VARS = ("DISPLAY", "XAUTHORITY", "XDG_SESSION_TYPE", "WAYLAND_DISPLAY")
+
+
+def session_env(env):
+    """the service often starts before the desktop hands DISPLAY to systemd. copy it from
+    there, so xinput still works when the daemon came up first"""
+    try:
+        out = subprocess.run(["systemctl", "--user", "show-environment"],
+                             capture_output=True, text=True, timeout=2).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return
+    for line in out.splitlines():
+        k, _, v = line.partition("=")
+        if k in SESSION_VARS and not env.get(k):
+            env[k] = v
+
+
 class Keys:
     """counts key presses and sends typing <n> (keys per second, 0 = stopped)"""
 
@@ -1040,11 +1057,14 @@ class Keys:
     SETTLE = 1.5      # a change of 1 waits this long, so it does not flicker
     KEEPALIVE = 5.0   # resend while typing so the pet knows we are still here
     TICK = 0.25
+    DISPLAY_WAIT = 600   # look for the desktop this long after start
 
     def __init__(self, out, source=xinput_keys, env=None):
         self.out = out          # function(line)
         self.source = source    # function(on_press), blocks while it runs
         self.env = os.environ if env is None else env
+        # only the real environment is filled in from systemd (xinput inherits it)
+        self.find_session = session_env if env is None else None
         self.times = []         # when keys went down, nothing else
         self.lock = threading.Lock()
         self.rate = 0           # what the pet was told
@@ -1112,7 +1132,16 @@ class Keys:
             wait = 2 if time.time() - start > 30 else min(wait * 2, 60)
             time.sleep(wait)
 
+    def wait_for_display(self):
+        start = time.time()
+        while self.why_off() == "no DISPLAY" and self.find_session and not self.stop:
+            self.find_session(self.env)
+            if self.why_off() != "no DISPLAY" or time.time() - start > self.DISPLAY_WAIT:
+                break
+            time.sleep(10)
+
     def loop(self):
+        self.wait_for_display()
         why = self.why_off()
         if why:
             log("typing reactions off:", why)
