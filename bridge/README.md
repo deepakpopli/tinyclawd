@@ -10,36 +10,44 @@ status line ────────┼──> unix socket ──> tinyclawd.py 
 send / replay ──────┘
 ```
 
-needs python 3 and pyserial (only the daemon and `replay --to serial` use it):
+needs python 3.8+ and pyserial (only the daemon and `replay --to serial` use it):
 
 ```bash
-pip install --user pyserial
+sudo apt install python3-serial      # fedora: python3-pyserial, arch: python-pyserial
 ```
 
 ## install
 
 ```bash
-./install.sh
+python3 setup.py --dry-run   # what it would change, changes nothing
+python3 setup.py             # service + hooks + /clawd + usage from the status line
+python3 setup.py --port /dev/ttyUSB0   # only if the pet is not found on its own
+python3 setup.py --remove    # undo all of it
 ```
 
-it changes nothing, it prints:
-
-1. the `"hooks"` block for `~/.claude/settings.json`. if you already have a hook on the same event
-   (i have one on `Stop`), add our entry to that event's list instead of replacing it.
-2. one line for the status line script, right after `input=$(cat)`:
-   ```bash
-   printf '%s' "$input" | /usr/bin/python3 /path/to/bridge/tinyclawd.py usage >/dev/null 2>&1 &
-   ```
-3. how to run the daemon, by hand or as a systemd user service (`tinyclawd-daemon.service`).
+- the service is `~/.config/systemd/user/tinyclawd-daemon.service`. no systemd: it prints the
+  command to run the daemon yourself
+- hooks go in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`). your own hooks stay where they
+  are, only entries that run `tinyclawd.py` are touched. running it again fixes the paths, for
+  example after you moved the folder. `install_hooks.py` does only this part
+- usage: with no status line it adds a quiet one (`tinyclawd.py usage`, prints nothing). with a
+  shell script status line it adds this after the line that reads stdin (`input=$(cat)`):
+  ```bash
+  printf '%s' "$input" | /usr/bin/python3 /path/to/bridge/tinyclawd.py usage >/dev/null 2>&1 &
+  ```
+  anything else, it prints that line for you to add
+- settings.json and the status line script get a `.bak-tinyclawd-<time>` copy before a change.
+  a bad settings.json is never touched, it tells you instead
 
 the hooks are `async`, so claude never waits for them. `hook` and `usage` never print anything and
-always exit 0, if the daemon is down the event is just dropped. the daemon is not started by the
-hooks, run it yourself or use the service.
+always exit 0, if the daemon is down the event is just dropped. the one sync hook is `screen` on
+`UserPromptExpansion`: it only prints for `/clawd`, to stop that prompt before claude sees it. the
+daemon is not started by the hooks, run it yourself or use the service.
 
 ## commands
 
 ```bash
-python3 tinyclawd.py daemon                 # finds the pet (espressif usb id, then /dev/ttyACM*)
+python3 tinyclawd.py daemon                 # finds the pet by its espressif usb id
 python3 tinyclawd.py daemon --port /dev/ttyACM1
 python3 tinyclawd.py daemon --stdout        # no board, prints what it would send
 python3 tinyclawd.py daemon --no-keys       # do not watch the keyboard
@@ -56,7 +64,10 @@ so stop the daemon first. session files are one line per entry, `<ms> <line>` fr
 ## what the daemon does
 
 - sends `hello 1` and `time HH:MM` on connect, the time again every 5 min, and the last usage line
-- reconnects when the board is unplugged, and says hello again when the pet prints `boot`
+- only opens the espressif usb device (or `--port` / `TINYCLAWD_PORT`), never some other serial
+  device. logs once why it can't open the port (not plugged in, no permission)
+- reconnects when the board is unplugged, and says hello again when the pet prints `boot`. a write
+  that hangs for 2 s counts as unplugged, so a stuck board can't freeze it
 - ignores everything from the pet that is not `ok` / `err` / `touch` / `boot` (esp-idf logs),
   logs touches to stderr
 - keeps state per session: subagent counts are summed over all sessions (`ev sub N`), one
@@ -72,9 +83,9 @@ so stop the daemon first. session files are one line per entry, `<ms> <line>` fr
 
 ## typing
 
-the daemon runs `xinput test-xi2 --root` (x11, no root needed) and counts key presses. only the
-count. which key you pressed is never read, stored, logged or sent, the key code lines from xinput
-are thrown away as they come in. the pet only gets `typing <n>`, n = keys per second (1 to 15),
+the daemon runs `xinput test-xi2 --root` (x11, no root needed) and counts key presses in every
+window. only the count. the key code lines come through the xinput pipe but are never parsed,
+kept, logged or sent, they are dropped as they come in. the pet only gets `typing <n>`, n = keys per second (1 to 15),
 and `typing 0` after 3 s without keys. at most 2 lines a second, plus the same line every 5 s
 while you keep typing.
 
@@ -87,7 +98,8 @@ python3 tinyclawd.py daemon --no-keys
 
 for the service, add `Environment=TINYCLAWD_NO_KEYS=1` under `[Service]` (or `--no-keys` to the
 `ExecStart` line). on wayland, without xinput or without `DISPLAY` it is off on its own, the
-daemon logs why once.
+daemon logs why once. the service often starts before the desktop is up, so it asks systemd for
+`DISPLAY` for the first 10 minutes before it gives up.
 
 ## equalizer
 
@@ -147,17 +159,20 @@ checked against claude code 2.1.289 (the strings in the binary):
 ## troubleshooting
 
 - nothing happens: is the daemon running? `python3 tinyclawd.py send ping` says "daemon not
-  running" if not. socket is `$XDG_RUNTIME_DIR/tinyclawd.sock` (or `/tmp/tinyclawd-<uid>.sock`)
+  running" if not. socket is `$XDG_RUNTIME_DIR/tinyclawd.sock` (or `/run/user/<uid>/tinyclawd.sock`,
+  else `/tmp/tinyclawd-<uid>.sock`)
 - which port: the daemon logs `connected /dev/ttyACM0` to stderr (`journalctl --user -u
   tinyclawd-daemon -f` for the service). wrong one: `--port`
-- permission denied on the port: you need to be in the `dialout` group
+- permission denied on the port: you need to be in the group that owns it (`dialout`, `uucp` on
+  arch), then log out and in. the daemon log names the group
 - `idf.py monitor` and the daemon can not share the port, stop one
 - test without the board: `daemon --stdout` in one terminal, `replay` or a hook in another
 
 ## tests
 
 ```bash
-python3 test_bridge.py
+python3 test_bridge.py    # hook mapping, sessions, music, typing, equalizer, a daemon on a pty
+python3 test_setup.py     # settings merge and undo, status line, the service, in a throwaway HOME
 ```
 
-no board needed, the daemon test talks to a pty.
+no board needed, and your real `~/.claude` is never read or written.
