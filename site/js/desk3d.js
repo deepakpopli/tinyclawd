@@ -30,10 +30,12 @@ export async function setup(c) {
   const stand = new THREE.Group();
   stand.rotation.y = deg(STAND_YAW);
   desk.add(stand);
+  const fit = [];                    // the stand counts when the poses fit Clawd in the frame
   for (const p of head.parts) {
     const m = new THREE.Mesh(parts[p.name].geo, new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.55 }));
     m.castShadow = m.receiveShadow = true;
     stand.add(m);
+    fit.push(m);
   }
   const perch = new THREE.Group();
   perch.matrixAutoUpdate = false;
@@ -304,7 +306,7 @@ export async function setup(c) {
     },
   };
 
-  return { beginFit, place, after };
+  return { fit, beginFit, place, after };
 }
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;

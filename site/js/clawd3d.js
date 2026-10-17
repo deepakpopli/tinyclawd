@@ -458,6 +458,7 @@ async function init(canvas) {
   // every corner of every part, to keep the whole model in its safe box
   const parts3d = [];
   lift.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); parts3d.push(o); } });
+  if (desk) for (const o of desk.fit) { o.geometry.computeBoundingBox(); parts3d.push(o); }   // and his stand
   const corner = new THREE.Vector3();
 
   // how far the model spills out of the safe box: 1 = just fits
