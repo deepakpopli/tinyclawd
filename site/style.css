@@ -35,7 +35,7 @@
 
 * { box-sizing: border-box; }
 
-html { cursor: var(--cursor), auto; }
+html { cursor: var(--cursor), auto; scroll-padding-top: var(--top); }
 
 body {
   margin: 0;
@@ -70,6 +70,8 @@ a {
 }
 a:hover { color: var(--red); }
 a, button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.film-play:focus-visible { outline-offset: -4px; }
 
 code { font-family: var(--sans); font-weight: 600; font-size: inherit; }
 
