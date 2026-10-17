@@ -23,10 +23,12 @@ static void link_task(void*) {
             char c = (char)buf[i];
             if (c == '\r') continue;
             if (c == '\n') {
-                if (!too_long && len > 0) {
+                // every line gets an answer, also the ones we have to drop
+                if (too_long) {
+                    usblink::send("err too long");
+                } else if (len > 0) {
                     line.s[len] = 0;
-                    if (xQueueSend(s_q, &line, pdMS_TO_TICKS(10)) != pdTRUE)
-                        ESP_LOGW(TAG, "line dropped, queue full");
+                    if (xQueueSend(s_q, &line, pdMS_TO_TICKS(10)) != pdTRUE) usblink::send("err busy");
                 }
                 len = 0;
                 too_long = false;
