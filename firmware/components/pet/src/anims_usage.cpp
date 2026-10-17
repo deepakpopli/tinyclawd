@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "anim.h"
+#include "icons.h"
 
 static const float PI = (float)M_PI;
 
@@ -58,28 +59,47 @@ static void a_limit_hit(Canvas& c, uint32_t t, const Ctx& x) {
 
 // --------------------------------------------------------------------- usage
 
-// one row: label left, percent right, a full width bar under it
-static void usage_row(Canvas& c, int y, const char* label, int pct, float k) {
+// little marks in front of the labels
+static const char* const HOURGLASS[] = {"#####", "#...#", " #.# ", "  #  ", " #.# ", "#.#.#", "#####"};
+static const char* const CALENDAR[] = {" # # ", "#####", "#####", "#...#", "#.#.#", "#...#", "#####"};
+static const char* const CLOCK[] = {" ### ", "#.#.#", "#.#.#", "#..##", " ### "};
+
+// one row: mark and label left, percent right, a round ended bar under it
+static void usage_row(Canvas& c, int y, const char* const* mark, const char* label, int pct, float k) {
     char s[8];
-    c.text(0, y, label, font_6x10);
+    art(c, 0, y + 1, mark, 7);
+    c.text(8, y, label, font_6x10);
     if (pct < 0) snprintf(s, sizeof(s), "--");
     else snprintf(s, sizeof(s), "%d%%", iround((pct > 100 ? 100 : pct) * k));
     c.text(128 - c.text_width(s, font_6x10), y, s, font_6x10);
     c.rect(0, y + 11, 127, y + 19);
+    c.px(0, y + 11, false);
+    c.px(127, y + 11, false);
+    c.px(0, y + 19, false);
+    c.px(127, y + 19, false);
+    for (int q = 1; q < 4; q++) c.px(q * 32, y + 21);   // quarter marks
     if (pct > 0) {
         int w = iround(124 * (pct > 100 ? 1 : pct / 100.0f) * k);
         if (w > 0) c.fill_rect(2, y + 13, 1 + w, y + 17);
+        if (w > 2) {   // round the end of the fill too
+            c.px(1 + w, y + 13, false);
+            c.px(1 + w, y + 17, false);
+        }
     }
 }
 
 // only the numbers, the screen is small
 static void a_usage(Canvas& c, uint32_t t, const Ctx& x) {
-    usage_row(c, 0, "5 hour", x.pct5h, ease_out(seg(t, 100, 900)));
-    usage_row(c, 24, "week", x.pctwk, ease_out(seg(t, 250, 1050)));
+    usage_row(c, 0, HOURGLASS, "5 hour", x.pct5h, ease_out(seg(t, 100, 900)));
+    usage_row(c, 24, CALENDAR, "week", x.pctwk, ease_out(seg(t, 250, 1050)));
     char r[12], s[24];
     fmt_reset(r, sizeof(r), x.reset_min);
     snprintf(s, sizeof(s), "resets in %s", r);
-    if (x.reset_min >= 0) c.text_center(64, 55, s, font_5x7);
+    if (x.reset_min >= 0) {
+        int w = c.text_width(s, font_5x7) + 8;
+        art(c, 64 - w / 2, 56, CLOCK, 5);
+        c.text(64 - w / 2 + 8, 55, s, font_5x7);
+    }
 }
 
 // ------------------------------------------------------------------- context
