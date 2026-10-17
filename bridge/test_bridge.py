@@ -211,6 +211,45 @@ class Usage(unittest.TestCase):
         self.assertIsNone(tc.usage_line({}))
         self.assertIsNone(tc.usage_line({"rate_limits": None}))
 
+    def test_statusline_text(self):
+        d = {"rate_limits": {"five_hour": {"used_percentage": 41.6, "resets_at": 99999},
+                             "seven_day": {"used_percentage": 18}},
+             "context_window": {"used_percentage": 37.2}, "model": {"display_name": "Opus"}}
+        self.assertEqual(tc.statusline_text(d), "ctx 37% · 5h 42% · week 18%")
+        # api key login: no rate_limits, only the context window
+        self.assertEqual(tc.statusline_text({"context_window": {"used_percentage": 5}}), "ctx 5%")
+        self.assertEqual(tc.statusline_text({"rate_limits": {"five_hour": {"used_percentage": 120}}}),
+                         "5h 100%")
+        self.assertEqual(tc.statusline_text({"rate_limits": None, "context_window": {}}), "")
+        self.assertEqual(tc.statusline_text({}), "")
+
+    def test_statusline_cli(self):
+        # prints the line and sends usage to the daemon, fast and fine with no daemon at all
+        d = {"rate_limits": {"five_hour": {"used_percentage": 42}},
+             "context_window": {"used_percentage": 37}}
+        nowhere = os.path.join(tempfile.mkdtemp(), "none.sock")
+        for stdin, want in ((json.dumps(d), "ctx 37% · 5h 42%\n"), ("{}", "\n"), ("not json", "")):
+            t = time.time()
+            p = subprocess.run([sys.executable, os.path.join(HERE, "tinyclawd.py"), "--sock", nowhere,
+                                "statusline"], input=stdin.encode(), capture_output=True, timeout=10)
+            self.assertLess(time.time() - t, 3)
+            self.assertEqual(p.returncode, 0)
+            self.assertEqual(p.stdout.decode("utf-8"), want)
+            self.assertEqual(p.stderr, b"")
+        # with a daemon listening, it gets the same line `usage` would send
+        import socket
+        path = os.path.join(tempfile.mkdtemp(), "t.sock")
+        srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        srv.bind(path)
+        srv.listen(1)
+        srv.settimeout(5)
+        subprocess.run([sys.executable, os.path.join(HERE, "tinyclawd.py"), "--sock", path, "statusline"],
+                       input=json.dumps(d).encode(), capture_output=True, timeout=10)
+        conn, _ = srv.accept()
+        self.assertEqual(conn.recv(100).decode().strip(), "usage 5h=42 ctx=37")
+        conn.close()
+        srv.close()
+
     def test_reset_formats(self):
         self.assertEqual(tc.reset_minutes(1600, now=1000), 10)
         self.assertEqual(tc.reset_minutes("1600.5", now=1000), 10)

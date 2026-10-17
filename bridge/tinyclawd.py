@@ -4,6 +4,7 @@
 #   tinyclawd.py daemon [--port P] [--stdout] [--no-keys]   owns the serial port
 #   tinyclawd.py hook                           called by claude code hooks (json on stdin)
 #   tinyclawd.py usage                          called from the status line (json on stdin)
+#   tinyclawd.py statusline                     a status line: prints usage and sends it too
 #   tinyclawd.py send "ev perm"                 one raw line
 #   tinyclawd.py replay [file] [--speed 2]      play a fake session
 #
@@ -396,6 +397,35 @@ def cmd_usage(args):
         sys.stdout = open(os.devnull, "w")
         d = json.loads(sys.stdin.read() or "{}")
         line = usage_line(d) if isinstance(d, dict) else None
+        if line:
+            send_to_daemon(line, timeout=0.2, path=args.sock)
+    except BaseException:
+        pass
+    os._exit(0)
+
+
+def statusline_text(d):
+    """'ctx 37% · 5h 42% · week 18%', only the parts claude code sent"""
+    parts = []
+    for name, keys in (
+        ("ctx", ("context_window", "used_percentage")),
+        ("5h", ("rate_limits", "five_hour", "used_percentage")),
+        ("week", ("rate_limits", "seven_day", "used_percentage")),
+    ):
+        v = as_num(dig(d, *keys))
+        if v is not None:
+            parts.append("%s %d%%" % (name, max(0, min(100, round(v)))))
+    return " · ".join(parts)
+
+
+def cmd_statusline(args):
+    try:
+        d = json.loads(sys.stdin.read() or "{}")
+        if not isinstance(d, dict):
+            d = {}
+        sys.stdout.buffer.write((statusline_text(d) + "\n").encode("utf-8"))
+        sys.stdout.flush()
+        line = usage_line(d)
         if line:
             send_to_daemon(line, timeout=0.2, path=args.sock)
     except BaseException:
@@ -1468,6 +1498,7 @@ def main(argv=None):
     sub.add_parser("hook", help="claude code hook, json on stdin").set_defaults(fn=cmd_hook)
     sub.add_parser("screen", help="slash command hook for /clawd").set_defaults(fn=cmd_screen)
     sub.add_parser("usage", help="status line json on stdin").set_defaults(fn=cmd_usage)
+    sub.add_parser("statusline", help="a visible status line, json on stdin").set_defaults(fn=cmd_statusline)
 
     s = sub.add_parser("send", help="send one raw protocol line")
     s.add_argument("line", nargs="+")
