@@ -150,7 +150,7 @@
         <div class="copy">
           <h2>your 5 hour and weekly limits, on its face.</h2>
           <p>read from the Claude Code status line. running low and it gets tired, then stoppage time.
-            hit the limit and it tells you when you're back.</p>
+            hit the limit and it tells you when you're back. the limits show with a Claude subscription login.</p>
           <p>type <code>/clawd</code> in Claude Code to see them any time. it never reaches Claude, so it costs
             no turn. a double tap on the pad usually shows them too.</p>
         </div>
@@ -440,18 +440,28 @@
         <pre><code id="install">curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash</code></pre>
         <button class="copy-btn" type="button" data-copy="install">copy</button>
       </div>
-      <p class="small">asks before it flashes anything. backs up your Claude Code settings and status line
-        script before it changes them. the usage line goes into your status line script, if you have one.</p>
+      <p class="small">Linux only for now, on a Mac you can still flash from the browser. it asks before it
+        flashes or uses sudo, and backs up your Claude Code settings and status line script before it changes
+        them. undo: <code>python3 ~/.tinyclawd/bridge/setup.py --remove &amp;&amp; rm -rf ~/.tinyclawd</code></p>
     </div>
 
     <div class="install">
       <p class="label">or let Claude Code set it up</p>
       <div class="code prompt">
-        <!-- the setup prompt. this is the only copy on the site, swap in the text from docs/setup-prompt.md -->
-        <pre><code id="setup-prompt">Set up Tiny Clawd for me from github.com/deepakpopli/tinyclawd: clone it, install what the bridge needs, ask me before flashing my ESP32-C3, then add the Claude Code hooks and the usage status line. Ask before changing any file.</code></pre>
+        <!-- the setup prompt, same text as docs/setup-prompt.md. this is the only copy on the site -->
+        <pre><code id="setup-prompt">Set up Tiny Clawd (https://github.com/deepakpopli/tinyclawd) on this Linux machine for me.
+Before each step, say what you will do and wait for my OK. Never run sudo: show me the command and I run it.
+1. Clone the repo to ~/.tinyclawd (git pull if it is already there). Read README.md and bridge/README.md.
+2. Check that /usr/bin/python3 (or python3) can import serial. If not, tell me the package for my distro.
+3. Ask if I want to flash the board. Only if I say yes: find it by its Espressif USB id, get the .bin from
+   the latest GitHub release and flash it at 0x0 with esptool (stop tinyclawd-daemon first if it runs).
+   If the port is not writable, tell me how to join the dialout group.
+4. Run python3 ~/.tinyclawd/bridge/setup.py --dry-run, show me what it would change, then run it for real.
+5. Test it: python3 ~/.tinyclawd/bridge/tinyclawd.py send ev done should make Clawd celebrate.
+6. Tell me to restart Claude Code, and how to undo: python3 ~/.tinyclawd/bridge/setup.py --remove &amp;&amp; rm -rf ~/.tinyclawd</code></pre>
         <button class="copy-btn" type="button" data-copy="setup-prompt">copy</button>
       </div>
-      <p class="small">paste it into Claude Code. or <a href="https://github.com/deepakpopli/tinyclawd#by-hand">set it up by hand</a>.</p>
+      <p class="small">paste it into Claude Code. or <a href="https://github.com/deepakpopli/tinyclawd#set-it-up">set it up by hand</a>.</p>
     </div>
   </div>
 </section>
