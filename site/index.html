@@ -13,12 +13,15 @@
 <meta property="og:image" content="https://tinyclawd.deepakpopli.in/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="a red 3D printed Clawd with an OLED face, next to the words a tiny Clawd for your desk">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="tiny clawd">
 <meta name="twitter:description" content="a 3D printed Clawd with a 1.3 inch OLED face that shows what Claude Code is doing. about $5 of parts, open source, build your own.">
 <meta name="twitter:image" content="https://tinyclawd.deepakpopli.in/assets/og.png">
+<link rel="canonical" href="https://tinyclawd.deepakpopli.in/">
 
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='3' width='10' height='7' fill='%23c8372d'/%3E%3Crect x='1' y='5' width='2' height='3' fill='%23c8372d'/%3E%3Crect x='13' y='5' width='2' height='3' fill='%23c8372d'/%3E%3Crect x='4' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='6' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='9' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='11' y='10' width='1' height='3' fill='%23c8372d'/%3E%3Crect x='5' y='5' width='1' height='2' fill='%230a0c10'/%3E%3Crect x='10' y='5' width='1' height='2' fill='%230a0c10'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preload" href="fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/departure-mono.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
@@ -38,7 +41,7 @@
   <div class="wrap">
     <a class="brand" href="#"><svg class="mark" aria-hidden="true"><use href="#clawd"/></svg>tiny clawd</a>
     <nav>
-      <a class="wide" href="#think">how it works</a>
+      <a class="wide" href="#how">how it works</a>
       <a class="wide" href="#screen">screen</a>
       <a class="wide" href="#games">games</a>
       <a class="wide" href="#specs">specs</a>
@@ -329,6 +332,36 @@
   </div>
 </section>
 -->
+
+<section class="band how" id="how">
+  <div class="wrap">
+    <div class="band-head">
+      <p class="label">how it works</p>
+      <h2>from a hook to a pixel.</h2>
+      <p>nothing leaves your laptop. Clawd gets the event, the tool name, the project folder name and
+        your usage. never your prompts or code.</p>
+    </div>
+    <ol class="steps">
+      <li>
+        <p class="num">01</p>
+        <h3>Claude Code</h3>
+        <p>every prompt, tool call, permission prompt and finish runs a hook. the status line adds your usage.</p>
+      </li>
+      <li>
+        <p class="num">02</p>
+        <h3>the bridge</h3>
+        <p>a small Python service on the laptop turns each one into a short line of text, like
+          <code>ev tool Bash</code>, and sends it over USB.</p>
+      </li>
+      <li>
+        <p class="num">03</p>
+        <h3>Clawd</h3>
+        <p>the ESP32 picks what to play and draws it at 40 fps. when nothing is talking to it, it just
+          lives on its own.</p>
+      </li>
+    </ol>
+  </div>
+</section>
 
 <section class="band specs" id="specs">
   <div class="wrap">
