@@ -108,8 +108,8 @@ static void step(float dt, uint32_t now) {
                 lose(now);
             } else {
                 happy_at = now;
-                if (it.kind == HEART) lives++;
-                else points++;
+                if (it.kind == TOKEN) points++;
+                else if (lives < LIVES) lives++;   // a heart, never more than the hud shows
             }
         } else if (it.y > GROUND - 3) {
             it.alive = false;
