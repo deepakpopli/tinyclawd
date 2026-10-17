@@ -9,8 +9,8 @@
 const DESK_URL = new URL('../assets/3d/desk.bin', import.meta.url);
 
 const STAND_YAW = 15;                // Clawd turned a little toward the laptop
-const LAPTOP_AT = [205, 0, 40];      // front centre of the laptop
-const LAPTOP_YAW = -8;
+const LAPTOP_AT = [185, 0, -95];     // front centre of the laptop, behind Clawd on the right
+const LAPTOP_YAW = -12;
 const LID_BACK = 20;                 // lid open 110 deg
 
 let THREE;
@@ -50,7 +50,7 @@ export async function setup(c) {
     fading.push(m);
     return m;
   };
-  const alu = mat(0x6d7077, 0.48, 0.6);
+  const alu = mat(0x6a6c70, 0.5, 0.45);
   const laptop = new THREE.Group();
   laptop.position.set(...LAPTOP_AT);
   laptop.rotation.y = deg(LAPTOP_YAW);
@@ -68,7 +68,7 @@ export async function setup(c) {
   const kw = 14.5 * 18.6;
   add(geo(b => slab(b, kw + 6, 112, 0.4, 4, 0, 0, T - 0.3, -(D - 12 - 56), 3, 0)), mat(0x1e1f22, 0.7));
   add(geo(b => keyboard(b, -(D - 14), T + 0.02)), mat(0x141517, 0.62));
-  add(geo(b => slab(b, 150, 88, 0.3, 7, 0, 0, T - 0.05, -(10 + 44), 4, 0)), mat(0x74777e, 0.42, 0.55));
+  add(geo(b => slab(b, 150, 88, 0.3, 7, 0, 0, T - 0.05, -(10 + 44), 4, 0)), mat(0x606267, 0.5, 0.4));
   for (const sx of [-1, 1]) add(geo(b => slab(b, 9, 108, 0.25, 3, 0, sx * (kw / 2 + 11), T - 0.05, -(D - 12 - 56), 3, 0)), mat(0x232427, 0.7));
   for (const i of [0, 1]) add(geo(b => slab(b, 1, 9, 3.2, 1.4, 0, -W / 2 + 0.3, 3.2, -(34 + i * 14), 3, 0)), mat(0x111214, 0.6));
   add(geo(b => slab(b, W - 40, 8.4, 8.4, 4.1, 4, 0, T - 3.6, -(D - 4.5), 3, 3)), mat(0x1b1c1f, 0.55));
@@ -114,13 +114,18 @@ export async function setup(c) {
   const port = laptop.localToWorld(V(-W / 2 - 15, 4.8, -41));
   const side = V(-1, 0, 0).transformDirection(laptop.matrixWorld);
   const R = 1.6;
+  // down off the back plate, a lazy curve over the desk, straight into the port
+  const drop = start.clone().addScaledVector(back, 26).setY(R);
+  const near = port.clone().addScaledVector(side, 24).setY(R);
+  const across = near.clone().sub(drop);
+  const slack = V(across.z, 0, -across.x).normalize().multiplyScalar(across.length() * 0.14);
   const path = [
     start,
-    start.clone().addScaledVector(back, 14).add(V(0, -6, 0)),
-    V(start.x + 14, R, start.z - 34),
-    V(start.x + 52, R, start.z - 30),
-    V(port.x - 40, R, port.z + 8),
-    port.clone().addScaledVector(side, 22).setY(R + 0.6),
+    start.clone().addScaledVector(back, 12).add(V(0, -5, 0)),
+    drop,
+    drop.clone().lerp(near, 0.4).add(slack),
+    drop.clone().lerp(near, 0.75).addScaledVector(slack, 0.4),
+    near,
     port,
   ];
   const cablePts = spline(path, 14);
@@ -154,6 +159,29 @@ export async function setup(c) {
 
   const lookW = new THREE.Vector3(), offset = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
+  // the canvas fills the stage, so nothing gets cut at its edges. the shot is framed for a box
+  // inside it (#desk-frame, laid out in laptop.css like the canvas on index.html), then shifted there
+  const frameEl = document.getElementById('desk-frame');
+  // on wide screens the hero shot scrolls up with the hero text, like a picture in the page,
+  // so it never slides over the big wordmark. on phones the stage is its own box on top
+  const box = { x: 0, y: 0, w: 1, h: 1, cw: 1, ch: 1 };
+  const wide = matchMedia('(min-width: 900px)');
+  let follow = 0, lastFit = 0;
+  function beginFit() {
+    const cr = renderer.domElement.getBoundingClientRect();
+    const fr = frameEl ? frameEl.getBoundingClientRect() : cr;
+    const now = performance.now(), dt = Math.min(0.1, lastFit ? (now - lastFit) / 1000 : 1);
+    lastFit = now;
+    const want = wide.matches && document.documentElement.classList.contains('at-hero') ? scrollY : 0;
+    follow = want > follow ? want : follow + (want - follow) * (1 - Math.exp(-dt * 7));
+    Object.assign(box, { x: fr.left - cr.left, y: fr.top - cr.top - follow, w: Math.max(1, fr.width), h: Math.max(1, fr.height), cw: cr.width, ch: cr.height });
+    camera.aspect = box.w / box.h;
+    camera.clearViewOffset();
+  }
+  function endFit() {
+    camera.setViewOffset(box.w, box.h, -box.x, -box.y, box.cw, box.ch);
+  }
+
   // a pose in Clawd's own frame, then turned around the stand, so the desk stays level
   function place(look, pitch, yaw, dist) {
     lookW.copy(look).applyMatrix4(perch.matrixWorld);
@@ -173,7 +201,7 @@ export async function setup(c) {
     for (const p of heroPts) target.add(p);
     target.divideScalar(heroPts.length);
     let dist = 900;
-    const margin = camera.aspect < 1.2 ? 0.94 : 0.9;
+    const margin = camera.aspect < 1.2 ? 0.88 : 0.9;
     const right = new THREE.Vector3(), upv = new THREE.Vector3(), q = new THREE.Vector3();
     for (let i = 0; i < 8; i++) {
       camera.position.copy(target).addScaledVector(heroDir, dist);
@@ -201,8 +229,9 @@ export async function setup(c) {
   const heroEl = document.getElementById('hero');
   let hs = 0, opacity = 1;
   const heroAmount = () => {
-    const range = Math.max(heroEl ? heroEl.offsetHeight : 0, innerHeight * 0.6) * 0.85;
-    return Math.min(1, Math.max(0, scrollY / range));
+    // the move starts as the hero leaves (site.js drops .at-hero at 35% of the screen)
+    const range = Math.max(heroEl ? heroEl.offsetHeight : 0, innerHeight * 0.6);
+    return Math.min(1, Math.max(0, (scrollY - range * 0.22) / (range * 0.62)));
   };
   hs = heroAmount();
 
@@ -235,10 +264,10 @@ export async function setup(c) {
   function after(now, dt, pointer) {
     hs += (heroAmount() - hs) * (1 - Math.exp(-dt * 6));
     if (Math.abs(heroAmount() - hs) < 0.0005) hs = heroAmount();
-    setOpacity(1 - smooth(0.6, 0.96, hs));
+    setOpacity(1 - smooth(0.4, 0.85, hs));
     term.update(now);
-    if (hs < 0.4) cue(now);
-    if (hs >= 0.999) return;
+    if (hs < 0.2) cue(now);
+    if (hs >= 0.999) return endFit();
 
     p2.copy(camera.position);
     t2.copy(lookW);
@@ -252,6 +281,7 @@ export async function setup(c) {
     camera.position.copy(pos);
     camera.up.copy(up);
     camera.lookAt(tgt);
+    endFit();
   }
 
   // Clawd's face follows the session on the laptop while we are in the hero
@@ -263,17 +293,18 @@ export async function setup(c) {
       c.play([name]);
     }
   }
-  addEventListener('scroll', () => { if (heroAmount() >= 0.4) lastCue = null; }, { passive: true });
+  addEventListener('scroll', () => { if (heroAmount() >= 0.2) lastCue = null; }, { passive: true });
 
   window.ClawdDesk = {
-    // test only: a png of the canvas, for the static fallback image
+    // test only: hold the session at t seconds, and a png of the canvas, for the static fallback image
+    hold(t) { term.hold(t); },
     snap() {
       renderer.render(scene, camera);
       return renderer.domElement.toDataURL('image/png');
     },
   };
 
-  return { place, after };
+  return { beginFit, place, after };
 }
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -424,7 +455,7 @@ const TYPE_AT = 0.5, TYPE_DT = 0.05, SENT = 3.6, LOOP = 16;
 const WORDS = ['Clauding', 'Pondering', 'Noodling', 'Percolating'];
 // (time, lines). a line is [text, color] pieces; '*' at the start is the dot, '>' the result elbow
 const EVENTS = [
-  [5.6, [['*', TEXT], ['On it! I\'ll build Tiny Clawd, a little', TEXT]], [['  pet for your desk that watches me work.', TEXT]]],
+  [5.6, [['*', TEXT], ['On it! I\'ll build Tiny Clawd,', TEXT]], [['  a little pet for your desk that', TEXT]], [['  watches me work.', TEXT]]],
   [7.4, [['*', GREEN], ['Write', TEXT, 1], ['(firmware/main/main.cpp)', TEXT]], [['>', DIM], ['Wrote 212 lines', DIM]]],
   [9.2, [['*', GREEN], ['Bash', TEXT, 1], ['(idf.py build)', TEXT]], [['>', DIM], ['Project build complete', GREEN]]],
   [11, [['*', TEXT], ['Done. Tiny Clawd is alive.', TEXT]]],
@@ -442,20 +473,21 @@ function terminal(renderer) {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  const COLS = 42, X0 = 58;
+  const COLS = 40, X0 = 54;
   let cw = 0, fs = 0, lh = 0, ready = false, lastKey = '';
   const font = (size, bold) => `${bold ? 'bold ' : ''}${size}px "Departure Mono", monospace`;
   const measure = () => {
     g.font = font(100);
     cw = (W - 2 * X0) / COLS;
     fs = Math.floor(cw / (g.measureText('M').width / 100));
-    lh = Math.round(fs * 1.42);
+    lh = Math.round(fs * 1.3);
   };
   document.fonts.load(font(40)).then(() => { measure(); ready = true; lastKey = ''; }).catch(() => {});
   measure();
 
   const start = performance.now();
-  const clock = now => ((now - start) / 1000) % LOOP;
+  let held = null;
+  const clock = now => held !== null ? held : ((now - start) / 1000) % LOOP;
 
   function cue(now) {
     const t = clock(now);
@@ -549,7 +581,7 @@ function terminal(renderer) {
     if (sent && !done) {
       const secs = Math.floor(t - SENT) + 1;
       const word = WORDS[Math.floor((t - SENT) / 1.6) % WORDS.length];
-      rows.push({ gap: 1 }, { spin: true, p: [['  ' + word + '...', ORANGE], [` (${secs}s, esc to interrupt)`, DIM]] });
+      rows.push({ spin: true, p: [['  ' + word + '...', ORANGE], [` (${secs}s, esc to interrupt)`, DIM]] });
     }
 
     const top = 56 + lh * 0.4;
@@ -619,5 +651,5 @@ function terminal(renderer) {
     tex.needsUpdate = true;
   }
   draw(0);
-  return { tex, update, cue };
+  return { tex, update, cue, hold: t => { held = t; } };
 }

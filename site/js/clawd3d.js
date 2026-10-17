@@ -497,6 +497,7 @@ async function init(canvas) {
     // the close up may fill the safe box, the other poses leave some air
     const room = 0.92 + 0.08 * state.look;
     let dist = state.dist;
+    if (desk) desk.beginFit();
     for (let i = 0; i < 4; i++) {
       if (desk) desk.place(look, pitch, yaw, dist);
       else {
