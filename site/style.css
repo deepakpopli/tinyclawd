@@ -136,19 +136,26 @@ img { image-rendering: pixelated; }
 .top .wrap { height: 100%; align-items: center; }
 
 .brand {
-  grid-column: 1 / 5;
+  grid-column: 1 / 6;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  white-space: nowrap;
+}
+.brand .name {
   display: flex;
   align-items: center;
   gap: 12px;
   font-weight: 600;
   font-size: 1.0625rem;
   text-decoration: none;
-  white-space: nowrap;
 }
-.brand:hover { color: var(--ink); }
+.brand .name:hover { color: var(--ink); }
+.by a { color: var(--grey); text-decoration: none; margin-left: 6px; }
+.by a:hover { color: var(--red); }
 
 .top nav {
-  grid-column: 5 / -1;
+  grid-column: 6 / -1;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -158,6 +165,9 @@ img { image-rendering: pixelated; }
 .top nav a:hover { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink); }
 .top nav .build { text-decoration: underline; text-decoration-color: var(--red); font-weight: 600; }
 
+@media (max-width: 1099px) {
+  .by a[href*="deepakpopli.in"] { display: none; }
+}
 @media (max-width: 899px) {
   .brand { grid-column: 1 / 5; }
   .top nav { grid-column: 5 / -1; gap: 16px; }
@@ -167,7 +177,9 @@ img { image-rendering: pixelated; }
   h3 { font-size: 1.125rem; }
 }
 @media (max-width: 599px) {
-  .brand { grid-column: 1 / 3; }
+  .brand { grid-column: 1 / 3; flex-direction: column; align-items: flex-start; gap: 0; line-height: 1.2; }
+  .by { line-height: 16px; }
+  .by a { margin-left: 0; }
   .top nav { grid-column: 3 / -1; }
 }
 
