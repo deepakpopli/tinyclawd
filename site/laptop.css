@@ -60,9 +60,19 @@ html:not(.js) .desk-still {
   display: block;
   grid-column: 5 / -1;
   grid-row: 1 / 5;
-  align-self: center;
+  align-self: start;
+  justify-self: center;
+  margin-top: 16px;
 }
-.desk-still img { display: block; width: 100%; height: auto; image-rendering: auto; }
+.desk-still img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100vh - var(--top) - var(--wm) - 32px);
+  max-height: calc(100svh - var(--top) - var(--wm) - 32px);
+  image-rendering: auto;
+}
 
 .desk-still-top { display: none; }
 
