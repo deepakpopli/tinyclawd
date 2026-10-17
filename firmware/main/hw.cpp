@@ -54,7 +54,10 @@ void hw::load() {
     Saved sv;
     size_t n = sizeof(sv);
     if (err == ESP_OK && nvs_open("hw", NVS_READONLY, &h) == ESP_OK) {
-        if (nvs_get_blob(h, "set", &sv, &n) == ESP_OK && n == sizeof(sv) && sv.version == SAVE_VERSION) {
+        // same ranges as the hw lines, so a bad blob can't leave the screen dark
+        if (nvs_get_blob(h, "set", &sv, &n) == ESP_OK && n == sizeof(sv) && sv.version == SAVE_VERSION &&
+            sv.offset <= 4 && sv.flip <= 1 && sv.mirror <= 1 && sv.khz >= 100 && sv.khz <= 1000 &&
+            sv.double_ms >= 100 && sv.double_ms <= 1000 && sv.long_ms >= 300 && sv.long_ms <= 3000) {
             s_set.screen.offset = sv.offset;
             s_set.screen.flip = sv.flip;
             s_set.screen.mirror = sv.mirror;
