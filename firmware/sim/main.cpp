@@ -4,6 +4,8 @@
 //   ./sim anim blink [ms]         one animation -> out/blink.frames
 //   ./sim all                     every animation
 //   ./sim script demo.txt         a fake session through the brain -> out/demo.frames
+//   ./sim soak [hours]            a long fake day, prints what played how often
+//   ./sim games                   all game ids
 //   ./sim game run [ms]           a game played by its bot -> out/game_run.frames
 #include <stdio.h>
 #include <stdlib.h>
@@ -250,7 +252,7 @@ static int soak(int hours) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        fprintf(stderr, "usage: sim list | anim <name> [ms] | all | script <file> | games | game <id> [ms]\n");
+        fprintf(stderr, "usage: sim list | anim <name> [ms] | all | script <file> | soak [hours] | games | game <id> [ms]\n");
         return 1;
     }
     const char* cmd = argv[1];
