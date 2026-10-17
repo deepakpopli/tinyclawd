@@ -26,8 +26,6 @@ static inline float pickf(const float* seq, int n, float i) {
     float f = i - fl;
     return seq[i0] + (seq[(i0 + 1) % n] - seq[i0]) * f;
 }
-// same but snaps (for poses / on-off)
-static inline int picki(int n, float i) { return (((int)floorf(i)) % n + n) % n; }
 
 // keyframes: list of {time_ms, value}, eased between them, holds the last
 struct Key {

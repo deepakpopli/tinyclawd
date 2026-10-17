@@ -136,11 +136,6 @@ void ball(Canvas& c, float x, float y, float r) {
     }
 }
 
-void bang(Canvas& c, int x, int y) {
-    c.fill_rect(x, y, x + 3, y + 9);
-    c.fill_rect(x, y + 12, x + 3, y + 15);
-}
-
 void zzz(Canvas& c, float t) {
     // three z's drifting up and right, small to big
     static const int x0s[] = {98, 104, 110}, y0s[] = {36, 22, 8};

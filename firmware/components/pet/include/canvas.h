@@ -58,7 +58,6 @@ public:
         for (int p = 0; p < PAGES; p++)
             for (int x = 0; x < W; x++) buf[p][x] = ~buf[p][x];
     }
-    void copy_from(const Canvas& o) { memcpy(buf, o.buf, sizeof(buf)); }
 };
 
 // decode one utf-8 code point, advances s

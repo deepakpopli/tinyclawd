@@ -48,6 +48,5 @@ void sparkle(Canvas& c, int x, int y, int r = 3);
 void sweat(Canvas& c, float x, float y);
 void tear(Canvas& c, float x, float y);
 void ball(Canvas& c, float x, float y, float r = 3);
-void bang(Canvas& c, int x, int y);   // bold "!"
 void zzz(Canvas& c, float t);          // rising z z z, t loops 0..1
 void stars(Canvas& c, float x, float y, float t);  // dizzy stars circling
