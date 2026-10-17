@@ -12,7 +12,6 @@ import * as THREE from '../vendor/three.js';
 const MODEL_URL = new URL('../assets/3d/clawd.bin', import.meta.url);
 const FRAMES_URL = new URL('../assets/frames/', import.meta.url);
 const FALLBACK_PHOTO = 'assets/photos/p1-desk.jpg';
-const FALLBACK_GIF = 'assets/hero.gif';
 
 // yaw = model turn, pitch = camera height angle, dist = camera distance in mm,
 // look = what the camera looks at ('body' or 'screen'), explode = 0..1
@@ -58,14 +57,13 @@ function hasWebGL() {
 }
 
 function fallback(canvas) {
-  // the desk photo if it is there, else the gif in a red frame
+  // the desk photo if it is there, else the flat Clawd drawn in css (.fallback)
   const img = document.createElement('img');
   img.alt = 'Tiny Clawd, a small red pixel crab with a screen for a face';
   img.className = (canvas.className + ' clawd3d-fallback').trim();
   img.onerror = () => {
-    img.onerror = null;
-    img.classList.add('gif');
-    img.src = new URL(FALLBACK_GIF, document.baseURI).href;
+    img.remove();
+    document.getElementById('stage').classList.add('empty');
   };
   img.src = new URL(FALLBACK_PHOTO, document.baseURI).href;
   img.id = 'clawd3d';
