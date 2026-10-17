@@ -59,7 +59,7 @@ static const Pick AWAKE[] = {
     {"head_juggle", 2, 90}, {"spin", 2, 60}, {"wave", 1, 120}, {"dance", 1, 120},
     {"content", 2, 90}, {"yawn", 1, 120}, {"startled", 1, 180}, {"seq:concert", 1, 300},
     {"seq:training", 1, 300}, {"keepy_uppy", 1, 180}, {"dribble", 1, 180}, {"penalty_save", 1, 240},
-    {"usage", 2, 600},   // only once usage data came in (extra_ok)
+    {"usage", 2, 600}, {"context", 1, 600},   // only once usage data came in (extra_ok)
     {"coffee", 1, 180}, {"stretch", 2, 300}, {"juggle", 2, 240}, {"paper_plane", 1, 180},
 };
 static const Pick BORED[] = {
@@ -70,7 +70,7 @@ static const Pick BORED[] = {
     {"bicycle_kick", 1, 200}, {"penalty_save", 2, 150}, {"half_time", 2, 200},
     {"turn_around", 2, 60}, {"spin", 1, 60}, {"blink", 3, 0},
     {"seq:match", 3, 240}, {"seq:training", 2, 240}, {"seq:concert", 2, 300},
-    {"seq:nap", 1, 600}, {"usage", 2, 600},
+    {"seq:nap", 1, 600}, {"usage", 2, 600}, {"context", 1, 600},
     {"stretch", 2, 300}, {"juggle", 2, 240}, {"stargaze", 2, 300},
 };
 static const Pick DROWSY[] = {
@@ -123,7 +123,6 @@ static const Pick TAP1[] = {{"petted", 5, 0}, {"content", 3, 0}, {"shy", 3, 0}, 
 static const Pick TAP_MORE[] = {{"giggle", 1, 0}};
 static const Pick TAP_LOTS[] = {{"laugh", 1, 0}};
 static const Pick TAP_TOO_MANY[] = {{"dizzy", 1, 0}};
-static const Pick DOUBLE[] = {{"usage", 4, 0}, {"spin", 2, 0}, {"context", 1, 0}};
 static const Pick LONG[] = {{"love", 1, 0}};
 
 // what a tool looks like (base loops while it runs)
@@ -986,7 +985,7 @@ void Brain::touch(Touch t, uint32_t now) {
         else if (s.taps >= 2) s.oneshot_from(POOL(TAP_MORE), now);
         else s.oneshot_from(POOL(TAP1), now);
         break;
-    case TOUCH_DOUBLE: s.oneshot_from(POOL(DOUBLE), now); break;
+    case TOUCH_DOUBLE: play("usage", now); break;   // always the usage screen
     case TOUCH_LONG: s.oneshot_from(POOL(LONG), now); break;
     case TOUCH_DOWN:
     case TOUCH_UP: break;
