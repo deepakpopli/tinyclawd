@@ -10,6 +10,11 @@
 #   TINYCLAWD_FLASH=yes|no      flash without asking (yes) or never (no)
 #   TINYCLAWD_SKIP_SETUP=1      only get the code and flash, leave claude code alone
 
+if [ -z "$BASH_VERSION" ]; then
+    echo "please run it with bash: curl -fsSL https://tinyclawd.deepakpopli.in/install.sh | bash"
+    exit 1
+fi
+
 REPO=${TINYCLAWD_REPO:-https://github.com/deepakpopli/tinyclawd}
 API=https://api.github.com/repos/deepakpopli/tinyclawd/releases/latest
 WEB_FLASHER=https://espressif.github.io/esptool-js/
