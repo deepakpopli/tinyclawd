@@ -86,6 +86,12 @@ class HookMapping(unittest.TestCase):
             "grep 'unclosed": "Grep",
             "": "Bash",
             "mkdir -p out\nls out": "Read",
+            "grep -rn pytest src": "Grep",
+            "cat pytest.ini": "Read",
+            "echo pytest": "Bash",
+            "uv run pytest -q": "Test",
+            ".venv/bin/pytest": "Test",
+            "timeout 600 cargo test": "Test",
         }
         for cmd, look in cases.items():
             self.assertEqual(tc.bash_look(cmd), look, cmd)
@@ -117,6 +123,9 @@ class HookMapping(unittest.TestCase):
         self.assertEqual(tc.map_hook(bash("python3 bridge/test_bridge.py", "", "OK")), ["ev test pass"])
         self.assertEqual(tc.map_hook(bash("ls -la")), [])
         self.assertEqual(tc.map_hook(bash("pip install pytest")), [])
+        self.assertEqual(tc.map_hook(bash("grep -rn pytest .", "x")), [])
+        self.assertEqual(tc.map_hook(hook("PostToolUse", tool_name="Bash", tool_input={"command": None},
+                                          tool_response={})), [])
         self.assertEqual(tc.map_hook(bash("npm install && npm test")), ["ev test pass"])
         self.assertEqual(tc.map_hook(bash("git commit -m 'x'", "[main 1a2b3c4] x\n 1 file changed")),
                          ["ev commit"])

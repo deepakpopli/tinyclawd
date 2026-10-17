@@ -82,14 +82,15 @@ def daemon_running(path=None):
 
 # ---------------------------------------------------------------- hook mapping
 
+# matched against the start of each command, after sudo, cd, FOO=1 and pipes are cut off
 TEST_RE = re.compile(
-    r"(^|[\s;&|(/])("
-    r"pytest|py\.test|python3? -m (pytest|unittest)|tox|nox|"
+    r"(pytest|py\.test|python[\d.]* -m (pytest|unittest)|tox|nox|"
     r"(npm|pnpm|yarn|bun)( run)? test|jest|vitest|mocha|"
     r"cargo (test|nextest)|go test|ctest|make (test|check)|meson test|"
-    r"python3? \S*test\S*\.py"
+    r"python[\d.]* \S*test\S*\.py"
     r")\b"
 )
+RUNNERS = {"uv", "poetry", "pipenv", "hatch", "pdm", "npx", "bunx", "pnpx"}   # uv run pytest
 GIT_COMMIT_RE = re.compile(r"\bgit(\s+-[cC]\s+\S+)*\s+commit\b")
 COMMIT_OUT_RE = re.compile(r"^\[[^\]\n]+ [0-9a-f]{7,}\]", re.M)
 FAIL_OUT_RE = re.compile(
@@ -103,14 +104,6 @@ ASKING_TOOLS = {"AskUserQuestion", "ExitPlanMode"}
 # slash commands that open a screen on the pet instead of a claude turn
 SCREEN_CMDS = {"usage": "usage", "cost": "usage", "status": "usage", "context": "context"}
 PET_CMD = "clawd"   # our own slash command: /clawd, /clawd context
-
-
-INSTALL_RE = re.compile(r"\b(pip3?|uv pip|uv|apt(-get)?|brew|conda|npm|pnpm|yarn|bun) (install|add|i)\b[^;&|]*")
-
-
-def is_test(cmd):
-    # "pip install pytest" is not a test run
-    return bool(TEST_RE.search(INSTALL_RE.sub("", cmd or "")))
 
 
 # a bash command gets the look of what it really does
@@ -159,6 +152,19 @@ def main_commands(cmd):
                 continue   # sudo -E, nice -n 19, timeout 30s
         cur.append(w)
     return [c for c in out if os.path.basename(c[0]) not in SKIP_CMDS]
+
+
+def is_test(cmd):
+    """a test run somewhere in the command. 'pip install pytest' or 'grep pytest' is not one"""
+    if not isinstance(cmd, str):
+        return False
+    for argv in main_commands(cmd):
+        argv = [os.path.basename(argv[0])] + argv[1:]
+        if argv[0] in RUNNERS and len(argv) > 1:
+            argv = argv[2:] if argv[1] in ("run", "exec") else argv[1:]
+        if argv and TEST_RE.match(" ".join(argv)):
+            return True
+    return False
 
 
 def look_of(argv):
@@ -219,7 +225,8 @@ def map_hook(d):
     ev = d.get("hook_event_name", "")
     tool = d.get("tool_name") or ""
     tin = d.get("tool_input") if isinstance(d.get("tool_input"), dict) else {}
-    cmd = tin.get("command", "") if tool == "Bash" else ""
+    cmd = tin.get("command") if tool == "Bash" else ""
+    cmd = cmd if isinstance(cmd, str) else ""
 
     if ev == "SessionStart":
         return ["ev start"]
